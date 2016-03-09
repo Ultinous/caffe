@@ -93,3 +93,12 @@ LOCK
 LOG*
 CURRENT
 MANIFEST-*
+
+lib
+*.pdb
+*.suo
+x64
+_env.bat
+*.opensdf
+*.sdf
+*cu.deps

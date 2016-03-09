@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>opencv_highgui249d.lib;opencv_imgproc249d.lib;opencv_core249d.lib;opencv_gpu249d.lib;libglog.lib;curand.lib;cublas.lib;cudart.lib;cudnn64_65.lib;gflagsd.lib;libopenblas.dll.a;libprotobufd.lib;libprotoc.lib;leveldbd.lib;lmdbd.lib;libhdf5_D.lib;libhdf5_hl_D.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup />
+</Project>

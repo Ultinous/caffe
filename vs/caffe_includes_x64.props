@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <IncludePath>$(GFLAGS_PATH)/include;$(GLOG_PATH)/include;$(GOOGLE_PATH)/include;$(HDF5_PATH)/include;$(LEVELDB_PATH)/include;$(LMDB_PATH)/include;$(CUDNN_PATH);$(OPENBLAS_PATH)/include;$(CUDA_PATH)/include;$(BOOST_PATH);$(OPENCV_PATH)\include;$(IncludePath)</IncludePath>
+    <_PropertySheetDisplayName>caffe_includes_x64</_PropertySheetDisplayName>
+  </PropertyGroup>
+  <ItemDefinitionGroup />
+  <ItemGroup />
+</Project>

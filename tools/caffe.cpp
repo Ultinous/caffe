@@ -13,7 +13,12 @@ namespace bp = boost::python;
 
 #include "boost/algorithm/string.hpp"
 #include "caffe/caffe.hpp"
+
+#ifndef _MSC_VER
 #include "caffe/util/signal_handler.h"
+#else
+#include <caffe/register_layers.h>
+#endif
 
 using caffe::Blob;
 using caffe::Caffe;
@@ -196,14 +201,17 @@ int train() {
     Caffe::set_solver_count(gpus.size());
   }
 
+#ifndef _MSC_VER
   caffe::SignalHandler signal_handler(
         GetRequestedAction(FLAGS_sigint_effect),
         GetRequestedAction(FLAGS_sighup_effect));
-
+#endif
   shared_ptr<caffe::Solver<float> >
       solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
+#ifndef _MSC_VER
   solver->SetActionFunction(signal_handler.GetActionFunction());
+#endif
 
   if (FLAGS_snapshot.size()) {
     LOG(INFO) << "Resuming from " << FLAGS_snapshot;
@@ -388,6 +396,9 @@ int time() {
 RegisterBrewFunction(time);
 
 int main(int argc, char** argv) {
+#ifdef _MSC_VER
+  caffe::RegisterHelper::register_layers();
+#endif
   // Print output to stderr (while still logging).
   FLAGS_alsologtostderr = 1;
   // Set version
