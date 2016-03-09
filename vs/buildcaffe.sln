@@ -1,0 +1,31 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "caffe", "caffe\caffe.vcxproj", "{D9D40187-8D2D-49E2-8081-8515D4AF1ECC}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "runcaffe", "runcaffe\runcaffe.vcxproj", "{B621BDAC-EC20-452E-BC79-71128EA7FB4A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{D9D40187-8D2D-49E2-8081-8515D4AF1ECC} = {D9D40187-8D2D-49E2-8081-8515D4AF1ECC}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D9D40187-8D2D-49E2-8081-8515D4AF1ECC}.Debug|x64.ActiveCfg = Debug|x64
+		{D9D40187-8D2D-49E2-8081-8515D4AF1ECC}.Debug|x64.Build.0 = Debug|x64
+		{D9D40187-8D2D-49E2-8081-8515D4AF1ECC}.Release|x64.ActiveCfg = Release|x64
+		{D9D40187-8D2D-49E2-8081-8515D4AF1ECC}.Release|x64.Build.0 = Release|x64
+		{B621BDAC-EC20-452E-BC79-71128EA7FB4A}.Debug|x64.ActiveCfg = Debug|x64
+		{B621BDAC-EC20-452E-BC79-71128EA7FB4A}.Debug|x64.Build.0 = Debug|x64
+		{B621BDAC-EC20-452E-BC79-71128EA7FB4A}.Release|x64.ActiveCfg = Release|x64
+		{B621BDAC-EC20-452E-BC79-71128EA7FB4A}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

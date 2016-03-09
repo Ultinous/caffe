@@ -1,0 +1,62 @@
+@echo off
+
+if not defined UN_ROOT (
+	echo %~fn0:
+	echo UN_ROOT must be set. Edit this script, or set it up globally. 1>&2
+	pause
+	exit /B 1
+)
+
+REM Directories of chosen CUDA
+
+if not defined CUDA_PATH (
+	echo %~fn0: 1>&2
+	echo CUDA_PATH is not defined, install CUDA! 1>&2
+	echo It may occur that you have installed cude after you started your file manager. If so, restart your file manager. 1>&2
+	pause
+	exit /B 1
+)
+
+if not defined CUDA_PATH_V6_5 (
+	echo %~fn0:
+	echo CUDA_PATH_V6_5 is not defined. This is the version we need currently. 1>&2
+	pause
+	exit /B 1
+)
+set CUDNN_PATH=%UN_ROOT%\origlib\cudnn-6.5-win-v2
+
+REM Directories of chosen OpenCV
+
+set OPENCV_PATH=%UN_ROOT%\origlib\opencv-2.4.9\build
+REM ...\include
+REM ...\x64\vc12
+
+REM Precompiled Caffe 3rdparty
+
+set CAFFE_3RDPARTY_DIR=%UN_ROOT%\origlib\caffe_3rdparty_0
+
+set PATH=%CAFFE_3RDPARTY_DIR%\bin;%PATH%
+
+set GFLAGS_PATH=%CAFFE_3RDPARTY_DIR%\libs\gflags
+set GLOG_PATH=%CAFFE_3RDPARTY_DIR%\libs\glog
+set GOOGLE_PATH=%CAFFE_3RDPARTY_DIR%\libs\google
+set HDF5_PATH=%CAFFE_3RDPARTY_DIR%\libs\hdf5
+set LEVELDB_PATH=%CAFFE_3RDPARTY_DIR%\libs\leveldb
+set LMDB_PATH=%CAFFE_3RDPARTY_DIR%\libs\lmdb
+set OPENBLAS_PATH=%CAFFE_3RDPARTY_DIR%\libs\openblas
+
+set BOOST_PATH_CANDIDATE=%UN_ROOT%\origlib\boost_1_56_0
+if defined BOOST_PATH (
+	if "%BOOST_PATH%" NEQ "%BOOST_PATH_CANDIDATE%" (
+		echo %~fn0: 1>&2
+		echo Different boost versions 1>&2
+		echo Caffe compilet using %BOOST_PATH_CANDIDATE% 1>&2
+		echo Current environment uses %BOOST_PATH% 1>&2
+		echo Binary incompatibility may occur. 1>&2
+		pause
+		exit /b 1
+	)
+) else (
+	set BOOST_PATH=%BOOST_PATH_CANDIDATE%
+)
+set BOOST_PATH_CANDIDATE=
