@@ -6,7 +6,10 @@
 
 #include "caffe/common.hpp"
 #include "caffe/util/rng.hpp"
+
+#ifdef _MSC_VER
 #include <process.h>
+#endif //_MSC_VER
 
 namespace caffe {
 

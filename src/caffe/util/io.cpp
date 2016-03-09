@@ -1,6 +1,6 @@
 #ifdef _MSC_VER
 #include <io.h>
-#endif _MSC_VER
+#endif //_MSC_VER
 
 #include <fcntl.h>
 #include <google/protobuf/io/coded_stream.h>
