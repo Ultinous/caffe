@@ -59,7 +59,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_WINDOWS;_USRDLL;CAFFE_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_OPENCV;_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_WINDOWS;_USRDLL;CAFFE_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(CUDNN_PATH);$(CAFFE_PATH)/include;$(BOOST_PATH);$(OPENCV_PATH)/build/include;$(GFLAGS_PATH)/include;$(GLOG_PATH)/include;$(GOOGLE_PATH)/include;$(HDF5_PATH)/include;$(LEVELDB_PATH)/include;$(LMDB_PATH)/include;$(OPENBLAS_PATH)/include;$(CUDA_PATH)/include;$(ProjectDir)/../../src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessToFile>false</PreprocessToFile>
     </ClCompile>
@@ -78,7 +78,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>USE_CUDNN;_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_WINDOWS;_USRDLL;CAFFE_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_OPENCV;USE_CUDNN;_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_WINDOWS;_USRDLL;CAFFE_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(CUDNN_PATH);$(CAFFE_PATH)/include;$(BOOST_PATH);$(OPENCV_PATH)/build/include;$(GFLAGS_PATH)/include;$(GLOG_PATH)/include;$(GOOGLE_PATH)/include;$(HDF5_PATH)/include;$(LEVELDB_PATH)/include;$(LMDB_PATH)/include;$(OPENBLAS_PATH)/include;$(CUDA_PATH)/include;$(ProjectDir)/../../src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -427,6 +427,8 @@
     <ClInclude Include="..\..\include\caffe\syncedmem.hpp" />
     <ClInclude Include="..\..\include\caffe\test\test_caffe_main.hpp" />
     <ClInclude Include="..\..\include\caffe\test\test_gradient_check_util.hpp" />
+    <ClInclude Include="..\..\include\caffe\ultinous\FeatureMap.hpp" />
+    <ClInclude Include="..\..\include\caffe\ultinous\PictureClassificationModel.h" />
     <ClInclude Include="..\..\include\caffe\util\benchmark.hpp" />
     <ClInclude Include="..\..\include\caffe\util\cudnn.hpp" />
     <ClInclude Include="..\..\include\caffe\util\db.hpp" />
