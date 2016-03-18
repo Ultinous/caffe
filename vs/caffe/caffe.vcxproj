@@ -428,6 +428,7 @@
     <ClInclude Include="..\..\include\caffe\test\test_caffe_main.hpp" />
     <ClInclude Include="..\..\include\caffe\test\test_gradient_check_util.hpp" />
     <ClInclude Include="..\..\include\caffe\ultinous\FeatureMap.hpp" />
+    <ClInclude Include="..\..\include\caffe\ultinous\HardTripletGenerator.hpp" />
     <ClInclude Include="..\..\include\caffe\ultinous\PictureClassificationModel.h" />
     <ClInclude Include="..\..\include\caffe\util\benchmark.hpp" />
     <ClInclude Include="..\..\include\caffe\util\cudnn.hpp" />
