@@ -16,7 +16,7 @@ class FeatureMap
 public:
   typedef size_t Index;
   typedef std::vector<Dtype> FeatureVec;
-  typedef std::map<Index, FeatureMap> FeatureVecMap;
+  typedef std::map<Index, FeatureVec> FeatureVecMap;
 public:
   virtual void update(Index index, const FeatureVec& featureVec)
   {
@@ -24,7 +24,7 @@ public:
   }
   virtual bool getFeatureVec(Index index, FeatureVec& featureVec)
   {
-    FeatureMap::const_iterator it = m_features.find(index);
+    typename FeatureVecMap::const_iterator it = m_features.find(index);
     if(it == m_features.end())
       return false;
     featureVec = it->second;
@@ -40,9 +40,9 @@ class FeatureMapContainer
 public:
   typedef std::string Key;
 public:
-  static FeatureMap& instance(const Key& key)
+  static FeatureMap<Dtype>& instance(const Key& key)
   {
-    typedef std::map<Key, FeatureMap> Registry;
+    typedef std::map<Key, FeatureMap<Dtype> > Registry;
     static Registry registry;
     return registry[key];
   }
