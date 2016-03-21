@@ -71,9 +71,11 @@ void TripletLossLayer<Dtype>::Forward_gpu(
 
   Dtype margin = this->layer_param_.triplet_loss_param().margin();
   Dtype loss(0.0);
-  const Dtype* sampleW = bottom[3]->cpu_data();
+  //const Dtype* sampleW = bottom[3]->cpu_data();
+  const Dtype sampleW = Dtype(1.0);
   for (int i = 0; i < bottom[0]->num(); ++i) {
-	 loss += sampleW[i]*std::max(margin +dist_sq_ap_.cpu_data()[i]- dist_sq_an_.cpu_data()[i], Dtype(0.0));
+//	 loss += sampleW[i]*std::max(margin +dist_sq_ap_.cpu_data()[i]- dist_sq_an_.cpu_data()[i], Dtype(0.0));
+         loss += sampleW*std::max(margin +dist_sq_ap_.cpu_data()[i]- dist_sq_an_.cpu_data()[i], Dtype(0.0));
   }
   loss = loss / static_cast<Dtype>(bottom[0]->num()) / Dtype(2);
   top[0]->mutable_cpu_data()[0] = loss;
@@ -81,7 +83,7 @@ void TripletLossLayer<Dtype>::Forward_gpu(
 
 template <typename Dtype>
 __global__ void CLLBackward(const int count, const int channels,
-	const Dtype margin, const Dtype alpha, const Dtype* sampleW,
+	const Dtype margin, const Dtype alpha, // const Dtype* sampleW,
 	const Dtype* diff, const Dtype* dist_sq_ap_, const Dtype* dist_sq_an_,
 	Dtype *bottom_diff) {
   CUDA_KERNEL_LOOP(i, count) {
@@ -89,7 +91,8 @@ __global__ void CLLBackward(const int count, const int channels,
 	Dtype mdist(0.0);
 	mdist = margin +dist_sq_ap_[n] - dist_sq_an_[n];
 	if (mdist > 0.0) {
-		bottom_diff[i] = alpha*sampleW[n]*diff[i];
+//                bottom_diff[i] = alpha*sampleW[n]*diff[i];
+                bottom_diff[i] = alpha*diff[i];
 	} else {
 		bottom_diff[i] = 0;
 	}
@@ -112,7 +115,7 @@ void TripletLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
 		  // NOLINT_NEXT_LINE(whitespace/operators)
 		  CLLBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
 			  count, channels, margin, alpha,
-			  bottom[3]->gpu_data(),
+			  //bottom[3]->gpu_data(),
 			  diff_pn_.gpu_data(),  // the cached eltwise difference between p and n
 			  dist_sq_ap_.gpu_data(),  // the cached square distance between a and p
 			  dist_sq_an_.gpu_data(),  // the cached square distance between a and n
@@ -122,7 +125,7 @@ void TripletLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
 		  // NOLINT_NEXT_LINE(whitespace/operators)
 		  CLLBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
 			  count, channels, margin, alpha,
-			  bottom[3]->gpu_data(),
+			  //bottom[3]->gpu_data(),
 			  diff_ap_.gpu_data(),  // the cached eltwise difference between a and p
 			  dist_sq_ap_.gpu_data(),  // the cached square distance between a and p
 			  dist_sq_an_.gpu_data(),  // the cached square distance between a and n
@@ -132,7 +135,7 @@ void TripletLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
 		  // NOLINT_NEXT_LINE(whitespace/operators)
 		  CLLBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
 			  count, channels, margin, alpha,
-			  bottom[3]->gpu_data(),
+			  //bottom[3]->gpu_data(),
 			  diff_an_.gpu_data(),  // the cached eltwise difference between a and n
 			  dist_sq_ap_.gpu_data(),  // the cached square distance between a and p
 			  dist_sq_an_.gpu_data(),  // the cached square distance between a and n

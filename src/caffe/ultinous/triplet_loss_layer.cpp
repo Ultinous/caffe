@@ -31,9 +31,9 @@ void TripletLossLayer<Dtype>::LayerSetUp(
   CHECK_EQ(bottom[2]->height(), 1);
   CHECK_EQ(bottom[2]->width(), 1);
 
-  CHECK_EQ(bottom[3]->channels(),1);
+  /*CHECK_EQ(bottom[3]->channels(),1);
   CHECK_EQ(bottom[3]->height(), 1);
-  CHECK_EQ(bottom[3]->width(), 1);
+  CHECK_EQ(bottom[3]->width(), 1);*/
 
   diff_ap_.Reshape(bottom[0]->num(), bottom[0]->channels(), 1, 1);
   diff_an_.Reshape(bottom[0]->num(), bottom[0]->channels(), 1, 1);
@@ -57,7 +57,8 @@ void TripletLossLayer<Dtype>::Forward_cpu(
 	const vector<Blob<Dtype>*>& bottom,
 	const vector<Blob<Dtype>*>& top) {
   int count = bottom[0]->count();
-  const Dtype* sampleW = bottom[3]->cpu_data();
+//  const Dtype* sampleW = bottom[3]->cpu_data();
+  const Dtype sampleW = Dtype(1.0);
   caffe_sub(
 	  count,
 	  bottom[0]->cpu_data(),  // a
@@ -82,7 +83,8 @@ void TripletLossLayer<Dtype>::Forward_cpu(
 		diff_ap_.cpu_data() + (i*channels), diff_ap_.cpu_data() + (i*channels));
 	dist_sq_an_.mutable_cpu_data()[i] = caffe_cpu_dot(channels,
 		diff_an_.cpu_data() + (i*channels), diff_an_.cpu_data() + (i*channels));
-	Dtype mdist = sampleW[i]*std::max(margin + dist_sq_ap_.cpu_data()[i] - dist_sq_an_.cpu_data()[i], Dtype(0.0));
+        //Dtype mdist = sampleW[i]*std::max(margin + dist_sq_ap_.cpu_data()[i] - dist_sq_an_.cpu_data()[i], Dtype(0.0));
+        Dtype mdist = sampleW*std::max(margin + dist_sq_ap_.cpu_data()[i] - dist_sq_an_.cpu_data()[i], Dtype(0.0));
 	loss += mdist;
 	if(mdist==Dtype(0)){
 		//dist_binary_.mutable_cpu_data()[i] = Dtype(0);
@@ -100,7 +102,8 @@ template <typename Dtype>
 void TripletLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 	const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
   //Dtype margin = this->layer_param_.contrastive_loss_param().margin();
-  const Dtype* sampleW = bottom[3]->cpu_data();
+//  const Dtype* sampleW = bottom[3]->cpu_data();
+  const Dtype sampleW = Dtype(1.0);
   for (int i = 0; i < 3; ++i) {
 	if (propagate_down[i]) {
 	  const Dtype sign = (i < 2) ? -1 : 1;
@@ -114,7 +117,8 @@ void TripletLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 		  //if(dist_binary_.cpu_data()[j]>Dtype(0)){
 			  caffe_cpu_axpby(
 				  channels,
-				  alpha*sampleW[j],
+//                                  alpha*sampleW[j],
+                                  alpha*sampleW,
 				  diff_pn_.cpu_data() + (j*channels),
 				  Dtype(0.0),
 				  bout + (j*channels));
@@ -125,7 +129,8 @@ void TripletLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 		  //if(dist_binary_.cpu_data()[j]>Dtype(0)){
 			  caffe_cpu_axpby(
 				  channels,
-				  alpha*sampleW[j],
+//				  alpha*sampleW[j],
+                                  alpha*sampleW,
 				  diff_ap_.cpu_data() + (j*channels),
 				  Dtype(0.0),
 				  bout + (j*channels));
@@ -136,7 +141,8 @@ void TripletLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 		  //if(dist_binary_.cpu_data()[j]>Dtype(0)){
 			  caffe_cpu_axpby(
 				  channels,
-				  alpha*sampleW[j],
+//				  alpha*sampleW[j],
+                                  alpha*sampleW,
 				  diff_an_.cpu_data() + (j*channels),
 				  Dtype(0.0),
 				  bout + (j*channels));
