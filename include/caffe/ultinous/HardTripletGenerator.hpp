@@ -4,18 +4,21 @@
 #include <caffe/ultinous/PictureClassificationModel.h>
 #include <caffe/ultinous/FeatureMap.hpp>
 
-template <Dtype>
+namespace caffe {
+namespace ultinous {
+
+template <typename Dtype>
 class HardTripletGenerator
 {
 public:
   typedef std::vector<size_t> Triplet;
 
 public:
-  HardTripletGenerator(size_t classes, size_t pictures, Dtype margin, const PicturesOfClasses& pictures, const std::string& featureMapName)
+  HardTripletGenerator(size_t classes, size_t pictures, Dtype margin, const PictureClassificationModel::PicturesOfClasses& pictureOfClasses, const std::string& featureMapName)
     : m_classes(classes)
     , m_pictures(pictures)
     , m_margin(margin)
-    , m_sampler(pictures)
+    , m_sampler(pictureOfClasses)
     , m_sample(classes, pictures)
     , m_indexInSample(0)
     , m_featureMap(FeatureMapContainer<Dtype>::instance())
@@ -140,5 +143,9 @@ private:
   PictureSampler m_sampler;
   Sample m_sample;
   size_t m_indexInSample;
-  const FeatureMap& m_featureMap;
+  const FeatureMap<Dtype>& m_featureMap;
 };
+
+
+} // namespace ultinous
+} // namespace caffe
