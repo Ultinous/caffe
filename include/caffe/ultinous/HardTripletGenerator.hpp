@@ -50,10 +50,12 @@ public:
     t.push_back(m_sample.m_pictures[classIndex][posIndex]); // hard positive
     Dtype maxdp_w_margin = maxdp+m_margin;
     Dtype minnd = std::numeric_limits<Dtype>::max();
-    size_t negIndex = 0;
+    size_t negIndex = std::numeric_limits<size_t>::max();
     bool already_found_hard_neg = false;
     for(size_t n = 0; n<pbegin; ++n)
     {
+      if(negIndex == std::numeric_limits<size_t>::max())
+        negindex = n;
       if(dvec[n] >= maxdp_w_margin)
         continue; // is is not a hard negative
       if(dvec[n] < maxdp)
@@ -83,6 +85,8 @@ public:
     size_t iend = m_classes*m_pictures;
     for(size_t n = pend; n<iend; ++n)
     {
+      if(negIndex == std::numeric_limits<size_t>::max())
+        negindex = n;
       if(dvec[n] >= maxdp_w_margin)
         continue; // is is not a hard negative
       if(dvec[n] < maxdp)
