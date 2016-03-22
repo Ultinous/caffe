@@ -12,70 +12,69 @@ namespace caffe
 namespace ultinous
 {
 
-class PictureClassificationModel
+class ImageClassificationModel
 {
 public:
-  typedef std::string PictureName;
+  typedef std::string ImageName; // e.g. filename
   typedef int ClassId;
-  typedef size_t PictureIndex;
-  typedef size_t ClassIndex;
+  typedef size_t ImageIndex;
+  typedef std::vector<ImageIndex> ImageIndexes;
 public:
-  typedef std::vector<PictureName> PictureNames;
-  typedef std::vector<PictureIndex> PictureIndexes;
-  typedef std::vector<ClassId> ClassIds;
-  typedef std::vector<PictureIndexes> PicturesOfClasses;
-  typedef std::map<ClassId, ClassIndex> ClassIndexing;
+  class ClassModel
+  {
+  public:
+    static const ClassId INVALID_CLASSID = ClassId(-1);
+  public:
+    ClassModel(ClassId _classId = INVALID_CLASSID)
+      : classId(_classId)
+    {}
+  public:
+    ClassId classId;
+    ImageIndexes images;
+  };
 public:
-  const PicturesOfClasses& getModel()
-  {
-    return m_picturesOfClasses;
-  }
-  ClassId getClass(ClassIndex index) const
-  {
-    return m_classIds[index];
-  }
-  const PictureName& getPicture(PictureIndex index) const
-  {
-    return m_pictureNames[index];
-  }
+  typedef std::vector<ImageName> ImageNames;
+  typedef std::vector<ClassModel> BasicModel;
 public:
-  void add(const PictureName& pictureName, ClassId classId)
+  const BasicModel& getBasicModel() const { return m_basicModel; }
+  const ImageName& getImageName(ImageIndex index) const { return m_imageNames.at(index); }
+public:
+  void add(const ImageName& imageName, ClassId classId)
   {
-    PictureIndex pictureIndex = m_pictureNames.size();
-    m_pictureNames.push_back(pictureName);
-    m_classIds.push_back(classId);
-    ClassIndexing::const_iterator it = m_classIndexing.find(classId);
-    if(it == m_classIndexing.end())
-    {
-      ClassIndex classIndex = m_picturesOfClasses.size();
-      m_picturesOfClasses.push_back(PictureIndexes());
-      it = m_classIndexing.insert(ClassIndexing::value_type(classId, classIndex)).first;
-    }
-    m_picturesOfClasses[it->second].push_back(pictureIndex);
+    ImageIndex imageIndex = m_imageNames.size();
+    m_imageNames.push_back(imageName);
+    m_basicModel[ensureClass(classId)].images.push_back(imageIndex);
   }
 private:
-  PictureNames m_pictureNames;
+  typedef size_t ClassIndex;
+  typedef std::map<ClassId, ClassIndex> ClassIds;
+private:
+  ClassIndex ensureClass(ClassId classId)
+  {
+    ClassIds::const_iterator it = m_classIds.find(classId);
+    if(it == m_classIds.end())
+    {
+      it = m_classIds.insert(ClassIds::value_type(classId, m_basicModel.size())).first;
+      m_basicModel.push_back(ClassModel(classId));
+    }
+    return it->second;
+  }
+private:
+  ImageNames m_imageNames;
+  BasicModel m_basicModel;
   ClassIds m_classIds;
-  ClassIndexing m_classIndexing;
-  PicturesOfClasses m_picturesOfClasses;
 };
 
-class PictureClassificationModelShuffle
+class ImageClassificationModelShuffle
 {
 public:
-  typedef PictureClassificationModel::PicturesOfClasses PicturesOfClasses;
-  typedef std::vector<PictureClassificationModel::ClassIndex> ClassShuffle;
+  typedef ImageClassificationModel::BasicModel BasicModel;
 public:
-  PictureClassificationModelShuffle(const PicturesOfClasses& pictures)
-    : m_picturesOfClasses(pictures)
-    , m_classShuffle(pictures.size(), 0)
-  {
-    for(size_t i = 0; i<m_classShuffle.size(); ++i)
-      m_classShuffle[i] = i;
-  }
+  ImageClassificationModelShuffle(const BasicModel& basicModel)
+    : m_shuffledModel(basicModel)
+  {}
 public:
-  const ClassShuffle& classShuffle() const { return m_classShuffle; }
-  const PicturesOfClasses& picturesShuffles() const { return m_picturesOfClasses; }
+  const BasicModel& shuffledModel() const { return m_shuffledModel; }
 public:
   void shuffleModel()
   {
@@ -84,98 +83,106 @@ public:
   }
   void shuffleClasses()
   {
-    shuffle(m_classShuffle.begin(), m_classShuffle.end());
+    shuffle(m_shuffledModel.begin(), m_shuffledModel.end());
   }
   void shufflePictures()
   {
-    for(size_t i = 0; i<m_picturesOfClasses.size(); ++i)
+    for(size_t i = 0; i<m_shuffledModel.size(); ++i)
     {
-      shuffle(m_picturesOfClasses[i].begin(), m_picturesOfClasses[i].end());
+      shuffle(m_shuffledModel[i].images.begin(), m_shuffledModel[i].images.end());
     }
   }
 private:
-  PicturesOfClasses m_picturesOfClasses;
-  ClassShuffle m_classShuffle;
+  BasicModel m_shuffledModel;
 };
 
-class PictureSampler
+class ImageSampler
 {
 public:
-  typedef PictureClassificationModel::PictureIndexes PictureIndexes;
-  typedef PictureClassificationModel::PicturesOfClasses PicturesOfClasses;
-  typedef std::vector<PictureClassificationModel::ClassIndex> ClassIndexes;
+  typedef ImageClassificationModel::ImageIndexes ImageIndexes;
+  typedef ImageClassificationModel::BasicModel BasicModel;
+  typedef ImageClassificationModel::ClassModel ClassModel;
+  typedef BasicModel Sample;
+private:
+  typedef size_t ClassIndex;
+  typedef std::vector<ClassIndex> ClassIndexes;
 public:
-  PictureSampler(const PicturesOfClasses& pictures)
-    : m_model(pictures)
-    , m_nextIndexes(pictures.size(), 0)
+  ImageSampler(const BasicModel& basicModel)
+    : m_model(basicModel)
+    , m_nextIndexes(basicModel.size(), 0)
     , m_nextClass(0)
   {
     reset();
   }
 public:
-  class Sample
+  static void initSample(size_t numOfSampleClasses, size_t numOfSampleImagesPerClass, Sample& sample)
   {
-  public:
-    Sample(size_t classes, size_t pictures)
-      : m_pictures(classes, PicturesOfClasses::value_type(pictures, 0))
-      , m_classes(classes)
-    {}
-  public:
-    PicturesOfClasses m_pictures;
-    ClassIndexes m_classes;
-  };
+    typedef ImageClassificationModel::ClassModel ClassModel;
+    ClassModel classModel;
+    classModel.images.resize(numOfSampleImagesPerClass);
+    sample = Sample(numOfSampleClasses, classModel);
+  }
 public:
   void sample(Sample& s)
   {
-    size_t found = sampleClasses(s.m_classes, 0);
+    ClassIndexes classIndexes(m_model.shuffledModel().size());
+    size_t found = sampleClasses(classIndexes, 0);
     for(size_t i = 0; i<found; ++i)
     {
-      sampleIndexes(s.m_classes[i], s.m_pictures[i]);
+      sampleFromClass(classIndexes[i], s[i]);
     }
-    if(found < s.m_classes.size())
+    if(found < s.size())
     {
       reset();
     }
-    sampleClasses(s.m_classes, found); // assert == s.m_classes.size()
-    for(size_t i = found; i<s.m_classes.size(); ++i)
+    sampleClasses(classIndexes, found); // assert == s.size()
+    for(size_t i = found; i<s.size(); ++i)
     {
-      sampleIndexes(s.m_classes[i], s.m_pictures[i]);
+      sampleFromClass(classIndexes[i], s[i]);
     }
   }
 public:
-  void sampleIndexes(size_t classIndex, PictureIndexes& pictures)
+  void sampleFromClass(ClassIndex classIndex, ClassModel& targetClassModel)
   {
-    size_t pictureIndex = m_nextIndexes[classIndex];
-    m_nextIndexes[classIndex] += pictures.size();
-    const PictureIndexes& basePictures = m_model.picturesShuffles[classIndex];
-    size_t k = 0;
-    for(; k<pictures.size() && pictureIndex < basePictures.size(); ++pictureIndex, ++k)
+    const ClassModel& sourceClassModel = m_model.shuffledModel()[classIndex];
+    const ImageIndexes& sourceImages = sourceClassModel.images;
+    ImageIndexes& targetImages = targetClassModel.images;
+
+    targetClassModel.classId = sourceClassModel.classId;
+
+    size_t sourceIdx = m_nextIndexes[classIndex];
+    size_t targetIdx = 0;
+    for(; targetIdx<targetImages.size() && sourceIdx < sourceImages.size(); ++targetIdx, ++sourceIdx)
     {
-      pictures[k] = basePictures[pictureIndex];
+      targetImages[targetIdx] = sourceImages[sourceIdx];
     }
-    while(k < pictures.size())
+    while(targetIdx < targetImages.size())
     {
-      for(pictureIndex = 0; k<pictures.size() && pictureIndex < basePictures.size(); ++pictureIndex, ++k)
+      for(sourceIdx = 0; targetIdx<targetImages.size() && sourceIdx < sourceImages.size(); ++targetIdx, ++sourceIdx)
       {
-        pictures[k] = basePictures[pictureIndex];
+        targetImages[targetIdx] = sourceImages[sourceIdx];
       }
     }
+
+    m_nextIndexes[classIndex] += targetImages.size();
   }
 public:
   size_t sampleClasses(ClassIndexes& classes, size_t used)
   {
-    typedef std::set<size_t> UsedClasses;
+    typedef std::set<ClassIndex> UsedClasses;
     UsedClasses usedClasses;
+
     for(size_t i = 0; i<used; ++i)
     {
       usedClasses.insert(classes[i]);
     }
+
     size_t lastClass = m_nextClass;
     for(; m_nextClass<m_nextIndexes.size(); ++m_nextClass)
     {
       if(usedClasses.find(m_nextClass) != usedClasses.end())
         continue;
-      if(m_nextIndexes[m_nextClass]<m_model.picturesShuffles()[m_nextClass].size())
+      if(m_nextIndexes[m_nextClass]<m_model.shuffledModel()[m_nextClass].images.size())
       {
         classes[used] = m_nextClass;
         usedClasses.insert(m_nextClass);
@@ -188,7 +195,7 @@ public:
     {
       if(usedClasses.find(m_nextClass) != usedClasses.end())
         continue;
-      if(m_nextIndexes[m_nextClass]<m_model.picturesShuffles()[m_nextClass].size())
+      if(m_nextIndexes[m_nextClass]<m_model.shuffledModel()[m_nextClass].images.size())
       {
         classes[used] = m_nextClass;
         usedClasses.insert(m_nextClass);
@@ -203,22 +210,20 @@ public:
   void reset()
   {
     m_model.shuffleModel();
-    m_nextIndexes = PictureIndexes(m_model.classShuffle().size(), 0);
+    m_nextIndexes = ImageIndexes(m_model.shuffledModel().size(), 0);
     m_nextClass = 0;
   }
 private:
-  typedef PictureClassificationModel::PictureIndexes PictureIndexes;
-private:
-  PictureClassificationModelShuffle m_model;
-  PictureIndexes m_nextIndexes;
+  ImageClassificationModelShuffle m_model;
+  ImageIndexes m_nextIndexes;
   size_t m_nextClass;
 };
 
 inline
-void read(std::istream& is, PictureClassificationModel& model)
+void read(std::istream& is, ImageClassificationModel& model)
 {
-  PictureClassificationModel::PictureName pictureName;
-  PictureClassificationModel::ClassId classId;
+  ImageClassificationModel::ImageName pictureName;
+  ImageClassificationModel::ClassId classId;
   while(is >> pictureName >> classId)
   {
     model.add(pictureName, classId);
@@ -226,7 +231,7 @@ void read(std::istream& is, PictureClassificationModel& model)
 }
 
 inline
-void read(const std::string& fname, PictureClassificationModel& model)
+void read(const std::string& fname, ImageClassificationModel& model)
 {
   std::ifstream is(fname.c_str());
   read(is, model);
