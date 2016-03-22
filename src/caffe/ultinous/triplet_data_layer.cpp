@@ -85,11 +85,11 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   uint32_t sampledPictures = this->layer_param_.triplet_data_param().sampledpictures();
   Dtype margin = this->layer_param_.triplet_data_param().margin();
 
-  read( sourceFile, pictureClassificationModel );
+  read(sourceFile, imageClassificationModel);
 
   hardTripletGenerator = HardTripletGeneratorPtr( new HardTripletGenerator<Dtype>( sampledClasses
       , sampledPictures, margin
-      , pictureClassificationModel.getModel()
+      , imageClassificationModel.getBasicModel()
       , featureMapId ) );
 }
 

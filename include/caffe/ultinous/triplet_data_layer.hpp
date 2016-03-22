@@ -37,7 +37,7 @@ class TripletDataLayer : public BasePrefetchingDataLayer<Dtype> {
   vector<std::pair<std::string, int> > lines_;
 
 private:
-  PictureClassificationModel pictureClassificationModel;
+  ImageClassificationModel imageClassificationModel;
   typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
   HardTripletGeneratorPtr hardTripletGenerator;
 };

@@ -12,113 +12,134 @@ class HardTripletGenerator
 {
 public:
   typedef std::vector<size_t> Triplet;
+  typedef ImageClassificationModel::BasicModel BasicModel;
 
 public:
-  HardTripletGenerator(size_t classes, size_t pictures, Dtype margin, const PictureClassificationModel::PicturesOfClasses& pictureOfClasses, const std::string& featureMapName)
-    : m_classes(classes)
-    , m_pictures(pictures)
+  HardTripletGenerator(size_t classes, size_t pictures, Dtype margin, const BasicModel& pictureOfClasses, const std::string& featureMapName)
+    : m_classesInSample(classes)
+    , m_imagesInSampleClass(pictures)
     , m_margin(margin)
     , m_sampler(pictureOfClasses)
     , m_sample(classes, pictures)
     , m_indexInSample(0)
-    , m_featureMap(FeatureMapContainer<Dtype>::instance())
+    , m_featureMap(FeatureMapContainer<Dtype>::instance(featureMapName))
   {
     resample();
   }
+private:
+  typedef size_t ImageIndex;
+  typedef size_t ClassIndex;
+  typedef size_t SampleIndex;
+  typedef ImageClassificationModel::ImageIndexes ImageIndexes;
 public:
   Triplet nextTriplet()
   {
-    if(m_indexInSample / m_pictures >= m_classes)
+    if(classIndex(m_indexInSample) >= m_classesInSample)
       resample();
-    size_t classIndex = m_indexInSample / m_pictures;
-    size_t pictureIndex = m_indexInSample % m_pictures;
 
     Triplet t;
-    t.push_back(m_sample.m_pictures[classIndex][pictureIndex]); // anchor
-    size_t pbegin = classIndex*m_pictures;
-    size_t pend = pbegin + m_pictures;
+
+    t.push_back(image(m_indexInSample)); // anchor
+
+    SampleIndex posSampleBegin = classIndex(m_indexInSample)*m_imagesInSampleClass;
+    SampleIndex posSampleEnd = posSampleBegin + m_imagesInSampleClass;
     const Vec& dvec = m_distances[m_indexInSample];
-    Dtype maxpd = 0;
-    size_t posIndex = 0;
-    for(size_t p = pbegin; p<pend; ++p)
+    
+    Dtype maxPosDistance = 0;
+    SampleIndex maxPosIndex = 0;
+    for(size_t posSample = posSampleBegin; posSample<posSampleEnd; ++posSample)
     {
-      if(p==m_indexInSample)
+      if(posSample==m_indexInSample)
         continue;
-      if(dvec[p] > maxpd)
+      if(dvec[posSample] > maxPosDistance)
       {
-        maxpd = dvec[p];
-        posIndex = p % m_pictures;
+        maxPosDistance = dvec[posSample];
+        maxPosIndex = posSample;
       }
     }
-    t.push_back(m_sample.m_pictures[classIndex][posIndex]); // hard positive
-    Dtype maxdp_w_margin = maxdp+m_margin;
-    Dtype minnd = std::numeric_limits<Dtype>::max();
-    size_t negIndex = std::numeric_limits<size_t>::max();
+
+    t.push_back(image(maxPosIndex)); // hard positive
+
+
+    Dtype maxPosDistanceWithMargin = maxPosDistance+m_margin;
+
+    Dtype closeNegDistance = std::numeric_limits<Dtype>::max();
+    size_t closeNegIndex = std::numeric_limits<size_t>::max();
+    
     bool already_found_hard_neg = false;
-    for(size_t n = 0; n<pbegin; ++n)
+
+    for(size_t negSample = 0; negSample<posSampleBegin; ++negSample)
     {
-      if(negIndex == std::numeric_limits<size_t>::max())
-        negindex = n;
-      if(dvec[n] >= maxdp_w_margin)
+      if(closeNegIndex == std::numeric_limits<size_t>::max())
+        closeNegIndex = negSample; // the first negative selected as "random"
+      if(dvec[negSample] >= maxPosDistanceWithMargin)
         continue; // is is not a hard negative
-      if(dvec[n] < maxdp)
+      if(dvec[negSample] < maxPosDistance)
       {
         // it is too hard, but could be the best
         if(already_found_hard_neg)
           continue;
         // use the less hard (bigger) from the two too hards
-        if(mindp < maxdp && dvec[n] > mindp)
+        if(closeNegDistance < maxPosDistance && dvec[negSample] > closeNegDistance)
         {
-          mindp = dvec[n];
-          negIndex = n;
+          closeNegDistance = dvec[negSample];
+          closeNegIndex = negSample;
         }
       }
       else
       {
         // it is a hard, but not too hard
         // use the hardest
-        if(dvec[n]>mindp)
+        if(dvec[negSample]<closeNegDistance)
         {
-          mindp = dvec[n];
-          negindex = n;
+          closeNegDistance = dvec[negSample];
+          closeNegIndex = negSample;
           already_found_hard_neg = true;
         }
       }
     }
-    size_t iend = m_classes*m_pictures;
-    for(size_t n = pend; n<iend; ++n)
+    size_t endSample = m_classesInSample*m_imagesInSampleClass;
+    for(size_t negSample = posSampleEnd; negSample<endSample; ++negSample)
     {
-      if(negIndex == std::numeric_limits<size_t>::max())
-        negindex = n;
-      if(dvec[n] >= maxdp_w_margin)
+      if(closeNegIndex == std::numeric_limits<size_t>::max())
+        closeNegIndex = negSample; // the first negative selected as "random"
+      if(dvec[negSample] >= maxPosDistanceWithMargin)
         continue; // is is not a hard negative
-      if(dvec[n] < maxdp)
+      if(dvec[negSample] < maxPosDistance)
       {
         // it is too hard, but could be the best
         if(already_found_hard_neg)
           continue;
         // use the less hard (bigger) from the two too hards
-        if(mindp < maxdp && dvec[n] > mindp)
+        if(closeNegDistance < maxPosDistance && dvec[negSample] > closeNegDistance)
         {
-          mindp = dvec[n];
-          negIndex = n;
+          closeNegDistance = dvec[negSample];
+          closeNegIndex = negSample;
         }
       }
       else
       {
         // it is a hard, but not too hard
         // use the hardest
-        if(dvec[n]>mindp)
+        if(dvec[negSample]<closeNegDistance)
         {
-          mindp = dvec[n];
-          negindex = n;
+          closeNegDistance = dvec[negSample];
+          closeNegIndex = negSample;
           already_found_hard_neg = true;
         }
       }
     }
-    t.push_back(m_sample.m_pictures[mindp/m_pictures][mindp%m_pictures]); // hard negative
+
+    t.push_back(image(closeNegIndex)); // hard negative
+
     ++m_indexInSample;
+    return t;
   }
+private:
+  ClassIndex classIndex(SampleIndex idx) const { return idx/m_imagesInSampleClass; }
+  ImageIndex imageIndex(SampleIndex idx) const { return idx%m_imagesInSampleClass; }
+  const ImageIndexes& images(SampleIndex idx) const { return m_sample[classIndex(idx)].images; }
+  ImageIndex image(SampleIndex idx) const { return images(idx)[imageIndex(idx)]; }
 private:
   void resample()
   {
@@ -134,18 +155,17 @@ private:
 private:
   typedef std::vector<Dtype> Vec;
   typedef std::vector<Vec> Mat;
-  typedef PictureSampler::Sample Sample;
+  typedef ImageSampler::Sample Sample;
 private:
-  size_t m_classes;
-  size_t m_pictures;
+  size_t m_classesInSample;
+  size_t m_imagesInSampleClass;
   Mat m_distances;
   Dtype m_margin;
-  PictureSampler m_sampler;
+  ImageSampler m_sampler;
   Sample m_sample;
-  size_t m_indexInSample;
+  SampleIndex m_indexInSample;
   const FeatureMap<Dtype>& m_featureMap;
 };
-
 
 } // namespace ultinous
 } // namespace caffe
