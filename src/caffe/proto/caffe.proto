@@ -1351,6 +1351,7 @@ message TripletDataParameter {
   optional uint32 sampledPictures = 2 [default = 32];
   optional float margin = 3 [default = 1.0];
   optional string featureMapId = 4 [default = "defaultFeatureMapId"];
+  optional bool hardTriplets = 5 [default = false];
 }
 
 message FeatureRegistrationParameter {

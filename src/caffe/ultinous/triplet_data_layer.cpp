@@ -31,6 +31,8 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   const bool is_color  = this->layer_param_.image_data_param().is_color();
   string root_folder = this->layer_param_.image_data_param().root_folder();
 
+  hardTriplets = this->layer_param_.triplet_data_param().hardtriplets();
+
   CHECK((new_height == 0 && new_width == 0) ||
       (new_height > 0 && new_width > 0)) << "Current implementation requires "
       "new_height and new_width to be set at the same time.";
@@ -42,9 +44,26 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   LOG(INFO) << "Opening file " << sourceFile;
   std::ifstream infile(sourceFile.c_str());
   string filename;
+
   int label;
-  while (infile >> filename >> label) {
+  while (infile >> filename >> label)
+  {
     lines_.push_back(std::make_pair(filename, label));
+
+    if( !hardTriplets ) {
+      LabelList::iterator elem = std::find(labelList.begin(), labelList.end(), label);
+      int labelIx = 0;
+      if( elem == labelList.end() )
+      {
+        labelList.push_back( label );
+        labelIx = labelList.size()-1;
+        imageIndexListPerLabel.push_back( ImageIndexList() );
+      } else
+      {
+        labelIx = std::distance(labelList.begin(), elem);
+      }
+      imageIndexListPerLabel[labelIx].push_back( lines_.size( )-1 );
+    }
   }
 
   // Read an image, and use it to initialize the top blob.
@@ -85,12 +104,14 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   uint32_t sampledPictures = this->layer_param_.triplet_data_param().sampledpictures();
   Dtype margin = this->layer_param_.triplet_data_param().margin();
 
-  read( sourceFile, pictureClassificationModel );
-
-  hardTripletGenerator = HardTripletGeneratorPtr( new HardTripletGenerator<Dtype>( sampledClasses
+  if( hardTriplets )
+  {
+  //read( sourceFile, pictureClassificationModel );
+ /* hardTripletGenerator = HardTripletGeneratorPtr( new HardTripletGenerator<Dtype>( sampledClasses
       , sampledPictures, margin
       , pictureClassificationModel.getModel()
-      , featureMapId ) );
+      , featureMapId ) );*/
+  }
 }
 
 // This function is called on prefetch thread
@@ -121,37 +142,62 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   Dtype* prefetch_data = batch->data_.mutable_cpu_data();
   Dtype* prefetch_label = batch->label_.mutable_cpu_data();
 
-
-
   // datum scales
   const int lines_size = lines_.size();
   for (int item_id = 0; item_id < batch_size; ++item_id) {
-    typename HardTripletGenerator<Dtype>::Triplet triplet = hardTripletGenerator->nextTriplet();
 
-    
+   std::vector< std::string > files(3);
+   std::vector< int > labels(3);
 
-    // Generate indices
-    int ix[3];
-    do {
-      ix[0] = rand() % lines_size;
-      ix[1] = rand() % lines_size;
-      ix[2] = rand() % lines_size;
-    } while( !(lines_[ix[1]].second==lines_[ix[2]].second && lines_[ix[0]].second!=lines_[ix[1]].second) );
-
-
-    // get a blob
+   if( hardTriplets )
+   {
+   /*typename HardTripletGenerator<Dtype>::Triplet triplet = hardTripletGenerator->nextTriplet();
     for( int i = 0; i < 3; ++ i ) {
-      cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[ix[i]].first,
+      int index = triplet[i];
+      string imageName = pictureClassificationModel.getPicture(index);
+
+      cv::Mat cv_img = ReadImageToCVMat(root_folder + imageName,
           new_height, new_width, is_color);
+
       CHECK(cv_img.data) << "Could not load " << lines_[ix[i]].first;
 
       // Apply transformations (mirror, crop...) to the image
       int offset = batch->data_.offset(item_id, 3*i);
-
       this->transformed_data_.set_cpu_data(prefetch_data + offset);
       this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
 
-      prefetch_label[3*item_id+i] = lines_[ix[i]].second;
+      prefetch_label[3*item_id+i] = index;
+    }
+    */
+   } else {
+      int labIx1, labIx2;
+      labIx1 = rand() % labelList.size();
+      do{ labIx2 = rand() % labelList.size(); } while(labIx1==labIx2);
+      int imageIx1, imageIx2, imageIx3;
+      imageIx1 = rand() % imageIndexListPerLabel[labIx1].size();
+      do{ imageIx2 = rand() % imageIndexListPerLabel[labIx1].size(); } while(imageIx1==imageIx2);
+      imageIx3 = rand() % imageIndexListPerLabel[labIx2].size();
+
+      files[0] = lines_[ imageIndexListPerLabel[labIx1][imageIx1] ].first;
+      files[1] = lines_[ imageIndexListPerLabel[labIx1][imageIx2] ].first;
+      files[2] = lines_[ imageIndexListPerLabel[labIx2][imageIx3] ].first;
+      labels[0] = imageIndexListPerLabel[labIx1][imageIx1];
+      labels[1] = imageIndexListPerLabel[labIx1][imageIx2];
+      labels[2] = imageIndexListPerLabel[labIx2][imageIx3];
+   }
+
+    // get a blob
+    for( int i = 0; i < 3; ++ i ) {
+      cv::Mat cv_img = ReadImageToCVMat(root_folder + files[i],
+          new_height, new_width, is_color);
+      CHECK(cv_img.data) << "Could not load " << files[i];
+
+      // Apply transformations (mirror, crop...) to the image
+      int offset = batch->data_.offset(item_id, 3*i);
+      this->transformed_data_.set_cpu_data(prefetch_data + offset);
+      this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
+
+      prefetch_label[3*item_id+i] = labels[i];
     }
   }
 }

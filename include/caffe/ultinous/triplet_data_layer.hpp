@@ -3,6 +3,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <map>
 
 #include "caffe/blob.hpp"
 #include "caffe/data_transformer.hpp"
@@ -10,8 +11,8 @@
 #include "caffe/layer.hpp"
 #include "caffe/layers/base_data_layer.hpp"
 #include "caffe/proto/caffe.pb.h"
-#include "caffe/ultinous/PictureClassificationModel.h"
-#include "caffe/ultinous/HardTripletGenerator.hpp"
+//#include "caffe/ultinous/PictureClassificationModel.h"
+//#include "caffe/ultinous/HardTripletGenerator.hpp"
 
 namespace caffe {
 namespace ultinous {
@@ -37,9 +38,17 @@ class TripletDataLayer : public BasePrefetchingDataLayer<Dtype> {
   vector<std::pair<std::string, int> > lines_;
 
 private:
-  PictureClassificationModel pictureClassificationModel;
-  typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
-  HardTripletGeneratorPtr hardTripletGenerator;
+  bool hardTriplets;
+
+  typedef vector<int> LabelList;
+  LabelList labelList;
+  typedef vector<int> ImageIndexList;
+  typedef vector< ImageIndexList> ImageIndexListPerLabel;
+  ImageIndexListPerLabel imageIndexListPerLabel;
+
+  //PictureClassificationModel pictureClassificationModel;
+  //typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
+  //HardTripletGeneratorPtr hardTripletGenerator;
 };
 
 
