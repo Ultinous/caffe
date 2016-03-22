@@ -22,16 +22,14 @@ public:
   {
     m_features[index] = featureVec;
   }
-  virtual bool getFeatureVec(Index index, FeatureVec& featureVec)
+  virtual const FeatureVec& getFeatureVec(Index index) const
   {
     typename FeatureVecMap::const_iterator it = m_features.find(index);
-    if(it == m_features.end())
-      return false;
-    featureVec = it->second;
-    return true;
+    return (it == m_features.end())?m_default:it->second;
   }
 private:
   FeatureVecMap m_features;
+  FeatureVec m_default;
 };
 
 template<typename Dtype>

@@ -48,25 +48,6 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
   infile >> filename >> label;
   infile.close();
- /* while (infile >> filename >> label)
-  {
-    lines_.push_back(std::make_pair(filename, label));
-
-    if( !hardTriplets ) {
-      LabelList::iterator elem = std::find(labelList.begin(), labelList.end(), label);
-      int labelIx = 0;
-      if( elem == labelList.end() )
-      {
-        labelList.push_back( label );
-        labelIx = labelList.size()-1;
-        imageIndexListPerLabel.push_back( ImageIndexList() );
-      } else
-      {
-        labelIx = std::distance(labelList.begin(), elem);
-      }
-      imageIndexListPerLabel[labelIx].push_back( lines_.size( )-1 );
-    }
-  }*/
 
   // Read an image, and use it to initialize the top blob.
   cv::Mat cv_img = ReadImageToCVMat(root_folder+filename, new_height, new_width, is_color);
@@ -100,19 +81,27 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
 
   // Init Classification Model
-  string featureMapId = this->layer_param_.triplet_data_param().featuremapid();
+  m_featureMapId = this->layer_param_.triplet_data_param().featuremapid();
   uint32_t sampledClasses = this->layer_param_.triplet_data_param().sampledclasses();
   uint32_t sampledPictures = this->layer_param_.triplet_data_param().sampledpictures();
   Dtype margin = this->layer_param_.triplet_data_param().margin();
 
   read( sourceFile, imageClassificationModel );
 
+  allTripletGenerator = AllTripletGeneratorPtr(
+    new AllTripletGenerator<Dtype>(
+      imageClassificationModel.getBasicModel()
+      , m_featureMapId )
+  );
+
   if( hardTriplets )
   {
-    hardTripletGenerator = HardTripletGeneratorPtr( new HardTripletGenerator<Dtype>( sampledClasses
+    hardTripletGenerator = HardTripletGeneratorPtr(
+      new HardTripletGenerator<Dtype>( sampledClasses
         , sampledPictures, margin
         , imageClassificationModel.getBasicModel()
-        , featureMapId ) );
+        , m_featureMapId )
+    );
   }
 }
 
@@ -145,6 +134,14 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   Dtype* prefetch_data = batch->data_.mutable_cpu_data();
   Dtype* prefetch_label = batch->label_.mutable_cpu_data();
 
+  bool needToFetchFeatures = false;
+  FeatureMap<Dtype>& featureMap = FeatureMapContainer<Dtype>::instance(m_featureMapId);
+  const ImageClassificationModel::BasicModel& basicModel = imageClassificationModel.getBasicModel( );
+  for( int i = 0; i < basicModel.size() && !needToFetchFeatures; i++ )
+    for( int j = 0; j < basicModel[i].images.size() && !needToFetchFeatures; j++ )
+      if( featureMap.getFeatureVec( basicModel[i].images[j] ).size() == 0 )
+        needToFetchFeatures = true;
+
   for (int item_id = 0; item_id < batch_size; ++item_id) {
 
     std::vector< std::string > files(3);
@@ -152,17 +149,24 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
 
     if( hardTriplets )
     {
-      //typename HardTripletGenerator<Dtype>::Triplet triplet =
-      hardTripletGenerator->nextTriplet();
-      //for( int i = 0; i < 3; ++ i ) {
-      //  std::cout << triplet[i] << std::endl;
-       /* int index = triplet[i];
+      typename HardTripletGenerator<Dtype>::Triplet triplet;
+
+      if( needToFetchFeatures ) {
+        triplet = allTripletGenerator->nextTriplet();
+      } else {
+        triplet = hardTripletGenerator->nextTriplet();
+      }
+
+      for( int i = 0; i < 3; ++ i ) {
+        int index = triplet[i];
+
+        //std::cout << imageClassificationModel.getImageName(index) << std::endl;
 
         files[i] = imageClassificationModel.getImageName(index);
-        labels[i] = index;*/
-      //}
+        labels[i] = index;
+      }
 
-    } //else {
+    } else {
         const ImageClassificationModel::BasicModel& model = imageClassificationModel.getBasicModel( );
 
         int labIx1, labIx2;
@@ -184,7 +188,7 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
         labels[0] = imageIxA;
         labels[1] = imageIxP;
         labels[2] = imageIxN;
-    //}
+    }
 
     // get a blob
     for( int i = 0; i < 3; ++ i ) {

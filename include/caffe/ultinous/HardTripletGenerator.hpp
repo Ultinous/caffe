@@ -20,11 +20,11 @@ public:
     , m_imagesInSampleClass(numOfSampleImagesPerClass)
     , m_margin(margin)
     , m_sampler(basicModel)
-    , m_indexInSample(0)
+    , m_indexInSample(numOfSampleClasses*m_imagesInSampleClass+1)
     , m_featureMap(FeatureMapContainer<Dtype>::instance(featureMapName))
   {
     ImageSampler::initSample( numOfSampleClasses, numOfSampleImagesPerClass, m_sample );
-    resample();
+//    resample();
   }
 private:
   typedef size_t ImageIndex;
@@ -32,16 +32,13 @@ private:
   typedef size_t SampleIndex;
   typedef ImageClassificationModel::ImageIndexes ImageIndexes;
 public:
+
   Triplet nextTriplet()
   {
     if(classIndex(m_indexInSample) >= m_classesInSample)
       resample();
 
     Triplet t;
-
-    std::cout << "m_indexInSample: " << m_indexInSample << std::endl;
-    std::cout << "basicModel.size: " << m_sampler.getModel().shuffledModel().size() << std::endl;
-    std::cout << "basicModel0.size: " << m_sampler.getModel().shuffledModel()[0].images.size() << std::endl;
 
     t.push_back(image(m_indexInSample)); // anchor
 
@@ -153,8 +150,32 @@ private:
   }
   void recalcDistances()
   {
-    // TODO here the m_distances matrix must be calculated
-    // m_sample and m_featureMap will be used here
+    size_t nSample = m_classesInSample * m_imagesInSampleClass;
+
+    if( m_distances.size() != nSample )
+      m_distances = Mat( nSample, Vec(nSample, 0) );
+
+    typename FeatureMap<Dtype>::FeatureVec sqr;
+
+    for( size_t i = 0; i < nSample-1; i++ )
+    {
+      for( size_t j = i+1; j < nSample; j++ )
+      {
+        const typename FeatureMap<Dtype>::FeatureVec& feat1 = m_featureMap.getFeatureVec( image(i) );
+        const typename FeatureMap<Dtype>::FeatureVec& feat2 = m_featureMap.getFeatureVec( image(j) );
+
+        CHECK_GT( feat1.size(), 0);
+        CHECK_GT( feat2.size(), 0);
+        CHECK_EQ( feat1.size(), feat2.size());
+
+        sqr.resize( feat1.size() );
+        caffe_sub( feat1.size(), &(feat1[0]), &(feat2[0]), &(sqr[0]) );
+        Dtype dist = caffe_cpu_dot( sqr.size(), &(sqr[0]), &(sqr[0]) );
+
+        m_distances[i][j] = dist;
+        m_distances[j][i] = dist;
+      }
+    }
   }
 private:
   typedef std::vector<Dtype> Vec;

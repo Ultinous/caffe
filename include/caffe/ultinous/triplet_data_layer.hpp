@@ -13,6 +13,7 @@
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/ultinous/PictureClassificationModel.h"
 #include "caffe/ultinous/HardTripletGenerator.hpp"
+#include "caffe/ultinous/AllTripletGenerator.hpp"
 
 namespace caffe {
 namespace ultinous {
@@ -32,17 +33,20 @@ class TripletDataLayer : public BasePrefetchingDataLayer<Dtype> {
   virtual inline int ExactNumTopBlobs() const { return 2; }
 
 protected:
-  shared_ptr<Caffe::RNG> prefetch_rng_;
   virtual void load_batch(Batch<Dtype>* batch);
-
-  //vector<std::pair<std::string, int> > lines_;
 
 private:
   bool hardTriplets;
 
+  string m_featureMapId;
+
   ImageClassificationModel imageClassificationModel;
   typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
   HardTripletGeneratorPtr hardTripletGenerator;
+
+  typedef boost::shared_ptr<AllTripletGenerator<Dtype> > AllTripletGeneratorPtr;
+  AllTripletGeneratorPtr allTripletGenerator;
+
 };
 
 
