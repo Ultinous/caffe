@@ -213,6 +213,7 @@ public:
     m_nextIndexes = ImageIndexes(m_model.shuffledModel().size(), 0);
     m_nextClass = 0;
   }
+  const ImageClassificationModelShuffle& getModel() const {return m_model;}
 private:
   ImageClassificationModelShuffle m_model;
   ImageIndexes m_nextIndexes;

@@ -15,15 +15,15 @@ public:
   typedef ImageClassificationModel::BasicModel BasicModel;
 
 public:
-  HardTripletGenerator(size_t classes, size_t pictures, Dtype margin, const BasicModel& pictureOfClasses, const std::string& featureMapName)
-    : m_classesInSample(classes)
-    , m_imagesInSampleClass(pictures)
+  HardTripletGenerator(size_t numOfSampleClasses, size_t numOfSampleImagesPerClass, Dtype margin, const BasicModel& basicModel, const std::string& featureMapName)
+    : m_classesInSample(numOfSampleClasses)
+    , m_imagesInSampleClass(numOfSampleImagesPerClass)
     , m_margin(margin)
-    , m_sampler(pictureOfClasses)
-    , m_sample(classes, pictures)
+    , m_sampler(basicModel)
     , m_indexInSample(0)
     , m_featureMap(FeatureMapContainer<Dtype>::instance(featureMapName))
   {
+    ImageSampler::initSample( numOfSampleClasses, numOfSampleImagesPerClass, m_sample );
     resample();
   }
 private:
@@ -39,12 +39,16 @@ public:
 
     Triplet t;
 
+    std::cout << "m_indexInSample: " << m_indexInSample << std::endl;
+    std::cout << "basicModel.size: " << m_sampler.getModel().shuffledModel().size() << std::endl;
+    std::cout << "basicModel0.size: " << m_sampler.getModel().shuffledModel()[0].images.size() << std::endl;
+
     t.push_back(image(m_indexInSample)); // anchor
 
     SampleIndex posSampleBegin = classIndex(m_indexInSample)*m_imagesInSampleClass;
     SampleIndex posSampleEnd = posSampleBegin + m_imagesInSampleClass;
     const Vec& dvec = m_distances[m_indexInSample];
-    
+
     Dtype maxPosDistance = 0;
     SampleIndex maxPosIndex = 0;
     for(size_t posSample = posSampleBegin; posSample<posSampleEnd; ++posSample)
@@ -65,7 +69,7 @@ public:
 
     Dtype closeNegDistance = std::numeric_limits<Dtype>::max();
     size_t closeNegIndex = std::numeric_limits<size_t>::max();
-    
+
     bool already_found_hard_neg = false;
 
     for(size_t negSample = 0; negSample<posSampleBegin; ++negSample)
