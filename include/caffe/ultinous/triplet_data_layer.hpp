@@ -11,8 +11,8 @@
 #include "caffe/layer.hpp"
 #include "caffe/layers/base_data_layer.hpp"
 #include "caffe/proto/caffe.pb.h"
-//#include "caffe/ultinous/PictureClassificationModel.h"
-//#include "caffe/ultinous/HardTripletGenerator.hpp"
+#include "caffe/ultinous/PictureClassificationModel.h"
+#include "caffe/ultinous/HardTripletGenerator.hpp"
 
 namespace caffe {
 namespace ultinous {
@@ -31,24 +31,18 @@ class TripletDataLayer : public BasePrefetchingDataLayer<Dtype> {
   virtual inline int ExactNumBottomBlobs() const { return 0; }
   virtual inline int ExactNumTopBlobs() const { return 2; }
 
- protected:
+protected:
   shared_ptr<Caffe::RNG> prefetch_rng_;
   virtual void load_batch(Batch<Dtype>* batch);
 
-  vector<std::pair<std::string, int> > lines_;
+  //vector<std::pair<std::string, int> > lines_;
 
 private:
   bool hardTriplets;
 
-  typedef vector<int> LabelList;
-  LabelList labelList;
-  typedef vector<int> ImageIndexList;
-  typedef vector< ImageIndexList> ImageIndexListPerLabel;
-  ImageIndexListPerLabel imageIndexListPerLabel;
-
-  //PictureClassificationModel pictureClassificationModel;
-  //typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
-  //HardTripletGeneratorPtr hardTripletGenerator;
+  ImageClassificationModel imageClassificationModel;
+  typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
+  HardTripletGeneratorPtr hardTripletGenerator;
 };
 
 
