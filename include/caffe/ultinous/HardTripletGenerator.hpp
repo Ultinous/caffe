@@ -107,7 +107,15 @@ public:
 
     t.push_back(image(closeNegIndex)); // hard negative
 
+    int CC0 = classIndex( m_indexInSample );
+    int CC1 = classIndex( maxPosIndex );
+    int CC2 = classIndex( closeNegIndex );
+
+    CHECK_EQ(CC0, CC1);
+    CHECK_NE(CC1, CC2);
+
     ++m_indexInSample;
+
     return t;
   }
 private:

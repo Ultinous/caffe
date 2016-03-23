@@ -108,10 +108,14 @@ private:
     {
       Triplet t;
 
-      if( m_triplet_data_param.strategy()=="hard" ) {
+      if( m_triplet_data_param.strategy()=="hard" )
+      {
         t = hardTripletGenerator->nextTriplet();
-      } else
+      }
+      else
+      {
         t = randomTripletGenerator->nextTriplet();
+      }
 
        m_prefetch.push_back( t );
     }

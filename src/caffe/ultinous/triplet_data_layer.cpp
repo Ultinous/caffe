@@ -132,6 +132,22 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       labels[i] = index;
     }
 
+    int index0 = tripletBatch[item_id][0];
+    int index1 = tripletBatch[item_id][1];
+    int index2 = tripletBatch[item_id][2];
+
+    int cl0 = imageClassificationModel.getImageClass( index0 );
+    int cl1 = imageClassificationModel.getImageClass( index1 );
+    int cl2 = imageClassificationModel.getImageClass( index2 );
+
+    CHECK_EQ(cl0, cl1);
+    CHECK_NE(cl1, cl2);
+
+/*    if( (cl0 == 1 && cl2==8) || (cl0 == 8 && cl2==1) ) {
+      std::cout << "OKOKOK" << std::endl;
+      std::cout << "OKOKOK" << std::endl;
+      std::cout << "OKOKOK" << std::endl;
+    }*/
 
     // get a blob
     for( int i = 0; i < 3; ++ i ) {
