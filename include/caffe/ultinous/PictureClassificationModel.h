@@ -38,6 +38,14 @@ public:
 public:
   const BasicModel& getBasicModel() const { return m_basicModel; }
   const ImageName& getImageName(ImageIndex index) const { return m_imageNames.at(index); }
+  const size_t getImageClass(ImageIndex index) const
+  {
+    for( int i = 0; i < m_basicModel.size(); ++i )
+      for( int j = 0; j < m_basicModel[i].images.size(); ++j )
+        if( index == m_basicModel[i].images[j] )
+          return m_basicModel[i].classId;
+    throw std::exception( );
+  }
 public:
   void add(const ImageName& imageName, ClassId classId)
   {
