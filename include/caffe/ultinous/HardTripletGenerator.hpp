@@ -3,17 +3,14 @@
 #include <vector>
 #include <caffe/ultinous/PictureClassificationModel.h>
 #include <caffe/ultinous/FeatureMap.hpp>
+#include <caffe/ultinous/AbstractTripletGenerator.hpp>
 
 namespace caffe {
 namespace ultinous {
 
 template <typename Dtype>
-class HardTripletGenerator
+class HardTripletGenerator : public AbstractTripletGenerator
 {
-public:
-  typedef std::vector<size_t> Triplet;
-  typedef ImageClassificationModel::BasicModel BasicModel;
-
 public:
   HardTripletGenerator(size_t numOfSampleClasses, size_t numOfSampleImagesPerClass, Dtype margin, const BasicModel& basicModel, const std::string& featureMapName)
     : m_classesInSample(numOfSampleClasses)
@@ -61,7 +58,6 @@ public:
     }
 
     t.push_back(image(maxPosIndex)); // hard positive
-
 
     Dtype maxPosDistanceWithMargin = maxPosDistance+m_margin;
 
