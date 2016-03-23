@@ -81,21 +81,19 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
 
   // Init Classification Model
-  m_featureMapId = this->layer_param_.triplet_data_param().featuremapid();
-  uint32_t sampledClasses = this->layer_param_.triplet_data_param().sampledclasses();
-  uint32_t sampledPictures = this->layer_param_.triplet_data_param().sampledpictures();
-  Dtype margin = this->layer_param_.triplet_data_param().margin();
-
   read( sourceFile, imageClassificationModel );
 
   allTripletGenerator = AllTripletGeneratorPtr(
-    new AllTripletGenerator<Dtype>(
-      imageClassificationModel.getBasicModel()
-      , m_featureMapId )
+    new AllTripletGenerator<Dtype>( imageClassificationModel.getBasicModel() )
   );
 
   if( hardTriplets )
   {
+    m_featureMapId = this->layer_param_.triplet_data_param().featuremapid();
+    uint32_t sampledClasses = this->layer_param_.triplet_data_param().sampledclasses();
+    uint32_t sampledPictures = this->layer_param_.triplet_data_param().sampledpictures();
+    Dtype margin = this->layer_param_.triplet_data_param().margin();
+    
     hardTripletGenerator = HardTripletGeneratorPtr(
       new HardTripletGenerator<Dtype>( sampledClasses
         , sampledPictures, margin

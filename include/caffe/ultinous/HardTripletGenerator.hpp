@@ -20,11 +20,12 @@ public:
     , m_imagesInSampleClass(numOfSampleImagesPerClass)
     , m_margin(margin)
     , m_sampler(basicModel)
-    , m_indexInSample(numOfSampleClasses*m_imagesInSampleClass+1)
+    , m_indexInSample(m_classesInSample*m_imagesInSampleClass)
     , m_featureMap(FeatureMapContainer<Dtype>::instance(featureMapName))
   {
-    ImageSampler::initSample( numOfSampleClasses, numOfSampleImagesPerClass, m_sample );
-//    resample();
+    CHECK_GT( m_classesInSample, 0 );
+    CHECK_GT( m_imagesInSampleClass, 0 );
+    ImageSampler::initSample( m_classesInSample, m_imagesInSampleClass, m_sample );
   }
 private:
   typedef size_t ImageIndex;
@@ -67,66 +68,43 @@ public:
     Dtype closeNegDistance = std::numeric_limits<Dtype>::max();
     size_t closeNegIndex = std::numeric_limits<size_t>::max();
 
-    bool already_found_hard_neg = false;
+    size_t endSample = m_classesInSample*m_imagesInSampleClass;
 
-    for(size_t negSample = 0; negSample<posSampleBegin; ++negSample)
+    for(size_t negSample = 0; negSample<endSample; ++negSample)
     {
+      if( negSample == posSampleBegin )
+      {
+        negSample = posSampleEnd-1;
+        continue;
+      }
+
       if(closeNegIndex == std::numeric_limits<size_t>::max())
         closeNegIndex = negSample; // the first negative selected as "random"
-      if(dvec[negSample] >= maxPosDistanceWithMargin)
-        continue; // is is not a hard negative
-      if(dvec[negSample] < maxPosDistance)
+
+      if( dvec[negSample] >= maxPosDistance
+        && dvec[negSample] < maxPosDistanceWithMargin
+        && dvec[negSample] < closeNegDistance )
       {
-        // it is too hard, but could be the best
-        if(already_found_hard_neg)
-          continue;
-        // use the less hard (bigger) from the two too hards
-        if(closeNegDistance < maxPosDistance && dvec[negSample] > closeNegDistance)
-        {
           closeNegDistance = dvec[negSample];
           closeNegIndex = negSample;
-        }
-      }
-      else
-      {
-        // it is a hard, but not too hard
-        // use the hardest
-        if(dvec[negSample]<closeNegDistance)
-        {
-          closeNegDistance = dvec[negSample];
-          closeNegIndex = negSample;
-          already_found_hard_neg = true;
-        }
       }
     }
-    size_t endSample = m_classesInSample*m_imagesInSampleClass;
-    for(size_t negSample = posSampleEnd; negSample<endSample; ++negSample)
+
+    if( closeNegDistance == std::numeric_limits<Dtype>::max() )
     {
-      if(closeNegIndex == std::numeric_limits<size_t>::max())
-        closeNegIndex = negSample; // the first negative selected as "random"
-      if(dvec[negSample] >= maxPosDistanceWithMargin)
-        continue; // is is not a hard negative
-      if(dvec[negSample] < maxPosDistance)
+      closeNegDistance = 0;
+      for(size_t negSample = 0; negSample<endSample; ++negSample)
       {
-        // it is too hard, but could be the best
-        if(already_found_hard_neg)
+        if( negSample == posSampleBegin )
+        {
+          negSample = posSampleEnd-1;
           continue;
-        // use the less hard (bigger) from the two too hards
-        if(closeNegDistance < maxPosDistance && dvec[negSample] > closeNegDistance)
-        {
-          closeNegDistance = dvec[negSample];
-          closeNegIndex = negSample;
         }
-      }
-      else
-      {
-        // it is a hard, but not too hard
-        // use the hardest
-        if(dvec[negSample]<closeNegDistance)
+
+        if( dvec[negSample] < maxPosDistance && dvec[negSample] > closeNegDistance )
         {
-          closeNegDistance = dvec[negSample];
-          closeNegIndex = negSample;
-          already_found_hard_neg = true;
+            closeNegDistance = dvec[negSample];
+            closeNegIndex = negSample;
         }
       }
     }
@@ -150,23 +128,30 @@ private:
   }
   void recalcDistances()
   {
-    size_t nSample = m_classesInSample * m_imagesInSampleClass;
+    size_t const nSample = m_classesInSample * m_imagesInSampleClass;
+
+    CHECK_GT( nSample, 0 );
 
     if( m_distances.size() != nSample )
       m_distances = Mat( nSample, Vec(nSample, 0) );
+
+    CHECK_EQ( m_distances.size(), nSample );
+    for( size_t i = 0; i < nSample; i++ )
+      CHECK_EQ( m_distances[i].size(), nSample );
 
     typename FeatureMap<Dtype>::FeatureVec sqr;
 
     for( size_t i = 0; i < nSample-1; i++ )
     {
+      const typename FeatureMap<Dtype>::FeatureVec& feat1 = m_featureMap.getFeatureVec( image(i) );
+      CHECK_GT( feat1.size(), 0);
+
       for( size_t j = i+1; j < nSample; j++ )
       {
-        const typename FeatureMap<Dtype>::FeatureVec& feat1 = m_featureMap.getFeatureVec( image(i) );
         const typename FeatureMap<Dtype>::FeatureVec& feat2 = m_featureMap.getFeatureVec( image(j) );
 
-        CHECK_GT( feat1.size(), 0);
-        CHECK_GT( feat2.size(), 0);
-        CHECK_EQ( feat1.size(), feat2.size());
+        CHECK_GT( feat2.size(), 0 );
+        CHECK_EQ( feat1.size(), feat2.size() );
 
         sqr.resize( feat1.size() );
         caffe_sub( feat1.size(), &(feat1[0]), &(feat2[0]), &(sqr[0]) );

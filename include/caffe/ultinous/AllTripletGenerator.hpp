@@ -16,9 +16,8 @@ public:
   typedef ImageClassificationModel::BasicModel BasicModel;
 
 public:
-  AllTripletGenerator(const BasicModel& basicModel, const std::string& featureMapName)
+  AllTripletGenerator(const BasicModel& basicModel)
     : m_basicModel(basicModel)
-    , m_featureMap(FeatureMapContainer<Dtype>::instance(featureMapName))
   {
     m_currentClass = 0;
     m_currentImage = 0;
@@ -62,14 +61,13 @@ public:
   {
     return m_generation;
   }
-  
+
 private:
   typedef std::vector<Dtype> Vec;
   typedef std::vector<Vec> Mat;
   typedef ImageSampler::Sample Sample;
 private:
   const BasicModel& m_basicModel;
-  const FeatureMap<Dtype>& m_featureMap;
   int m_currentClass;
   int m_currentImage;
   int m_generation;
