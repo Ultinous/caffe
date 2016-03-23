@@ -27,6 +27,10 @@ public:
     typename FeatureVecMap::const_iterator it = m_features.find(index);
     return (it == m_features.end())?m_default:it->second;
   }
+  const int numFeatures( ) const
+  {
+    return m_features.size();
+  }
 private:
   FeatureVecMap m_features;
   FeatureVec m_default;

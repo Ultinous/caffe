@@ -14,6 +14,8 @@
 #include "caffe/ultinous/PictureClassificationModel.h"
 #include "caffe/ultinous/HardTripletGenerator.hpp"
 #include "caffe/ultinous/AllTripletGenerator.hpp"
+#include "caffe/ultinous/RandomTripletGenerator.hpp"
+#include "caffe/ultinous/TripletBatchGenerator.hpp"
 
 namespace caffe {
 namespace ultinous {
@@ -41,11 +43,9 @@ private:
   string m_featureMapId;
 
   ImageClassificationModel imageClassificationModel;
-  typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
-  HardTripletGeneratorPtr hardTripletGenerator;
 
-  typedef boost::shared_ptr<AllTripletGenerator<Dtype> > AllTripletGeneratorPtr;
-  AllTripletGeneratorPtr allTripletGenerator;
+  typedef boost::shared_ptr<TripletBatchGenerator<Dtype> > TripletBatchGeneratorPtr;
+  TripletBatchGeneratorPtr tripletBatchGenerator;
 
 };
 

@@ -31,8 +31,6 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   const bool is_color  = this->layer_param_.image_data_param().is_color();
   string root_folder = this->layer_param_.image_data_param().root_folder();
 
-  hardTriplets = this->layer_param_.triplet_data_param().hardtriplets();
-
   CHECK((new_height == 0 && new_width == 0) ||
       (new_height > 0 && new_width > 0)) << "Current implementation requires "
       "new_height and new_width to be set at the same time.";
@@ -79,28 +77,16 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
     this->prefetch_[i].label_.Reshape(label_shape);
   }
 
-
   // Init Classification Model
   read( sourceFile, imageClassificationModel );
 
-  allTripletGenerator = AllTripletGeneratorPtr(
-    new AllTripletGenerator<Dtype>( imageClassificationModel.getBasicModel() )
+  tripletBatchGenerator = TripletBatchGeneratorPtr(
+    new TripletBatchGenerator<Dtype>(
+      batch_size
+      , imageClassificationModel.getBasicModel()
+      , this->layer_param_.triplet_data_param() )
   );
 
-  if( hardTriplets )
-  {
-    m_featureMapId = this->layer_param_.triplet_data_param().featuremapid();
-    uint32_t sampledClasses = this->layer_param_.triplet_data_param().sampledclasses();
-    uint32_t sampledPictures = this->layer_param_.triplet_data_param().sampledpictures();
-    Dtype margin = this->layer_param_.triplet_data_param().margin();
-    
-    hardTripletGenerator = HardTripletGeneratorPtr(
-      new HardTripletGenerator<Dtype>( sampledClasses
-        , sampledPictures, margin
-        , imageClassificationModel.getBasicModel()
-        , m_featureMapId )
-    );
-  }
 }
 
 // This function is called on prefetch thread
@@ -132,61 +118,20 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   Dtype* prefetch_data = batch->data_.mutable_cpu_data();
   Dtype* prefetch_label = batch->label_.mutable_cpu_data();
 
-  bool needToFetchFeatures = false;
-  FeatureMap<Dtype>& featureMap = FeatureMapContainer<Dtype>::instance(m_featureMapId);
-  const ImageClassificationModel::BasicModel& basicModel = imageClassificationModel.getBasicModel( );
-  for( int i = 0; i < basicModel.size() && !needToFetchFeatures; i++ )
-    for( int j = 0; j < basicModel[i].images.size() && !needToFetchFeatures; j++ )
-      if( featureMap.getFeatureVec( basicModel[i].images[j] ).size() == 0 )
-        needToFetchFeatures = true;
+  typename TripletBatchGenerator<Dtype>::TripletBatch tripletBatch = tripletBatchGenerator->nextTripletBatch();
 
   for (int item_id = 0; item_id < batch_size; ++item_id) {
 
     std::vector< std::string > files(3);
     std::vector< int > labels(3);
 
-    if( hardTriplets )
-    {
-      typename HardTripletGenerator<Dtype>::Triplet triplet;
+    for( int i = 0; i < 3; ++ i ) {
+      int index = tripletBatch[item_id][i];
 
-      if( needToFetchFeatures ) {
-        triplet = allTripletGenerator->nextTriplet();
-      } else {
-        triplet = hardTripletGenerator->nextTriplet();
-      }
-
-      for( int i = 0; i < 3; ++ i ) {
-        int index = triplet[i];
-
-        //std::cout << imageClassificationModel.getImageName(index) << std::endl;
-
-        files[i] = imageClassificationModel.getImageName(index);
-        labels[i] = index;
-      }
-
-    } else {
-        const ImageClassificationModel::BasicModel& model = imageClassificationModel.getBasicModel( );
-
-        int labIx1, labIx2;
-        labIx1 = rand() % model.size();
-        do{ labIx2 = rand() % model.size(); } while(labIx1==labIx2);
-        int imageIxA, imageIxP, imageIxN;
-        imageIxA = rand() % model[labIx1].images.size();
-        do{ imageIxP = rand() % model[labIx1].images.size(); } while(imageIxA==imageIxP);
-        imageIxN = rand() % model[labIx2].images.size();
-
-        imageIxA = model[labIx1].images[imageIxA];
-        imageIxP = model[labIx1].images[imageIxP];
-        imageIxN = model[labIx2].images[imageIxN];
-
-        files[0] = imageClassificationModel.getImageName( imageIxA );
-        files[1] = imageClassificationModel.getImageName( imageIxP );
-        files[2] = imageClassificationModel.getImageName( imageIxN );
-
-        labels[0] = imageIxA;
-        labels[1] = imageIxP;
-        labels[2] = imageIxN;
+      files[i] = imageClassificationModel.getImageName(index);
+      labels[i] = index;
     }
+
 
     // get a blob
     for( int i = 0; i < 3; ++ i ) {

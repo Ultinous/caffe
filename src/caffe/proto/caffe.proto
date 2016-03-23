@@ -1347,11 +1347,11 @@ message TripletLossParameter {
 }
 
 message TripletDataParameter {
-  optional uint32 sampledClasses = 1 [default = 32];
-  optional uint32 sampledPictures = 2 [default = 32];
-  optional float margin = 3 [default = 1.0];
-  optional string featureMapId = 4 [default = "defaultFeatureMapId"];
-  optional bool hardTriplets = 5 [default = false];
+  optional string strategy = 1 [default = "random"];
+  optional uint32 sampledClasses = 2 [default = 32];
+  optional uint32 sampledPictures = 3 [default = 32];
+  optional float margin = 4 [default = 1.0];
+  optional string featureMapId = 5 [default = "defaultFeatureMapId"];
 }
 
 message FeatureRegistrationParameter {
