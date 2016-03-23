@@ -55,6 +55,16 @@ public:
       );
     }
 
+    if( m_triplet_data_param.strategy()=="hard" )
+    {
+      uint32_t sampledClasses = m_triplet_data_param.sampledclasses();
+      uint32_t sampledPictures = m_triplet_data_param.sampledpictures();
+      m_prefetchSize = 5*sampledClasses*sampledPictures;
+    }
+    else
+    {
+      m_prefetchSize = 10*m_batchSize;
+    }
   }
 
   TripletBatch nextTripletBatch()
@@ -80,7 +90,7 @@ private:
   }
 
   void prefetch( void ) {
-    if( m_prefetch.size() >= m_batchNumInPrefetch*m_batchSize )
+    if( m_prefetch.size() >= m_prefetchSize )
       return;
 
     FeatureMap<Dtype>& featureMap = FeatureMapContainer<Dtype>::instance(
@@ -88,13 +98,13 @@ private:
     );
     if( m_triplet_data_param.strategy()=="hard" && featureMap.numFeatures() != m_numImagesInModel )
     {
-      while(m_prefetch.size() < m_batchNumInPrefetch*m_batchSize)
+      while(m_prefetch.size() < m_prefetchSize)
         m_prefetch.push_back( allTripletGenerator->nextTriplet() );
 
       return;
     }
 
-    while(m_prefetch.size() < m_batchNumInPrefetch*m_batchSize)
+    while(m_prefetch.size() < m_prefetchSize)
     {
       Triplet t;
 
@@ -111,7 +121,7 @@ private:
   const BasicModel& m_basicModel;
   const TripletDataParameter m_triplet_data_param;
 
-  const static int m_batchNumInPrefetch = 10;
+  int m_prefetchSize;
   TripletBatch m_prefetch;
   int m_numImagesInModel;
 
