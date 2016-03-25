@@ -16,10 +16,9 @@ class AllTripletGenerator : public AbstractTripletGenerator
 public:
   AllTripletGenerator(const BasicModel& basicModel)
     : m_basicModel(basicModel)
+    , m_imageIndices( vector<int>(m_basicModel.size(), 0) )
+    , m_currentClass(0)
   {
-    m_currentClass = 0;
-    m_currentImage = 0;
-    m_generation = 0;
   }
 
 public:
@@ -27,40 +26,44 @@ public:
   {
     Triplet t;
 
-    t.push_back( m_basicModel[m_currentClass].images[m_currentImage] );
-    t.push_back( m_basicModel[m_currentClass].images[m_currentImage] );
+    t.push_back( m_basicModel[m_currentClass].images[m_imageIndices[m_currentClass]] );
+
+    ++m_imageIndices[m_currentClass];
+    if( m_imageIndices[m_currentClass] >= m_basicModel[m_currentClass].images.size() )
+      m_imageIndices[m_currentClass] = 0;
+
+    t.push_back( m_basicModel[m_currentClass].images[m_imageIndices[m_currentClass]] );
+
+    ++m_imageIndices[m_currentClass];
+    if( m_imageIndices[m_currentClass] >= m_basicModel[m_currentClass].images.size() )
+      m_imageIndices[m_currentClass] = 0;
+
 
     int numClasses = m_basicModel.size();
     int otherClass = rand() % (numClasses-1);
     if( otherClass >= m_currentClass ) otherClass++;
-    int otherImage = rand() % m_basicModel[otherClass].images.size();
 
+    int otherImage = m_imageIndices[otherClass]; //rand() % m_basicModel[otherClass].images.size();
     t.push_back( m_basicModel[otherClass].images[otherImage] );
 
-    ++m_currentImage;
-    if( m_currentImage >= m_basicModel[m_currentClass].images.size() ) {
-      m_currentImage = 0;
-      ++m_currentClass;
-      if( m_currentClass >= m_basicModel.size() ) {
-        m_currentClass = 0;
-        ++m_generation;
-      }
-    }
+    ++m_imageIndices[otherClass];
+    if( m_imageIndices[otherClass] >= m_basicModel[otherClass].images.size() )
+      m_imageIndices[otherClass] = 0;
+
+    ++m_currentClass;
+    if( m_currentClass >= m_basicModel.size() )
+      m_currentClass = 0;
+
 
     return t;
   }
 
-  int getGeneration()
-  {
-    return m_generation;
-  }
-
 private:
   const BasicModel& m_basicModel;
+  vector<int> m_imageIndices;
   int m_currentClass;
-  int m_currentImage;
-  int m_generation;
 };
+
 
 } // namespace ultinous
 } // namespace caffe
