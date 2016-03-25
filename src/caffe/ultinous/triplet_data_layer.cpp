@@ -86,7 +86,6 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       , imageClassificationModel.getBasicModel()
       , this->layer_param_.triplet_data_param() )
   );
-
 }
 
 // This function is called on prefetch thread
@@ -132,22 +131,15 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       labels[i] = index;
     }
 
+
     int index0 = tripletBatch[item_id][0];
     int index1 = tripletBatch[item_id][1];
     int index2 = tripletBatch[item_id][2];
-
     int cl0 = imageClassificationModel.getImageClass( index0 );
     int cl1 = imageClassificationModel.getImageClass( index1 );
     int cl2 = imageClassificationModel.getImageClass( index2 );
-
     CHECK_EQ(cl0, cl1);
     CHECK_NE(cl1, cl2);
-
-/*    if( (cl0 == 1 && cl2==8) || (cl0 == 8 && cl2==1) ) {
-      std::cout << "OKOKOK" << std::endl;
-      std::cout << "OKOKOK" << std::endl;
-      std::cout << "OKOKOK" << std::endl;
-    }*/
 
     // get a blob
     for( int i = 0; i < 3; ++ i ) {
@@ -156,7 +148,14 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       CHECK(cv_img.data) << "Could not load " << files[i];
 
       // Apply transformations (mirror, crop...) to the image
-      int offset = batch->data_.offset(item_id, 3*i);
+
+      int offset;
+
+      if( this->layer_param_.image_data_param().is_color() )
+        offset = batch->data_.offset(item_id, 3*i);
+      else
+        offset = batch->data_.offset(item_id, i);
+
       this->transformed_data_.set_cpu_data(prefetch_data + offset);
       this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
 
