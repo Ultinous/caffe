@@ -41,17 +41,13 @@ public:
 
     if( m_triplet_data_param.strategy()=="hard" )
     {
-      string featureMapId = m_triplet_data_param.featuremapid();
-      uint32_t sampledClasses = m_triplet_data_param.sampledclasses();
-      uint32_t sampledPictures = m_triplet_data_param.sampledpictures();
-      Dtype margin = m_triplet_data_param.margin();
-
       hardTripletGenerator = HardTripletGeneratorPtr(
         new HardTripletGenerator<Dtype>(
-          sampledClasses
-          , sampledPictures, margin
+          m_triplet_data_param.sampledclasses()
+          , m_triplet_data_param.sampledpictures()
+          , m_triplet_data_param.margin()
           , m_basicModel
-          , featureMapId )
+          , m_triplet_data_param.featuremapid() )
       );
     }
 
@@ -98,7 +94,7 @@ private:
     );
     if( m_triplet_data_param.strategy()=="hard" && featureMap.numFeatures() != m_numImagesInModel )
     {
-      while(m_prefetch.size() < m_prefetchSize)
+      while(m_prefetch.size() < m_batchSize)
         m_prefetch.push_back( allTripletGenerator->nextTriplet() );
 
       return;
