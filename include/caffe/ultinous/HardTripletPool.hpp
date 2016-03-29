@@ -1,6 +1,6 @@
 #pragma once
 
-#include <list>
+#include <deque>
 #include <boost/concept_check.hpp>
 #include <caffe/ultinous/HardTripletGenerator.hpp>
 
@@ -48,7 +48,7 @@ public:
     return t;
   }
 
-  bool isHardTriplet( Triplet& t )
+  bool isHardTriplet( Triplet const &t )
   {
     if( t.size() != 3 ) return false;
 
@@ -76,7 +76,7 @@ private:
   FeatureMap<Dtype>const &m_featureMap;
   Dtype m_margin;
 
-  std::list<Triplet> m_pool;
+  std::deque<Triplet> m_pool;
   const static size_t MAX_POOL_SIZE = 1000000;
 };
 

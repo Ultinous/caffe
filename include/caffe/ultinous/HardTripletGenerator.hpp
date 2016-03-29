@@ -117,17 +117,17 @@ public:
     return t;
   }
 
-  bool isLastTripletHard( )
+  bool isLastTripletHard( ) const
   {
     return m_isLastTripletHard;
   }
 
-  const FeatureMap<Dtype>& getFeatureMap( )
+  const FeatureMap<Dtype>& getFeatureMap( ) const
   {
     return m_featureMap;
   }
 
-  Dtype getMargin( )
+  Dtype getMargin( ) const
   {
     return m_margin;
   }
@@ -163,6 +163,8 @@ private:
       const typename FeatureMap<Dtype>::FeatureVec& feat1 = m_featureMap.getFeatureVec( image(i) );
       CHECK_GT( feat1.size(), 0);
 
+      sqr.resize( feat1.size() );
+
       for( size_t j = i+1; j < nSample; j++ )
       {
         const typename FeatureMap<Dtype>::FeatureVec& feat2 = m_featureMap.getFeatureVec( image(j) );
@@ -170,7 +172,6 @@ private:
         CHECK_GT( feat2.size(), 0 );
         CHECK_EQ( feat1.size(), feat2.size() );
 
-        sqr.resize( feat1.size() );
         caffe_sub( feat1.size(), &(feat1[0]), &(feat2[0]), &(sqr[0]) );
         Dtype dist = caffe_cpu_dot( sqr.size(), &(sqr[0]), &(sqr[0]) );
 

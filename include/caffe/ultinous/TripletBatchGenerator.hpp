@@ -50,8 +50,7 @@ public:
         new HardTripletPool<Dtype>( hardTripletGenerator )
       );
 
-      m_prefetchSize = 5*m_triplet_data_param.sampledclasses()
-        *m_triplet_data_param.sampledpictures();
+      m_prefetchSize = 4*m_batchSize;
     }
     else if( m_triplet_data_param.strategy()=="random" )
     {
