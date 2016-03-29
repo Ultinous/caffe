@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <boost/graph/graph_concepts.hpp>
 #include <caffe/ultinous/PictureClassificationModel.h>
 #include <caffe/ultinous/FeatureMap.hpp>
 #include <caffe/ultinous/AbstractTripletGenerator.hpp>
@@ -19,6 +20,7 @@ public:
     , m_sampler(basicModel)
     , m_indexInSample(m_classesInSample*m_imagesInSampleClass)
     , m_featureMap(FeatureMapContainer<Dtype>::instance(featureMapName))
+    , m_isLastTripletHard(false)
   {
     CHECK_GT( m_classesInSample, 0 );
     CHECK_GT( m_imagesInSampleClass, 0 );
@@ -37,6 +39,7 @@ public:
       resample();
 
     Triplet t;
+    m_isLastTripletHard = false;
 
     t.push_back(image(m_indexInSample)); // anchor
 
@@ -83,6 +86,7 @@ public:
       {
           closeNegDistance = dvec[negSample];
           closeNegIndex = negSample;
+          m_isLastTripletHard = true;
       }
     }
 
@@ -101,22 +105,31 @@ public:
         {
             closeNegDistance = dvec[negSample];
             closeNegIndex = negSample;
+            m_isLastTripletHard = true;
         }
       }
     }
 
     t.push_back(image(closeNegIndex)); // hard negative
 
-    int CC0 = classIndex( m_indexInSample );
-    int CC1 = classIndex( maxPosIndex );
-    int CC2 = classIndex( closeNegIndex );
-
-    CHECK_EQ(CC0, CC1);
-    CHECK_NE(CC1, CC2);
-
     ++m_indexInSample;
 
     return t;
+  }
+
+  bool isLastTripletHard( )
+  {
+    return m_isLastTripletHard;
+  }
+
+  const FeatureMap<Dtype>& getFeatureMap( )
+  {
+    return m_featureMap;
+  }
+
+  Dtype getMargin( )
+  {
+    return m_margin;
   }
 private:
   ClassIndex classIndex(SampleIndex idx) const { return idx/m_imagesInSampleClass; }
@@ -179,6 +192,7 @@ private:
   Sample m_sample;
   SampleIndex m_indexInSample;
   const FeatureMap<Dtype>& m_featureMap;
+  bool m_isLastTripletHard;
 };
 
 } // namespace ultinous

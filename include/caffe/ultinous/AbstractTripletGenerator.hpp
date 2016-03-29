@@ -10,6 +10,8 @@ public:
   typedef ImageClassificationModel::BasicModel BasicModel;
 public:
   virtual Triplet nextTriplet() = 0;
+  virtual ~AbstractTripletGenerator()
+  { }
 };
 
 } // namespace ultinous

@@ -4,7 +4,7 @@
 #include <caffe/ultinous/PictureClassificationModel.h>
 #include <caffe/ultinous/FeatureMap.hpp>
 #include "caffe/ultinous/AbstractTripletGenerator.hpp"
-#include "caffe/ultinous/HardTripletGenerator.hpp"
+#include "caffe/ultinous/HardTripletPool.hpp"
 #include "caffe/ultinous/AllTripletGenerator.hpp"
 #include "caffe/ultinous/RandomTripletGenerator.hpp"
 
@@ -31,16 +31,12 @@ public:
     for( int i = 0; i < basicModel.size(); ++i )
       m_numImagesInModel += basicModel[i].images.size();
 
-    allTripletGenerator = AllTripletGeneratorPtr(
-      new AllTripletGenerator<Dtype>( m_basicModel )
-    );
-
-    randomTripletGenerator = RandomTripletGeneratorPtr(
-      new RandomTripletGenerator<Dtype>( m_basicModel )
-    );
-
     if( m_triplet_data_param.strategy()=="hard" )
     {
+      allTripletGenerator = AllTripletGeneratorPtr(
+        new AllTripletGenerator<Dtype>( m_basicModel )
+      );
+
       hardTripletGenerator = HardTripletGeneratorPtr(
         new HardTripletGenerator<Dtype>(
           m_triplet_data_param.sampledclasses()
@@ -49,17 +45,25 @@ public:
           , m_basicModel
           , m_triplet_data_param.featuremapid() )
       );
-    }
 
-    if( m_triplet_data_param.strategy()=="hard" )
+      hardTripletPool = HardTripletPoolPtr(
+        new HardTripletPool<Dtype>( hardTripletGenerator )
+      );
+
+      m_prefetchSize = 5*m_triplet_data_param.sampledclasses()
+        *m_triplet_data_param.sampledpictures();
+    }
+    else if( m_triplet_data_param.strategy()=="random" )
     {
-      uint32_t sampledClasses = m_triplet_data_param.sampledclasses();
-      uint32_t sampledPictures = m_triplet_data_param.sampledpictures();
-      m_prefetchSize = 5*sampledClasses*sampledPictures;
+      randomTripletGenerator = RandomTripletGeneratorPtr(
+        new RandomTripletGenerator<Dtype>( m_basicModel )
+      );
+
+      m_prefetchSize = 10*m_batchSize;
     }
     else
     {
-      m_prefetchSize = 10*m_batchSize;
+      throw std::exception( );
     }
   }
 
@@ -106,7 +110,7 @@ private:
 
       if( m_triplet_data_param.strategy()=="hard" )
       {
-        t = hardTripletGenerator->nextTriplet();
+        t = hardTripletPool->nextTriplet();
       }
       else
       {
@@ -133,6 +137,10 @@ private:
 
   typedef boost::shared_ptr<RandomTripletGenerator<Dtype> > RandomTripletGeneratorPtr;
   RandomTripletGeneratorPtr randomTripletGenerator;
+
+  typedef boost::shared_ptr<HardTripletPool<Dtype> > HardTripletPoolPtr;
+  HardTripletPoolPtr hardTripletPool;
+
 };
 
 } // namespace ultinous
