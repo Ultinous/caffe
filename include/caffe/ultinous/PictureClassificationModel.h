@@ -144,7 +144,8 @@ public:
     if(found < sample.size())
     {
       reset();
-      sampleClasses(classIndexes, found, usedClasses); // assert == sample.size()
+      size_t found2 = sampleClasses(classIndexes, found, usedClasses);
+      CHECK_EQ( found2, sample.size() );
       for(size_t i = found; i<sample.size(); ++i)
       {
         sampleFromClass(classIndexes[i], sample[i]);
@@ -157,57 +158,31 @@ public:
     const ClassModel& sourceClassModel = m_model.shuffledModel()[classIndex];
     const ImageIndexes& sourceImages = sourceClassModel.images;
     ImageIndexes& targetImages = targetClassModel.images;
-
     targetClassModel.classId = sourceClassModel.classId;
 
     size_t sourceIdx = m_nextIndexes[classIndex];
-    size_t targetIdx = 0;
-    for(; targetIdx<targetImages.size() && sourceIdx < sourceImages.size(); ++targetIdx, ++sourceIdx)
+    for( size_t targetIdx = 0; targetIdx < targetImages.size(); ++targetIdx )
     {
-      targetImages[targetIdx] = sourceImages[sourceIdx];
+       targetImages[targetIdx] = sourceImages[sourceIdx];
+       sourceIdx = (1+sourceIdx) % sourceImages.size();
     }
-    while(targetIdx < targetImages.size())
-    {
-      for(sourceIdx = 0; targetIdx<targetImages.size() && sourceIdx < sourceImages.size(); ++targetIdx, ++sourceIdx)
-      {
-        targetImages[targetIdx] = sourceImages[sourceIdx];
-      }
-    }
-
     m_nextIndexes[classIndex] += targetImages.size();
   }
 public:
   size_t sampleClasses(ClassIndexes& classes, size_t used, UsedClasses& usedClasses)
   {
-    CHECK_LT( used, classes.size() );
-    size_t lastClass = m_nextClass;
-    for(; m_nextClass<m_nextIndexes.size(); ++m_nextClass)
+    if( used >= classes.size() ) return used;
+    for( size_t i = 0; i < m_nextIndexes.size() && used < classes.size(); ++i )
     {
       const ClassModel& classModel = m_model.shuffledModel()[m_nextClass];
-      if(usedClasses.find(classModel.classId) != usedClasses.end())
-        continue;
-      if(m_nextIndexes[m_nextClass]<classModel.images.size())
+      if(usedClasses.find(classModel.classId) == usedClasses.end()
+        && m_nextIndexes[m_nextClass]<classModel.images.size())
       {
         classes[used] = m_nextClass;
         usedClasses.insert(classModel.classId);
         ++used;
-        if(used>=classes.size())
-          return used;
       }
-    }
-    for(m_nextClass = 0; m_nextClass<lastClass; ++m_nextClass)
-    {
-      const ClassModel& classModel = m_model.shuffledModel()[m_nextClass];
-      if(usedClasses.find(classModel.classId) != usedClasses.end())
-        continue;
-      if(m_nextIndexes[m_nextClass]<classModel.images.size())
-      {
-        classes[used] = m_nextClass;
-        usedClasses.insert(classModel.classId);
-        ++used;
-        if(used>=classes.size())
-          return used;
-      }
+      m_nextClass = (1+m_nextClass) % m_nextIndexes.size();
     }
     return used;
   }
