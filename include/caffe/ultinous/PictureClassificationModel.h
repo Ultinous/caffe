@@ -144,11 +144,11 @@ public:
     if(found < sample.size())
     {
       reset();
-    }
-    sampleClasses(classIndexes, found, usedClasses); // assert == sample.size()
-    for(size_t i = found; i<sample.size(); ++i)
-    {
-      sampleFromClass(classIndexes[i], sample[i]);
+      sampleClasses(classIndexes, found, usedClasses); // assert == sample.size()
+      for(size_t i = found; i<sample.size(); ++i)
+      {
+        sampleFromClass(classIndexes[i], sample[i]);
+      }
     }
   }
 public:
@@ -179,6 +179,7 @@ public:
 public:
   size_t sampleClasses(ClassIndexes& classes, size_t used, UsedClasses& usedClasses)
   {
+    CHECK_LT( used, classes.size() );
     size_t lastClass = m_nextClass;
     for(; m_nextClass<m_nextIndexes.size(); ++m_nextClass)
     {
