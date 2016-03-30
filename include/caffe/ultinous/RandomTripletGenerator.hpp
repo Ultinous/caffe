@@ -17,6 +17,13 @@ public:
   RandomTripletGenerator(const BasicModel& basicModel)
     : m_basicModel(basicModel)
   {
+    CHECK_GT( m_basicModel.size(), 1 );
+    
+    for( size_t i = 0; i < m_basicModel.size(); ++i )
+      if( m_basicModel[i].images.size() >= 2 )
+        m_classesWithAtLeastTwoImages.push_back( i );
+
+    CHECK_GT( m_classesWithAtLeastTwoImages.size(), 0 );
   }
 
 public:
@@ -25,8 +32,9 @@ public:
     Triplet t;
 
     int labIx1, labIx2;
-    labIx1 = rand() % m_basicModel.size();
+    labIx1 = m_classesWithAtLeastTwoImages[rand()%m_classesWithAtLeastTwoImages.size()];
     do{ labIx2 = rand() % m_basicModel.size(); } while(labIx1==labIx2);
+
     int imageIxA, imageIxP, imageIxN;
     imageIxA = rand() % m_basicModel[labIx1].images.size();
     do{ imageIxP = rand() % m_basicModel[labIx1].images.size(); } while(imageIxA==imageIxP);
@@ -41,6 +49,7 @@ public:
 
 private:
   const BasicModel& m_basicModel;
+  std::vector<int> m_classesWithAtLeastTwoImages;
 };
 
 } // namespace ultinous
