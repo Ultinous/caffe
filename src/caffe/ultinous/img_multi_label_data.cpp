@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "ultinous/img_multi_label_data.hpp"
+#include "caffe/ultinous/img_multi_label_data.hpp"
 #include "caffe/data_transformer.hpp"
 #include "caffe/layers/base_data_layer.hpp"
 #include "caffe/util/benchmark.hpp"
