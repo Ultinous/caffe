@@ -43,11 +43,16 @@ public:
           , m_triplet_data_param.sampledpictures()
           , m_triplet_data_param.margin()
           , m_basicModel
-          , m_triplet_data_param.featuremapid() )
+          , m_triplet_data_param.featuremapid()
+          , m_triplet_data_param.toohardtriplets()
+        )
       );
 
       hardTripletPool = HardTripletPoolPtr(
-        new HardTripletPool<Dtype>( hardTripletGenerator )
+        new HardTripletPool<Dtype>(
+          hardTripletGenerator
+          , m_triplet_data_param.poolsize()
+        )
       );
 
       m_prefetchSize = 4*m_batchSize;

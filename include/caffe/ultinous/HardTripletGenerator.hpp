@@ -13,13 +13,14 @@ template <typename Dtype>
 class HardTripletGenerator : public AbstractTripletGenerator
 {
 public:
-  HardTripletGenerator(size_t numOfSampleClasses, size_t numOfSampleImagesPerClass, Dtype margin, const BasicModel& basicModel, const std::string& featureMapName)
+  HardTripletGenerator(size_t numOfSampleClasses, size_t numOfSampleImagesPerClass, Dtype margin, const BasicModel& basicModel, const std::string& featureMapName, bool tooHardTriplets )
     : m_classesInSample(numOfSampleClasses)
     , m_imagesInSampleClass(numOfSampleImagesPerClass)
     , m_margin(margin)
     , m_sampler(basicModel)
     , m_indexInSample(m_classesInSample*m_imagesInSampleClass)
     , m_featureMap(FeatureMapContainer<Dtype>::instance(featureMapName))
+    , m_tooHardTriplets(tooHardTriplets)
     , m_isLastTripletHard(false)
   {
     CHECK_GT( m_classesInSample, 0 );
@@ -90,7 +91,7 @@ public:
       }
     }
 
-    if( closeNegDistance == std::numeric_limits<Dtype>::max() )
+    if( m_tooHardTriplets && closeNegDistance == std::numeric_limits<Dtype>::max() )
     {
       closeNegDistance = 0;
       for(size_t negSample = 0; negSample<endSample; ++negSample)
@@ -193,6 +194,7 @@ private:
   Sample m_sample;
   SampleIndex m_indexInSample;
   const FeatureMap<Dtype>& m_featureMap;
+  bool m_tooHardTriplets;
   bool m_isLastTripletHard;
 };
 

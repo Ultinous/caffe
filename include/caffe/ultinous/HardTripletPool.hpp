@@ -14,10 +14,11 @@ class HardTripletPool : public AbstractTripletGenerator
 private:
   typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
 public:
-  HardTripletPool( HardTripletGeneratorPtr const &htg )
+  HardTripletPool( HardTripletGeneratorPtr const &htg, size_t maxPoolSize)
     : m_htg(htg)
     , m_featureMap(m_htg->getFeatureMap())
     , m_margin(m_htg->getMargin())
+    , m_maxPoolSize( maxPoolSize )
   { }
 public:
 
@@ -27,7 +28,7 @@ public:
 
     if( m_htg->isLastTripletHard( ) )
     {
-      if( m_pool.size() < MAX_POOL_SIZE )
+      if( m_pool.size() < m_maxPoolSize )
         m_pool.push_back( t );
     }
     else
@@ -77,7 +78,7 @@ private:
   Dtype m_margin;
 
   std::deque<Triplet> m_pool;
-  const static size_t MAX_POOL_SIZE = 1000000;
+  size_t const m_maxPoolSize;
 };
 
 } // namespace ultinous
