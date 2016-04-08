@@ -38,10 +38,6 @@ protected:
   virtual void load_batch(Batch<Dtype>* batch);
 
 private:
-  bool hardTriplets;
-
-  string m_featureMapId;
-
   ImageClassificationModel imageClassificationModel;
 
   typedef boost::shared_ptr<TripletBatchGenerator<Dtype> > TripletBatchGeneratorPtr;

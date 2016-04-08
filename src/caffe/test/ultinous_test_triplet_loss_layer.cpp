@@ -35,7 +35,7 @@ class TripletLossLayerTest : public MultiDeviceTest<TypeParam> {
 	  : blob_bottom_data_i_(new Blob<Dtype>(512, 2, 1, 1)),
 		blob_bottom_data_j_(new Blob<Dtype>(512, 2, 1, 1)),
 		blob_bottom_data_k_(new Blob<Dtype>(512, 2, 1, 1)),
-		blob_bottom_y_(new Blob<Dtype>(512, 1, 1, 1)),
+//		blob_bottom_y_(new Blob<Dtype>(512, 1, 1, 1)),
 		blob_top_loss_(new Blob<Dtype>()) {
 	// fill the values
 	FillerParameter filler_param;
@@ -48,10 +48,10 @@ class TripletLossLayerTest : public MultiDeviceTest<TypeParam> {
 	blob_bottom_vec_.push_back(blob_bottom_data_j_);
 	filler.Fill(this->blob_bottom_data_k_);
 	blob_bottom_vec_.push_back(blob_bottom_data_k_);
-	for (int i = 0; i < blob_bottom_y_->count(); ++i) {
-		blob_bottom_y_->mutable_cpu_data()[i] = caffe_rng_rand() % 2;  // 0 or 1
-	}
-	blob_bottom_vec_.push_back(blob_bottom_y_);
+	//for (int i = 0; i < blob_bottom_y_->count(); ++i) {
+	//	blob_bottom_y_->mutable_cpu_data()[i] = caffe_rng_rand() % 2;  // 0 or 1
+	//}
+	//blob_bottom_vec_.push_back(blob_bottom_y_);
 	blob_top_vec_.push_back(blob_top_loss_);
   }
   virtual ~TripletLossLayerTest() {
@@ -64,7 +64,7 @@ class TripletLossLayerTest : public MultiDeviceTest<TypeParam> {
   Blob<Dtype>* const blob_bottom_data_i_;
   Blob<Dtype>* const blob_bottom_data_j_;
   Blob<Dtype>* const blob_bottom_data_k_;
-  Blob<Dtype>* const blob_bottom_y_;
+  //Blob<Dtype>* const blob_bottom_y_;
   Blob<Dtype>* const blob_top_loss_;
   vector<Blob<Dtype>*> blob_bottom_vec_;
   vector<Blob<Dtype>*> blob_top_vec_;
@@ -82,7 +82,7 @@ TYPED_TEST(TripletLossLayerTest, TestForward) {
   const Dtype margin = layer_param.triplet_loss_param().margin();
   const int num = this->blob_bottom_data_i_->num();
   const int channels = this->blob_bottom_data_i_->channels();
-  const Dtype *sampleW = this->blob_bottom_y_->cpu_data();
+  //const Dtype *sampleW = this->blob_bottom_y_->cpu_data();
   Dtype loss(0);
   for (int i = 0; i < num; ++i) {
 	Dtype dist_sq_ij(0);
@@ -95,7 +95,8 @@ TYPED_TEST(TripletLossLayerTest, TestForward) {
 		  this->blob_bottom_data_k_->cpu_data()[i*channels+j];
 	  dist_sq_ik += diff_ik*diff_ik;
 	}
-	loss += sampleW[i]*std::max(Dtype(0.0), margin+dist_sq_ij-dist_sq_ik);
+//        loss += sampleW[i]*std::max(Dtype(0.0), margin+dist_sq_ij-dist_sq_ik);
+        loss += std::max(Dtype(0.0), margin+dist_sq_ij-dist_sq_ik);
   }
   loss /= static_cast<Dtype>(num) * Dtype(2);
   EXPECT_NEAR(this->blob_top_loss_->cpu_data()[0], loss, 1e-6);
