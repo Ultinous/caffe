@@ -39,19 +39,19 @@ public:
 
       hardTripletGenerator = HardTripletGeneratorPtr(
         new HardTripletGenerator<Dtype>(
-          m_triplet_data_param.sampledclasses()
-          , m_triplet_data_param.sampledpictures()
-          , m_triplet_data_param.margin()
+          m_triplet_data_param.hard_triplet_param().sampledclasses()
+          , m_triplet_data_param.hard_triplet_param().sampledpictures()
+          , m_triplet_data_param.hard_triplet_param().margin()
           , m_basicModel
-          , m_triplet_data_param.featuremapid()
-          , m_triplet_data_param.toohardtriplets()
+          , m_triplet_data_param.hard_triplet_param().featuremapid()
+          , m_triplet_data_param.hard_triplet_param().toohardtriplets()
         )
       );
 
       hardTripletPool = HardTripletPoolPtr(
         new HardTripletPool<Dtype>(
           hardTripletGenerator
-          , m_triplet_data_param.poolsize()
+          , m_triplet_data_param.hard_triplet_param().poolsize()
         )
       );
 
@@ -97,31 +97,29 @@ private:
     if( m_prefetch.size() >= m_prefetchSize )
       return;
 
-    FeatureMap<Dtype>& featureMap = FeatureMapContainer<Dtype>::instance(
-      m_triplet_data_param.featuremapid()
-    );
-    if( m_triplet_data_param.strategy()=="hard" && featureMap.numFeatures() != m_numImagesInModel )
+    if( m_triplet_data_param.strategy()=="hard")
     {
-      while(m_prefetch.size() < m_batchSize)
-        m_prefetch.push_back( allTripletGenerator->nextTriplet() );
+      FeatureMap<Dtype>& featureMap = FeatureMapContainer<Dtype>::instance(
+        m_triplet_data_param.hard_triplet_param().featuremapid()
+      );
 
-      return;
+      if( featureMap.numFeatures() != m_numImagesInModel )
+      {
+        while(m_prefetch.size() < m_batchSize)
+          m_prefetch.push_back( allTripletGenerator->nextTriplet() );
+
+        return;
+      }
+
+      while(m_prefetch.size() < m_prefetchSize)
+      {
+        m_prefetch.push_back( hardTripletPool->nextTriplet() );
+      }
     }
 
     while(m_prefetch.size() < m_prefetchSize)
     {
-      Triplet t;
-
-      if( m_triplet_data_param.strategy()=="hard" )
-      {
-        t = hardTripletPool->nextTriplet();
-      }
-      else
-      {
-        t = randomTripletGenerator->nextTriplet();
-      }
-
-       m_prefetch.push_back( t );
+       m_prefetch.push_back( randomTripletGenerator->nextTriplet() );
     }
   }
 private:
