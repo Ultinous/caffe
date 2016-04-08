@@ -306,7 +306,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 143 (last added: scale_param)
+// LayerParameter next available layer-specific ID: 144 (last added: scale_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -394,6 +394,11 @@ message LayerParameter {
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
+
+  // UltiNous
+  optional TripletLossParameter triplet_loss_param = 5001;
+  optional TripletDataParameter triplet_data_param = 5002;
+  optional FeatureRegistrationParameter feature_registration_param = 5003;
 }
 
 // Message that stores parameters used to apply transformation
@@ -431,7 +436,7 @@ message LossParameter {
     // Outputs that receive the ignore label will NOT be ignored in computing
     // the normalization factor.
     FULL = 0;
-    // Divide by the total number of output locations that do not take the 
+    // Divide by the total number of output locations that do not take the
     // ignore_label.  If ignore_label is not set, this behaves like FULL.
     VALID = 1;
     // Divide by the batch size.
@@ -671,7 +676,7 @@ message EltwiseParameter {
 // Message that stores parameters used by ELULayer
 message ELUParameter {
   // Described in:
-  // Clevert, D.-A., Unterthiner, T., & Hochreiter, S. (2015). Fast and Accurate 
+  // Clevert, D.-A., Unterthiner, T., & Hochreiter, S. (2015). Fast and Accurate
   // Deep Network Learning by Exponential Linear Units (ELUs). arXiv
   optional float alpha = 1 [default = 1];
 }
@@ -1334,4 +1339,21 @@ message PReLUParameter {
   optional FillerParameter filler = 1;
   // Whether or not slope paramters are shared across channels.
   optional bool channel_shared = 2 [default = false];
+}
+
+message TripletLossParameter {
+  // margin for dissimilar pair
+  optional float margin = 1 [default = 1.0];
+}
+
+message TripletDataParameter {
+  optional string strategy = 1 [default = "random"];
+  optional uint32 sampledClasses = 2 [default = 32];
+  optional uint32 sampledPictures = 3 [default = 32];
+  optional float margin = 4 [default = 1.0];
+  optional string featureMapId = 5 [default = "defaultFeatureMapId"];
+}
+
+message FeatureRegistrationParameter {
+  optional string featureMapId = 1 [default = "defaultFeatureMapId"];
 }
