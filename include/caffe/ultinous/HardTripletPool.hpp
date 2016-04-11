@@ -10,9 +10,24 @@ namespace ultinous {
 template <typename Dtype>
 class HardTripletPool : public AbstractTripletGenerator
 {
-
 private:
   typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
+
+  typedef int16_t Lives;
+
+  struct StoredTriplet
+  {
+    StoredTriplet( Triplet triplet, Lives lives = START_LIVES )
+      : m_triplet( triplet )
+      , m_lives( lives )
+    { }
+
+    Triplet m_triplet;
+    Lives m_lives;
+  };
+
+  typedef std::deque<StoredTriplet> Pool;
+
 public:
   HardTripletPool( HardTripletGeneratorPtr const &htg, size_t maxPoolSize)
     : m_htg(htg)
@@ -20,33 +35,43 @@ public:
     , m_margin(m_htg->getMargin())
     , m_maxPoolSize( maxPoolSize )
   { }
-public:
 
   Triplet nextTriplet()
   {
-    Triplet t = m_htg->nextTriplet( );
+    Triplet triplet = m_htg->nextTriplet( );
 
     if( m_htg->isLastTripletHard( ) )
     {
       if( m_pool.size() < m_maxPoolSize )
-        m_pool.push_back( t );
+        storeTriplet( triplet );
     }
     else
     {
       while( !m_pool.empty() )
       {
-        t = m_pool.front( );
+        StoredTriplet storedTriplet = m_pool.front( );
         m_pool.pop_front( );
 
-        if( isHardTriplet( t ) )
+        triplet = storedTriplet.m_triplet;
+
+        if( isHardTriplet( triplet ) )
         {
-          m_pool.push_back( t );
+          --storedTriplet.m_lives;
+          if( storedTriplet.m_lives > 0)
+            m_pool.push_back( storedTriplet );
+
           break;
         }
       }
     }
 
-    return t;
+    return triplet;
+  }
+
+private:
+  void storeTriplet( Triplet t )
+  {
+    m_pool.push_back( StoredTriplet(t) );
   }
 
   bool isHardTriplet( Triplet const &t )
@@ -72,13 +97,16 @@ public:
 
     return  dist2 < dist1 + m_margin;
   }
+
 private:
   HardTripletGeneratorPtr const m_htg;
   FeatureMap<Dtype>const &m_featureMap;
   Dtype m_margin;
 
-  std::deque<Triplet> m_pool;
+  Pool m_pool;
   size_t const m_maxPoolSize;
+
+  static const Lives START_LIVES = 3;
 };
 
 } // namespace ultinous
