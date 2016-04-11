@@ -116,11 +116,18 @@ private:
         m_prefetch.push_back( hardTripletPool->nextTriplet() );
       }
     }
-
-    while(m_prefetch.size() < m_prefetchSize)
+    else if( m_triplet_data_param.strategy()=="random" )
     {
-       m_prefetch.push_back( randomTripletGenerator->nextTriplet() );
+      while(m_prefetch.size() < m_prefetchSize)
+      {
+        m_prefetch.push_back( randomTripletGenerator->nextTriplet() );
+      }
     }
+    else
+    {
+      throw std::exception( );
+    }
+
   }
 private:
   const size_t m_batchSize;
