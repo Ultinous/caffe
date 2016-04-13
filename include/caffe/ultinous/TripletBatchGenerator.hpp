@@ -28,14 +28,12 @@ public:
     , m_triplet_data_param(triplet_data_param)
   {
     m_numImagesInModel = 0;
-    for( int i = 0; i < basicModel.size(); ++i )
-      m_numImagesInModel += basicModel[i].images.size();
+    for( int i = 0; i < m_basicModel.size(); ++i )
+      m_numImagesInModel += m_basicModel[i].images.size();
 
     if( m_triplet_data_param.strategy()=="hard" )
     {
-      allTripletGenerator = AllTripletGeneratorPtr(
-        new AllTripletGenerator<Dtype>( m_basicModel )
-      );
+      AllTripletGenerator<Dtype>::init( m_basicModel );
 
       hardTripletGenerator = HardTripletGeneratorPtr(
         new HardTripletGenerator<Dtype>(
@@ -55,7 +53,7 @@ public:
         )
       );
 
-      m_prefetchSize = 4*m_batchSize;
+      m_prefetchSize = 1*m_batchSize;
     }
     else if( m_triplet_data_param.strategy()=="random" )
     {
@@ -63,7 +61,7 @@ public:
         new RandomTripletGenerator<Dtype>( m_basicModel )
       );
 
-      m_prefetchSize = 10*m_batchSize;
+      m_prefetchSize = 1*m_batchSize;
     }
     else
     {
@@ -106,7 +104,7 @@ private:
       if( featureMap.numFeatures() != m_numImagesInModel )
       {
         while(m_prefetch.size() < m_batchSize)
-          m_prefetch.push_back( allTripletGenerator->nextTriplet() );
+          m_prefetch.push_back( AllTripletGenerator<Dtype>::getInstance().nextTriplet() );
 
         return;
       }
