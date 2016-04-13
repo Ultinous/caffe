@@ -3,6 +3,7 @@
 #include <deque>
 #include <boost/concept_check.hpp>
 #include <caffe/ultinous/HardTripletGenerator.hpp>
+#include <caffe/ultinous/AllTripletGenerator.hpp>
 
 namespace caffe {
 namespace ultinous {
@@ -29,7 +30,7 @@ private:
   typedef std::deque<StoredTriplet> Pool;
 
 public:
-  HardTripletPool( HardTripletGeneratorPtr const &htg, size_t maxPoolSize)
+  HardTripletPool( HardTripletGeneratorPtr const &htg, size_t maxPoolSize )
     : m_htg(htg)
     , m_featureMap(m_htg->getFeatureMap())
     , m_margin(m_htg->getMargin())
@@ -40,32 +41,28 @@ public:
   {
     Triplet triplet = m_htg->nextTriplet( );
 
-    if( m_htg->isLastTripletHard( ) )
+    if( isHardTriplet(triplet) /*m_htg->isLastTripletHard( )*/ )
     {
       if( m_pool.size() < m_maxPoolSize )
         storeTriplet( triplet );
+      return triplet;
     }
-    else
+    while( !m_pool.empty() )
     {
-      while( !m_pool.empty() )
+      StoredTriplet storedTriplet = m_pool.front( );
+      m_pool.pop_front( );
+
+      if( isHardTriplet( storedTriplet.m_triplet ) )
       {
-        StoredTriplet storedTriplet = m_pool.front( );
-        m_pool.pop_front( );
+        --storedTriplet.m_lives;
+        if( storedTriplet.m_lives > 0)
+          m_pool.push_back( storedTriplet );
 
-        triplet = storedTriplet.m_triplet;
-
-        if( isHardTriplet( triplet ) )
-        {
-          --storedTriplet.m_lives;
-          if( storedTriplet.m_lives > 0)
-            m_pool.push_back( storedTriplet );
-
-          break;
-        }
+        return storedTriplet.m_triplet;
       }
     }
 
-    return triplet;
+    return AllTripletGenerator<Dtype>::getInstance().nextTriplet();
   }
 
 private:
@@ -99,6 +96,7 @@ private:
   }
 
 private:
+
   HardTripletGeneratorPtr const m_htg;
   FeatureMap<Dtype>const &m_featureMap;
   Dtype m_margin;
