@@ -26,6 +26,9 @@ public:
     CHECK_GT( m_classesInSample, 0 );
     CHECK_GT( m_imagesInSampleClass, 0 );
     ImageSampler::initSample( m_classesInSample, m_imagesInSampleClass, m_sample );
+
+    for( size_t i = 0; i < m_classesInSample*m_imagesInSampleClass; ++i)
+      m_shuffle.push_back(i);
   }
 private:
   typedef size_t ImageIndex;
@@ -42,17 +45,19 @@ public:
     Triplet t;
     m_isLastTripletHard = false;
 
-    t.push_back(image(m_indexInSample)); // anchor
+    SampleIndex anchor = m_shuffle[m_indexInSample];
 
-    SampleIndex posSampleBegin = classIndex(m_indexInSample)*m_imagesInSampleClass;
+    t.push_back(image(anchor)); // anchor
+
+    SampleIndex posSampleBegin = classIndex(anchor)*m_imagesInSampleClass;
     SampleIndex posSampleEnd = posSampleBegin + m_imagesInSampleClass;
-    const Vec& dvec = m_distances[m_indexInSample];
+    const Vec& dvec = m_distances[anchor];
 
     Dtype maxPosDistance = 0;
     SampleIndex maxPosIndex = 0;
     for(size_t posSample = posSampleBegin; posSample<posSampleEnd; ++posSample)
     {
-      if(posSample==m_indexInSample)
+      if(posSample==anchor)
         continue;
       if(dvec[posSample] > maxPosDistance)
       {
@@ -142,6 +147,7 @@ private:
   {
     m_sampler.sample(m_sample);
     recalcDistances();
+    shuffle( m_shuffle.begin(), m_shuffle.end() );
     m_indexInSample = 0;
   }
   void recalcDistances()
@@ -196,6 +202,8 @@ private:
   const FeatureMap<Dtype>& m_featureMap;
   bool m_tooHardTriplets;
   bool m_isLastTripletHard;
+
+  std::vector<SampleIndex> m_shuffle;
 };
 
 } // namespace ultinous
