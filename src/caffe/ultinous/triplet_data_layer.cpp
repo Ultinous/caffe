@@ -52,29 +52,29 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   CHECK(cv_img.data) << "Could not load " << filename;
 
   // Use data_transformer to infer the expected blob shape from a cv_image.
-  vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
-  this->transformed_data_.Reshape(top_shape);
+  m_top_shape = this->data_transformer_->InferBlobShape(cv_img);
+  this->transformed_data_.Reshape(m_top_shape);
 
   // Reshape prefetch_data and top[0] according to the batch_size.
   const int batch_size = this->layer_param_.image_data_param().batch_size();
   CHECK_GT(batch_size, 0) << "Positive batch size required";
-  top_shape[0] = batch_size;
-  top_shape[1] *= 3;
+  m_top_shape[0] = batch_size;
+  m_top_shape[1] *= 3;
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
-    this->prefetch_[i].data_.Reshape(top_shape);
+    this->prefetch_[i].data_.Reshape(m_top_shape);
   }
-  top[0]->Reshape(top_shape);
+  top[0]->Reshape(m_top_shape);
 
   LOG(INFO) << "output data size: " << top[0]->num() << ","
       << top[0]->channels() << "," << top[0]->height() << "," << top[0]->width();
 
   // label
-  vector<int> label_shape(2);
-  label_shape[0] = batch_size;
-  label_shape[1] = 3;
-  top[1]->Reshape(label_shape);
+  m_label_shape = vector<int>(2);
+  m_label_shape[0] = batch_size;
+  m_label_shape[1] = 3;
+  top[1]->Reshape(m_label_shape);
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
-    this->prefetch_[i].label_.Reshape(label_shape);
+    this->prefetch_[i].label_.Reshape(m_label_shape);
   }
 
   // Init Classification Model
@@ -103,7 +103,7 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
 
   // Reshape according to the first image of each batch
   // on single input batches allows for inputs of varying dimension.
-  cv::Mat cv_img = ReadImageToCVMat(root_folder + imageClassificationModel.getImageName(0),
+ /* cv::Mat cv_img = ReadImageToCVMat(root_folder + imageClassificationModel.getImageName(0),
       new_height, new_width, is_color);
   CHECK(cv_img.data) << "Could not load " << imageClassificationModel.getImageName(0);
   // Use data_transformer to infer the expected blob shape from a cv_img.
@@ -111,15 +111,18 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   this->transformed_data_.Reshape(top_shape);
   // Reshape batch according to the batch_size.
   top_shape[0] = batch_size;
-  top_shape[1] *= 3;
-  batch->data_.Reshape(top_shape);
+  top_shape[1] *= 3;*/
+  batch->data_.Reshape(m_top_shape);
+  batch->label_.Reshape(m_label_shape);
 
   Dtype* prefetch_data = batch->data_.mutable_cpu_data();
   Dtype* prefetch_label = batch->label_.mutable_cpu_data();
 
   typename TripletBatchGenerator<Dtype>::TripletBatch tripletBatch = tripletBatchGenerator->nextTripletBatch();
 
+  CHECK_EQ(batch_size, tripletBatch.size());
   for (int item_id = 0; item_id < batch_size; ++item_id) {
+    CHECK_EQ(3, tripletBatch[item_id].size());
 
     std::vector< std::string > files(3);
     std::vector< int > labels(3);
@@ -130,7 +133,6 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       files[i] = imageClassificationModel.getImageName(index);
       labels[i] = index;
     }
-
 
     int index0 = tripletBatch[item_id][0];
     int index1 = tripletBatch[item_id][1];

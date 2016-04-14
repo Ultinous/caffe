@@ -43,6 +43,8 @@ private:
   typedef boost::shared_ptr<TripletBatchGenerator<Dtype> > TripletBatchGeneratorPtr;
   TripletBatchGeneratorPtr tripletBatchGenerator;
 
+  vector<int> m_top_shape;
+  vector<int> m_label_shape;
 };
 
 
