@@ -100,16 +100,24 @@ private:
 
     if( m_triplet_data_param.strategy()=="hard")
     {
+      static bool featuresCollected = false;
+
       FeatureMap<Dtype>& featureMap = FeatureMapContainer<Dtype>::instance(
         m_triplet_data_param.hard_triplet_param().featuremapid()
       );
 
-      if( featureMap.numFeatures() != m_numImagesInModel )
+      if( !featuresCollected && featureMap.numFeatures() != m_numImagesInModel )
       {
         while(m_prefetch.size() < m_batchSize)
           m_prefetch.push_back( AllTripletGenerator<Dtype>::getInstance().nextTriplet() );
 
         return;
+      }
+
+      if( !featuresCollected )
+      {
+        LOG(INFO) << "All features collected!";
+        featuresCollected = true;
       }
 
       while(m_prefetch.size() < m_prefetchSize)
