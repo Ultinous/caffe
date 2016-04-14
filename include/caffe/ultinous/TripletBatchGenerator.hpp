@@ -22,10 +22,11 @@ public:
   typedef std::vector<Triplet> TripletBatch;
 
 public:
-  TripletBatchGenerator(size_t batchSize, const BasicModel& basicModel, const TripletDataParameter triplet_data_param)
+  TripletBatchGenerator(size_t batchSize, const BasicModel& basicModel, const TripletDataParameter& triplet_data_param)
     : m_batchSize(batchSize)
     , m_basicModel(basicModel)
     , m_triplet_data_param(triplet_data_param)
+    , m_iteration(0)
   {
     m_numImagesInModel = 0;
     for( int i = 0; i < m_basicModel.size(); ++i )
@@ -49,7 +50,7 @@ public:
       hardTripletPool = HardTripletPoolPtr(
         new HardTripletPool<Dtype>(
           hardTripletGenerator
-          , m_triplet_data_param.hard_triplet_param().poolsize()
+          , m_triplet_data_param.hard_triplet_param().hard_triplet_pool_param()
         )
       );
 
@@ -83,6 +84,8 @@ public:
       m_prefetch.pop_back();
     }
 
+    ++m_iteration;
+
     return batch;
   }
 
@@ -111,7 +114,7 @@ private:
 
       while(m_prefetch.size() < m_prefetchSize)
       {
-        m_prefetch.push_back( hardTripletPool->nextTriplet() );
+        m_prefetch.push_back( hardTripletPool->nextTriplet(m_iteration) );
       }
     }
     else if( m_triplet_data_param.strategy()=="random" )
@@ -135,6 +138,7 @@ private:
   int m_prefetchSize;
   TripletBatch m_prefetch;
   int m_numImagesInModel;
+  uint64_t m_iteration;
 
   typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
   HardTripletGeneratorPtr hardTripletGenerator;

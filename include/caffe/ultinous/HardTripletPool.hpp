@@ -18,47 +18,65 @@ private:
 
   struct StoredTriplet
   {
-    StoredTriplet( Triplet triplet, Lives lives = START_LIVES )
+    StoredTriplet( Triplet triplet, uint64_t lastShown, Lives lives )
       : m_triplet( triplet )
+      , m_lastShown( lastShown )
       , m_lives( lives )
     { }
 
     Triplet m_triplet;
+    uint64_t m_lastShown;
     Lives m_lives;
   };
 
   typedef std::deque<StoredTriplet> Pool;
 
 public:
-  HardTripletPool( HardTripletGeneratorPtr const &htg, size_t maxPoolSize )
+  HardTripletPool( HardTripletGeneratorPtr const &htg, const HardTripletPoolParameter& hard_triplet_pool_param )
     : m_htg(htg)
     , m_featureMap(m_htg->getFeatureMap())
     , m_margin(m_htg->getMargin())
-    , m_maxPoolSize( maxPoolSize )
+    , m_maxPoolSize( hard_triplet_pool_param.poolsize() )
+    , m_showCount( hard_triplet_pool_param.showcount() )
+    , m_showCycle( hard_triplet_pool_param.showcycle() )
   { }
 
   Triplet nextTriplet()
+  {
+    throw std::exception( );
+  }
+
+  Triplet nextTriplet(uint64_t iteration)
   {
     Triplet triplet = m_htg->nextTriplet( );
 
     if( isHardTriplet(triplet) /*m_htg->isLastTripletHard( )*/ )
     {
       if( m_pool.size() < m_maxPoolSize )
-        storeTriplet( triplet );
+        storeTriplet( triplet, iteration );
       return triplet;
     }
-    while( !m_pool.empty() )
+
+    for( typename HardTripletPool<Dtype>::Pool::iterator it = m_pool.begin(); it!= m_pool.end(); /* NOP */ )
     {
-      StoredTriplet storedTriplet = m_pool.front( );
-      m_pool.pop_front( );
-
-      if( isHardTriplet( storedTriplet.m_triplet ) )
+      if( iteration - it->m_lastShown >= m_showCycle )
       {
-        --storedTriplet.m_lives;
-        if( storedTriplet.m_lives > 0)
-          m_pool.push_back( storedTriplet );
+        if( isHardTriplet( it->m_triplet ) )
+        {
+          --it->m_lives;
 
-        return storedTriplet.m_triplet;
+          if( it->m_lives == 0 )
+            it = m_pool.erase(it);
+          else
+            it->m_lastShown = iteration;
+
+          return it->m_triplet;
+        }
+        it = m_pool.erase(it);
+      }
+      else
+      {
+        ++it;
       }
     }
 
@@ -66,9 +84,9 @@ public:
   }
 
 private:
-  void storeTriplet( Triplet t )
+  void storeTriplet( Triplet t, uint64_t iteration )
   {
-    m_pool.push_back( StoredTriplet(t) );
+    m_pool.push_back( StoredTriplet(t, iteration, m_showCount) );
   }
 
   bool isHardTriplet( Triplet const &t )
@@ -101,10 +119,11 @@ private:
   FeatureMap<Dtype>const &m_featureMap;
   Dtype m_margin;
 
-  Pool m_pool;
   size_t const m_maxPoolSize;
+  Lives const m_showCount;
+  uint64_t const m_showCycle;
 
-  static const Lives START_LIVES = 3;
+  Pool m_pool;
 };
 
 } // namespace ultinous
