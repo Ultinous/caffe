@@ -116,7 +116,7 @@ private:
 
       if( !featuresCollected )
       {
-        LOG(INFO) << "All features collected!";
+        LOG(INFO) << "All features are collected!";
         featuresCollected = true;
       }
 
