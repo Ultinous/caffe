@@ -63,14 +63,15 @@ public:
       {
         if( isHardTriplet( it->m_triplet ) )
         {
-          --it->m_lives;
+          Triplet triplet = it->m_triplet;
 
+          --it->m_lives;
           if( it->m_lives == 0 )
             it = m_pool.erase(it);
           else
             it->m_lastShown = iteration;
 
-          return it->m_triplet;
+          return triplet;
         }
         it = m_pool.erase(it);
       }
