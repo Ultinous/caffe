@@ -1357,7 +1357,9 @@ message HardTripletParameter {
   optional uint32 sampledPictures = 3 [default = 32];
   optional float margin = 4 [default = 1.0];
   optional bool tooHardTriplets = 5 [default = true];
-  optional HardTripletPoolParameter hard_triplet_pool_param = 6;
+  optional bool hardestPositive = 6 [default = true];
+  optional bool hardestNegative = 7 [default = true];
+  optional HardTripletPoolParameter hard_triplet_pool_param = 8;
 }
 
 message HardTripletPoolParameter {

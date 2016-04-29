@@ -38,12 +38,8 @@ public:
 
       hardTripletGenerator = HardTripletGeneratorPtr(
         new HardTripletGenerator<Dtype>(
-          m_triplet_data_param.hard_triplet_param().sampledclasses()
-          , m_triplet_data_param.hard_triplet_param().sampledpictures()
-          , m_triplet_data_param.hard_triplet_param().margin()
+          m_triplet_data_param.hard_triplet_param()
           , m_basicModel
-          , m_triplet_data_param.hard_triplet_param().featuremapid()
-          , m_triplet_data_param.hard_triplet_param().toohardtriplets()
         )
       );
 
