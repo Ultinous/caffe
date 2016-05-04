@@ -34,24 +34,19 @@ public:
   };
 public:
   typedef std::vector<ImageName> ImageNames;
+  typedef std::vector<ClassId> ImageClasses;
   typedef std::vector<ClassModel> BasicModel;
 public:
   const BasicModel& getBasicModel() const { return m_basicModel; }
   const ImageName& getImageName(ImageIndex index) const { return m_imageNames.at(index); }
+  const ClassId getImageClass(ImageIndex index) const { return m_imageClasses.at(index);  }
   const size_t getImageNum() const { return m_imageNames.size(); }
-  const size_t getImageClass(ImageIndex index) const
-  {
-    for( int i = 0; i < m_basicModel.size(); ++i )
-      for( int j = 0; j < m_basicModel[i].images.size(); ++j )
-        if( index == m_basicModel[i].images[j] )
-          return m_basicModel[i].classId;
-    throw std::exception( );
-  }
 public:
   void add(const ImageName& imageName, ClassId classId)
   {
     ImageIndex imageIndex = m_imageNames.size();
     m_imageNames.push_back(imageName);
+    m_imageClasses.push_back(classId);
     m_basicModel[ensureClass(classId)].images.push_back(imageIndex);
   }
 private:
@@ -70,6 +65,7 @@ private:
   }
 private:
   ImageNames m_imageNames;
+  ImageClasses m_imageClasses;
   BasicModel m_basicModel;
   ClassIds m_classIds;
 };

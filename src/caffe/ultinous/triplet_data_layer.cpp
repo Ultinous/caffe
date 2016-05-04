@@ -148,22 +148,20 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   typename TripletBatchGenerator<Dtype>::TripletBatch tripletBatch = tripletBatchGenerator->nextTripletBatch();
 
   CHECK_EQ(batch_size, tripletBatch.size());
+
+  std::vector< size_t > indices(3);
+  std::vector< int > classes(3);
+
   for (int item_id = 0; item_id < batch_size; ++item_id) {
     CHECK_EQ(3, tripletBatch[item_id].size());
-
-    std::vector< size_t > indices(3);
-    std::vector< int > classes(3);
-    std::vector< std::string > files(3);
 
     for( int i = 0; i < 3; ++i )
     {
       indices[i] = tripletBatch[item_id][i];
       classes[i] = m_imageClassificationModel.getImageClass(indices[i]);
-      files[i] = m_imageClassificationModel.getImageName(indices[i]);
     }
     CHECK_EQ(classes[0], classes[1]);
     CHECK_NE(classes[1], classes[2]);
-
 
     // get a blob
     for( int i = 0; i < 3; ++ i ) {
@@ -174,9 +172,11 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       }
       else
       {
-        cv::Mat cv_img = ReadImageToCVMat(root_folder + files[i],
+        std::string fileName = m_imageClassificationModel.getImageName(indices[i]);
+
+        cv::Mat cv_img = ReadImageToCVMat(root_folder + fileName,
             new_height, new_width, is_color);
-        CHECK(cv_img.data) << "Could not load " << files[i];
+        CHECK(cv_img.data) << "Could not load " << fileName;
 
         // Apply transformations (mirror, crop...) to the image
         int offset;
