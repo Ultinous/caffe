@@ -11,7 +11,7 @@
 #include "caffe/layer.hpp"
 #include "caffe/layers/base_data_layer.hpp"
 #include "caffe/proto/caffe.pb.h"
-#include "caffe/ultinous/PictureClassificationModel.h"
+#include "caffe/ultinous/ImageClassificationModel.h"
 #include "caffe/ultinous/HardTripletGenerator.hpp"
 #include "caffe/ultinous/RandomTripletGenerator.hpp"
 #include "caffe/ultinous/TripletBatchGenerator.hpp"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include <caffe/ultinous/PictureClassificationModel.h>
+#include <caffe/ultinous/ImageClassificationModel.h>
 #include <caffe/ultinous/FeatureMap.hpp>
 #include "caffe/ultinous/AbstractTripletGenerator.hpp"
 #include "caffe/ultinous/HardTripletPool.hpp"

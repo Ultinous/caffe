@@ -3,7 +3,7 @@
 #include <vector>
 #include <boost/concept_check.hpp>
 #include <boost/make_shared.hpp>
-#include <caffe/ultinous/PictureClassificationModel.h>
+#include <caffe/ultinous/ImageClassificationModel.h>
 #include <caffe/ultinous/FeatureMap.hpp>
 #include <caffe/ultinous/AbstractTripletGenerator.hpp>
 

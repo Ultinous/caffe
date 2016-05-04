@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <boost/concept_check.hpp>
-#include <caffe/ultinous/PictureClassificationModel.h>
+#include <caffe/ultinous/ImageClassificationModel.h>
 #include <caffe/ultinous/FeatureMap.hpp>
 #include <caffe/ultinous/AbstractTripletGenerator.hpp>
 
@@ -18,7 +18,7 @@ public:
     : m_basicModel(basicModel)
   {
     CHECK_GT( m_basicModel.size(), 1 );
-    
+
     for( size_t i = 0; i < m_basicModel.size(); ++i )
       if( m_basicModel[i].images.size() >= 2 )
         m_classesWithAtLeastTwoImages.push_back( i );
