@@ -58,8 +58,6 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
     infile.read(reinterpret_cast<char *>(&m_inputFeatureLength), sizeof(m_inputFeatureLength));
 
-    std::cout << sizeof(m_inputFeatureLength) << std::endl;
-
     m_inputFeatures = vector<FeatureVector>(
       m_imageClassificationModel.getImageNum()
       , FeatureVector(m_inputFeatureLength)
