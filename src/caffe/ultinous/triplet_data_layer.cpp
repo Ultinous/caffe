@@ -54,8 +54,11 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   {
     std::cout << "TripletDataLayer: Loading input features!" << std::endl;
     const string& inputFeaturesFile = this->layer_param_.triplet_data_param().inputfeatures();
-    std::ifstream infile(inputFeaturesFile.c_str());
-    infile >> m_inputFeatureLength;
+    std::ifstream infile(inputFeaturesFile.c_str(), std::ifstream::binary);
+
+    infile.read(reinterpret_cast<char *>(&m_inputFeatureLength), sizeof(m_inputFeatureLength));
+
+    std::cout << sizeof(m_inputFeatureLength) << std::endl;
 
     m_inputFeatures = vector<FeatureVector>(
       m_imageClassificationModel.getImageNum()
@@ -63,8 +66,10 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
     );
 
     for( size_t i = 0; i < m_imageClassificationModel.getImageNum(); ++i )
-      for( size_t j = 0; j < m_inputFeatureLength; ++j )
-        infile >> m_inputFeatures[i][j];
+      infile.read(
+        reinterpret_cast<char *>(&(m_inputFeatures[i].at(0)))
+        , m_inputFeatureLength*sizeof(Dtype)
+      );
 
     m_top_shape = vector<int>(2);
     m_top_shape[0] = batch_size;

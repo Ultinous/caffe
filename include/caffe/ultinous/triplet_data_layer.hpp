@@ -47,7 +47,7 @@ private:
 
   typedef vector<Dtype> FeatureVector;
   vector<FeatureVector> m_inputFeatures;
-  size_t m_inputFeatureLength;
+  uint32_t m_inputFeatureLength;
 };
 
 
