@@ -38,6 +38,7 @@ public:
 public:
   const BasicModel& getBasicModel() const { return m_basicModel; }
   const ImageName& getImageName(ImageIndex index) const { return m_imageNames.at(index); }
+  const size_t getImageNum() const { return m_imageNames.size(); }
   const size_t getImageClass(ImageIndex index) const
   {
     for( int i = 0; i < m_basicModel.size(); ++i )

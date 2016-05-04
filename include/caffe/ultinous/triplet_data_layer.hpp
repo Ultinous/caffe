@@ -37,13 +37,17 @@ protected:
   virtual void load_batch(Batch<Dtype>* batch);
 
 private:
-  ImageClassificationModel imageClassificationModel;
+  ImageClassificationModel m_imageClassificationModel;
 
   typedef boost::shared_ptr<TripletBatchGenerator<Dtype> > TripletBatchGeneratorPtr;
   TripletBatchGeneratorPtr tripletBatchGenerator;
 
   vector<int> m_top_shape;
   vector<int> m_label_shape;
+
+  typedef vector<Dtype> FeatureVector;
+  vector<FeatureVector> m_inputFeatures;
+  size_t m_inputFeatureLength;
 };
 
 
