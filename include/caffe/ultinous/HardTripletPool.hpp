@@ -3,7 +3,7 @@
 #include <deque>
 #include <boost/concept_check.hpp>
 #include <caffe/ultinous/HardTripletGenerator.hpp>
-#include <caffe/ultinous/AllTripletGenerator.hpp>
+#include <caffe/ultinous/FeatureCollectorTripletGenerator.hpp>
 
 namespace caffe {
 namespace ultinous {
@@ -81,7 +81,7 @@ public:
       }
     }
 
-    return AllTripletGenerator<Dtype>::getInstance().nextTriplet();
+    return FeatureCollectorTripletGenerator<Dtype>::getInstance().nextTriplet();
   }
 
 private:

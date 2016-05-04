@@ -13,7 +13,6 @@
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/ultinous/PictureClassificationModel.h"
 #include "caffe/ultinous/HardTripletGenerator.hpp"
-#include "caffe/ultinous/AllTripletGenerator.hpp"
 #include "caffe/ultinous/RandomTripletGenerator.hpp"
 #include "caffe/ultinous/TripletBatchGenerator.hpp"
 

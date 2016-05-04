@@ -5,7 +5,6 @@
 #include <caffe/ultinous/FeatureMap.hpp>
 #include "caffe/ultinous/AbstractTripletGenerator.hpp"
 #include "caffe/ultinous/HardTripletPool.hpp"
-#include "caffe/ultinous/AllTripletGenerator.hpp"
 #include "caffe/ultinous/RandomTripletGenerator.hpp"
 
 
@@ -34,7 +33,7 @@ public:
 
     if( m_triplet_data_param.strategy()=="hard" )
     {
-      AllTripletGenerator<Dtype>::init( m_basicModel );
+      FeatureCollectorTripletGenerator<Dtype>::init( m_basicModel );
 
       hardTripletGenerator = HardTripletGeneratorPtr(
         new HardTripletGenerator<Dtype>(
@@ -105,7 +104,7 @@ private:
       if( !featuresCollected && featureMap.numFeatures() != m_numImagesInModel )
       {
         while(m_prefetch.size() < m_batchSize)
-          m_prefetch.push_back( AllTripletGenerator<Dtype>::getInstance().nextTriplet() );
+          m_prefetch.push_back( FeatureCollectorTripletGenerator<Dtype>::getInstance().nextTriplet() );
 
         return;
       }
@@ -146,9 +145,6 @@ private:
 
   typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
   HardTripletGeneratorPtr hardTripletGenerator;
-
-  typedef boost::shared_ptr<AllTripletGenerator<Dtype> > AllTripletGeneratorPtr;
-  AllTripletGeneratorPtr allTripletGenerator;
 
   typedef boost::shared_ptr<RandomTripletGenerator<Dtype> > RandomTripletGeneratorPtr;
   RandomTripletGeneratorPtr randomTripletGenerator;

@@ -12,22 +12,22 @@ namespace caffe {
 namespace ultinous {
 
 template <typename Dtype>
-class AllTripletGenerator : public AbstractTripletGenerator
+class FeatureCollectorTripletGenerator : public AbstractTripletGenerator
 {
 public:
-  typedef boost::shared_ptr<AllTripletGenerator<Dtype> > AllTripletGeneratorPtr;
+  typedef boost::shared_ptr<FeatureCollectorTripletGenerator<Dtype> > FeatureCollectorTripletGeneratorPtr;
 
 private:
-  AllTripletGenerator(const BasicModel& basicModel)
+  FeatureCollectorTripletGenerator(const BasicModel& basicModel)
     : m_basicModel(basicModel)
     , m_imageIndices( vector<int>(m_basicModel.size(), 0) )
     , m_currentClass(0)
   {
   }
 
-  static AllTripletGeneratorPtr& s_instance( )
+  static FeatureCollectorTripletGeneratorPtr& s_instance( )
   {
-    static AllTripletGeneratorPtr data;
+    static FeatureCollectorTripletGeneratorPtr data;
     return data;
   }
 
@@ -35,11 +35,12 @@ public:
   static void init( const BasicModel& basicModel )
   {
     if( s_instance() ) throw std::exception();
-    s_instance().reset( new AllTripletGenerator<Dtype>( basicModel ) );
+    s_instance().reset( new FeatureCollectorTripletGenerator<Dtype>( basicModel ) );
   }
 
-  static AllTripletGenerator& getInstance( )
+  static FeatureCollectorTripletGenerator& getInstance( )
   {
+    if( !s_instance() ) throw std::exception();
     return *s_instance();
   }
 
