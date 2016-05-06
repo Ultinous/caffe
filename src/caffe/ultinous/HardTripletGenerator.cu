@@ -40,7 +40,7 @@ void HardTripletGenerator<Dtype>::recalcDistancesGPU( ) {
   if( !m_syncedDistances )
     m_syncedDistances.reset( new SyncedMemory( nSample * nSample * sizeof(Dtype) ) );
 
-  Dtype * pFeatures = (Dtype *) m_syncedFeatures->cpu_data();
+  Dtype * pFeatures = (Dtype *) m_syncedFeatures->mutable_cpu_data();
 
   for( size_t i = 0; i < nSample; i++ )
   {
