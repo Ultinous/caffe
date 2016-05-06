@@ -45,7 +45,7 @@ void HardTripletGenerator<Dtype>::recalcDistancesGPU( ) {
     const typename FeatureMap<Dtype>::FeatureVec& feat = m_featureMap.getFeatureVec( image(i) );
     CHECK_GT( feat.size(), 0);
 
-    memcpy( pFeatures+i*featureLength*sizeof(Dtype), &(feat.at(0)), featureLength*sizeof(Dtype) );
+    memcpy( pFeatures+i*featureLength, &(feat.at(0)), featureLength );
   }
 
   Dtype * gpFeatures = (Dtype*)features.gpu_data();
