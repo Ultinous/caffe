@@ -242,7 +242,6 @@ private:
       CHECK_EQ( m_distances[i].size(), nSample );
 
     #ifdef CPU_ONLY
-    CHECK_EQ( 0, 1 );
     recalcDistancesCPU();
     #else
     recalcDistancesGPU();
