@@ -268,6 +268,9 @@ private:
   bool m_isLastTripletHard;
 
   std::vector<SampleIndex> m_shuffle;
+
+  shared_ptr<SyncedMemory> m_syncedFeatures;
+  shared_ptr<SyncedMemory> m_syncedDistances;
 };
 
 } // namespace ultinous
