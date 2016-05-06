@@ -33,7 +33,7 @@ public:
   Triplet nextTriplet()
   {
     if( m_totalRemainingPairs == 0 )
-      CHECK_EQ(0,1); // TODO reset
+      reset( );
 
     ClassIndex posClass;
     ImageIndex anchor, positive;
@@ -122,6 +122,8 @@ private:
   {
     BasicModel const &shuffledModel = m_modelShuffler.shuffledModel();
 
+    Dtype posDistance = computeDistance( anchor, positive );
+
     for( size_t i = 0; i < 1024; ++i )
     {
       ClassIndex negClass = rand() % (shuffledModel.size()-1);
@@ -130,32 +132,29 @@ private:
 
       negative = shuffledModel[negClass].images[rand() % shuffledModel[negClass].images.size()];
 
-      if( isHardTriplet( anchor, positive, negative ) )
+      Dtype negDistance = computeDistance( anchor, negative );
+
+      if( negDistance < posDistance + m_margin )
         return true;
     }
 
     return false;
   }
 
-  bool isHardTriplet( ImageIndex t0, ImageIndex t1, ImageIndex t2 )
+  Dtype computeDistance( ImageIndex t1, ImageIndex t2 )
   {
-    const typename FeatureMap<Dtype>::FeatureVec& f1 = m_featureMap.getFeatureVec( t0 );
-    const typename FeatureMap<Dtype>::FeatureVec& f2 = m_featureMap.getFeatureVec( t1 );
-    const typename FeatureMap<Dtype>::FeatureVec& f3 = m_featureMap.getFeatureVec( t2 );
+    const typename FeatureMap<Dtype>::FeatureVec& f1 = m_featureMap.getFeatureVec( t1 );
+    const typename FeatureMap<Dtype>::FeatureVec& f2 = m_featureMap.getFeatureVec( t2 );
 
     CHECK_GT( f1.size(), 0 );
     CHECK_EQ( f1.size(), f2.size() );
-    CHECK_EQ( f1.size(), f3.size() );
 
     typename FeatureMap<Dtype>::FeatureVec sqr( f1.size() );
 
     caffe_sub( f1.size(), &(f1[0]), &(f2[0]), &(sqr[0]) );
-    Dtype dist1 = caffe_cpu_dot( sqr.size(), &(sqr[0]), &(sqr[0]) );
+    Dtype dist = caffe_cpu_dot( sqr.size(), &(sqr[0]), &(sqr[0]) );
 
-    caffe_sub( f1.size(), &(f1[0]), &(f3[0]), &(sqr[0]) );
-    Dtype dist2 = caffe_cpu_dot( sqr.size(), &(sqr[0]), &(sqr[0]) );
-
-    return  dist2 < dist1 + m_margin;
+    return dist;
   }
 
 
