@@ -6,6 +6,7 @@
 #include "caffe/ultinous/AbstractTripletGenerator.hpp"
 #include "caffe/ultinous/HardTripletPool.hpp"
 #include "caffe/ultinous/RandomTripletGenerator.hpp"
+#include "caffe/ultinous/OxfordTripletGenerator.hpp"
 
 
 namespace caffe {
@@ -31,24 +32,37 @@ public:
     for( int i = 0; i < m_basicModel.size(); ++i )
       m_numImagesInModel += m_basicModel[i].images.size();
 
-    if( m_triplet_data_param.strategy()=="hard" )
+    if( m_triplet_data_param.strategy()=="hard"
+      || m_triplet_data_param.strategy()=="oxford"
+    )
     {
       FeatureCollectorTripletGenerator<Dtype>::init( m_basicModel );
+    }
 
+    if( m_triplet_data_param.strategy()=="hard" )
+    {
       hardTripletGenerator = HardTripletGeneratorPtr(
         new HardTripletGenerator<Dtype>(
           m_triplet_data_param.hard_triplet_param()
           , m_basicModel
         )
       );
-
       hardTripletPool = HardTripletPoolPtr(
         new HardTripletPool<Dtype>(
           hardTripletGenerator
           , m_triplet_data_param.hard_triplet_param().hard_triplet_pool_param()
         )
       );
-
+      m_prefetchSize = 1*m_batchSize;
+    }
+    else if( m_triplet_data_param.strategy()=="oxford" )
+    {
+      oxfordTripletGenerator = OxfordTripletGeneratorPtr(
+        new OxfordTripletGenerator<Dtype>(
+          m_triplet_data_param.hard_triplet_param()
+          , m_basicModel
+        )
+      );
       m_prefetchSize = 1*m_batchSize;
     }
     else if( m_triplet_data_param.strategy()=="random" )
@@ -93,7 +107,9 @@ private:
     if( m_prefetch.size() >= m_prefetchSize )
       return;
 
-    if( m_triplet_data_param.strategy()=="hard")
+    if( m_triplet_data_param.strategy()=="hard"
+      || m_triplet_data_param.strategy()=="oxford"
+    )
     {
       static bool featuresCollected = false;
 
@@ -115,10 +131,12 @@ private:
         featuresCollected = true;
       }
 
-      while(m_prefetch.size() < m_prefetchSize)
-      {
-        m_prefetch.push_back( hardTripletPool->nextTriplet(m_iteration) );
-      }
+      if( m_triplet_data_param.strategy()=="hard" )
+        while(m_prefetch.size() < m_prefetchSize)
+          m_prefetch.push_back( hardTripletPool->nextTriplet(m_iteration) );
+      else if( m_triplet_data_param.strategy()=="oxford" )
+        while(m_prefetch.size() < m_prefetchSize)
+          m_prefetch.push_back( oxfordTripletGenerator->nextTriplet( ) );
     }
     else if( m_triplet_data_param.strategy()=="random" )
     {
@@ -152,6 +170,8 @@ private:
   typedef boost::shared_ptr<HardTripletPool<Dtype> > HardTripletPoolPtr;
   HardTripletPoolPtr hardTripletPool;
 
+  typedef boost::shared_ptr<OxfordTripletGenerator<Dtype> > OxfordTripletGeneratorPtr;
+  OxfordTripletGeneratorPtr oxfordTripletGenerator;
 };
 
 } // namespace ultinous
