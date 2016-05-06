@@ -39,8 +39,8 @@ public:
 public:
   const BasicModel& getBasicModel() const { return m_basicModel; }
   const ImageName& getImageName(ImageIndex index) const { return m_imageNames.at(index); }
-  const ClassId getImageClass(ImageIndex index) const { return m_imageClasses.at(index);  }
-  const size_t getImageNum() const { return m_imageNames.size(); }
+  ClassId getImageClass(ImageIndex index) const { return m_imageClasses.at(index);  }
+  size_t getImageNum() const { return m_imageNames.size(); }
 public:
   void add(const ImageName& imageName, ClassId classId)
   {

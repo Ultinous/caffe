@@ -197,18 +197,12 @@ private:
     shuffle( m_shuffle.begin(), m_shuffle.end() );
     m_indexInSample = 0;
   }
-  void recalcDistances()
+
+  void recalcDistancesGPU(); // src/caffe/ultinous/HardTripletGenerator.cu
+
+  void recalcDistancesCPU()
   {
     size_t const nSample = m_classesInSample * m_imagesInSampleClass;
-
-    CHECK_GT( nSample, 0 );
-
-    if( m_distances.size() != nSample )
-      m_distances = Mat( nSample, Vec(nSample, 0) );
-
-    CHECK_EQ( m_distances.size(), nSample );
-    for( size_t i = 0; i < nSample; i++ )
-      CHECK_EQ( m_distances[i].size(), nSample );
 
     typename FeatureMap<Dtype>::FeatureVec sqr;
 
@@ -234,6 +228,27 @@ private:
       }
     }
   }
+  void recalcDistances()
+  {
+    size_t const nSample = m_classesInSample * m_imagesInSampleClass;
+
+    CHECK_GT( nSample, 0 );
+
+    if( m_distances.size() != nSample )
+      m_distances = Mat( nSample, Vec(nSample, 0) );
+
+    CHECK_EQ( m_distances.size(), nSample );
+    for( size_t i = 0; i < nSample; i++ )
+      CHECK_EQ( m_distances[i].size(), nSample );
+
+    #ifdef CPU_ONLY
+    CHECK_EQ( 0, 1 );
+    recalcDistancesCPU();
+    #else
+    recalcDistancesGPU();
+    #endif
+  }
+
 private:
   typedef std::vector<Dtype> Vec;
   typedef std::vector<Vec> Mat;
