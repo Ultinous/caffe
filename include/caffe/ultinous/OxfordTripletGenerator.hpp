@@ -45,15 +45,15 @@ public:
 
   void prefetch()
   {
-    size_t N = 1024;
-    size_t M = 128;
+    size_t N = 512;
+    size_t M = 64;
 
     size_t featureLength = m_featureMap.getFeatureVec( 0 ).size();
 
     if( !m_syncedFeatures )
       m_syncedFeatures.reset( new SyncedMemory( N*(M+2) * featureLength * sizeof(Dtype) ) );
 
-    std::vector<ImageIndex> indexMatrix;
+    std::vector<ImageIndex> indexMatrix(N*(M+2));
     Dtype * featureMatrix = (Dtype *)m_syncedFeatures->mutable_cpu_data();
 
     for( size_t i = 0; i < N; ++i )
@@ -64,37 +64,41 @@ public:
       ImageIndex anchor, positive;
       nextPositivePair( posClass, anchor, positive );
 
-      indexMatrix.push_back( anchor );
+      indexMatrix[i*(M+2)] = anchor;
       FeatureVec const &anchorVec = m_featureMap.getFeatureVec( anchor );
       memcpy( featureMatrix+(i*(M+2))*featureLength, &(anchorVec.at(0)), featureLength*sizeof(Dtype) );
 
-      indexMatrix.push_back( positive );
+      indexMatrix[i*(M+2)+1] = positive;
       FeatureVec const &positiveVec = m_featureMap.getFeatureVec( positive );
       memcpy( featureMatrix+(i*(M+2)+1)*featureLength, &(positiveVec.at(0)), featureLength*sizeof(Dtype) );
 
+      ClassIndex negClass = rand() % (shuffledModel.size()-1);
+      if( negClass >= posClass )
+        ++negClass;
 
       for( size_t j = 0; j < M; ++j )
       {
-        ClassIndex negClass = rand() % (shuffledModel.size()-1);
-        if( negClass >= posClass )
-          ++negClass;
-
         ImageIndex negative = shuffledModel[negClass].images[rand() % shuffledModel[negClass].images.size()];
 
-        indexMatrix.push_back( negative );
+        indexMatrix[i*(M+2)+2+j] = negative;
         FeatureVec const &negativeVec = m_featureMap.getFeatureVec( negative );
         memcpy( featureMatrix+(i*(M+2)+2+j)*featureLength, &(negativeVec.at(0)), featureLength*sizeof(Dtype) );
+
+        do {
+          ++negClass;
+          negClass %= shuffledModel.size();
+        } while( negClass == posClass );
       }
     }
 
-    std::vector< std::vector<Dtype> > distMatrix = computeDistances( N, 2+M, featureLength );
+    std::vector<Dtype> distMatrix = computeDistances( N, 2+M, featureLength );
 
     for( size_t i = 0; i < N; ++i )
     {
       Triplet t;
       for( size_t j = 0; j < M; j++ )
       {
-        if( distMatrix[i][1+j] < distMatrix[i][0] + m_margin )
+        if( distMatrix[i*(M+1)+1+j] < distMatrix[i*(M+1)] + m_margin )
         {
           t.push_back( indexMatrix[i*(M+2)+0] );
           t.push_back( indexMatrix[i*(M+2)+1] );
@@ -157,9 +161,9 @@ private:
     positive = shuffledModel[clIndex].images[positive];
   }
 
-  std::vector<std::vector<Dtype> > computeDistancesGPU( size_t N, size_t M, size_t featureLength );
+  std::vector<Dtype> computeDistancesGPU( size_t N, size_t M, size_t featureLength );
 
-  std::vector<std::vector<Dtype> > computeDistancesCPU( size_t N, size_t M, size_t featureLength )
+  std::vector<Dtype> computeDistancesCPU( size_t N, size_t M, size_t featureLength )
   {
     throw std::exception(); // TODO
     /*CHECK_GT( features.size(), 0 );
@@ -190,7 +194,7 @@ private:
     return results;*/
   }
 
-  std::vector<std::vector<Dtype> > computeDistances( size_t N, size_t M, size_t featureLength )
+  std::vector<Dtype> computeDistances( size_t N, size_t M, size_t featureLength )
   {
     #ifdef CPU_ONLY
     return computeDistancesCPU(N, M, featureLength );

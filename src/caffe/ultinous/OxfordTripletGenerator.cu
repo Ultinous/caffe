@@ -33,7 +33,7 @@ __global__ void doComputeDistancesGPU(
 
 
 template <typename Dtype>
-std::vector<std::vector<Dtype> > OxfordTripletGenerator<Dtype>::computeDistancesGPU( size_t N, size_t M, size_t featureLength )
+std::vector<Dtype> OxfordTripletGenerator<Dtype>::computeDistancesGPU( size_t N, size_t M, size_t featureLength )
 {
   if( !m_syncedDistances )
     m_syncedDistances.reset( new SyncedMemory( N*(M-1) * sizeof(Dtype) ) );
@@ -48,20 +48,16 @@ std::vector<std::vector<Dtype> > OxfordTripletGenerator<Dtype>::computeDistances
 
   Dtype const * pDistances = (Dtype const*)m_syncedDistances->cpu_data();
 
-  std::vector< std::vector<Dtype> > results;
+  std::vector<Dtype> results;
 
   for( size_t i = 0; i < N; ++i )
-  {
-    std::vector<Dtype> row;
     for( size_t j = 0; j < M-1; ++j )
-      row.push_back( *(pDistances+i*(M-1)+j) );
-    results.push_back( row );
-  }
+      results.push_back( *(pDistances+i*(M-1)+j) );
 
   return results;
 }
 
-template std::vector<std::vector<float> > OxfordTripletGenerator<float>::computeDistancesGPU( size_t N, size_t M, size_t featureLength );
+template std::vector<float> OxfordTripletGenerator<float>::computeDistancesGPU( size_t N, size_t M, size_t featureLength );
 
 
 } // namespace ultinous
