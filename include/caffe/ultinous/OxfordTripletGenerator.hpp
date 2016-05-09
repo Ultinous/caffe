@@ -25,6 +25,7 @@ public:
     , m_sampledPositivePairs( otp.sampledpositivepairs() )
     , m_sampledNegatives( otp.samplednegatives() )
     , m_indexMatrix( m_sampledPositivePairs * (m_sampledNegatives+2) )
+    , m_tooHardTriplets(otp.toohardtriplets())
   {
     reset( );
     LOG(INFO) << "OxfordTripletGenerator - total number of positive pairs: " << m_totalRemainingPairs << std::endl;
@@ -133,7 +134,9 @@ public:
     {
       for( j = 0; j < M; j++ )
       {
-        if( pDistances[i*(M+1)+1+j] < pDistances[i*(M+1)] + m_margin )
+        if( pDistances[i*(M+1)+1+j] < pDistances[i*(M+1)] + m_margin
+          && (m_tooHardTriplets || pDistances[i*(M+1)+1+j] >= pDistances[i*(M+1)])
+        )
         {
           t[0] = m_indexMatrix[i*(M+2)+0];
           t[1] = m_indexMatrix[i*(M+2)+1];
@@ -275,6 +278,8 @@ private:
   shared_ptr<SyncedMemory> m_syncedFeatures;
   shared_ptr<SyncedMemory> m_syncedDistances;
   ImageIndices m_indexMatrix;
+
+  bool m_tooHardTriplets;
 
   size_t m_numImagesInModel;
 

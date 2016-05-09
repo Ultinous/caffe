@@ -1375,6 +1375,7 @@ message OxfordTripletParameter {
   optional float margin = 2 [default = 1.0];
   optional uint32 sampledPositivePairs = 3 [default = 512];
   optional uint32 sampledNegatives = 4 [default = 128];
+  optional bool tooHardTriplets = 5 [default = true];
 }
 
 
