@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdlib>
 #include <vector>
 #include <deque>
 #include <boost/graph/graph_concepts.hpp>
@@ -16,19 +17,22 @@ template <typename Dtype>
 class OxfordTripletGenerator : public AbstractTripletGenerator
 {
 public:
-  OxfordTripletGenerator(HardTripletParameter const &htp, BasicModel const &basicModel)
+  OxfordTripletGenerator(OxfordTripletParameter const &otp, BasicModel const &basicModel)
     : m_modelShuffler( basicModel )
-    , m_margin(htp.margin())
-    , m_featureMap(FeatureMapContainer<Dtype>::instance(htp.featuremapid()))
-    , m_tooHardTriplets(htp.toohardtriplets())
+    , m_margin(otp.margin())
+    , m_featureMap(FeatureMapContainer<Dtype>::instance(otp.featuremapid()))
+    , m_sampledPositivePairs( otp.sampledpositivepairs() )
+    , m_sampledNegatives( otp.samplednegatives() )
+    , m_indexMatrix( m_sampledPositivePairs * (m_sampledNegatives+2) )
   {
     reset( );
+    LOG(INFO) << "OxfordTripletGenerator - total number of positive pairs: " << m_totalRemainingPairs << std::endl;
   }
 private:
   typedef size_t ImageIndex;
   typedef size_t ClassIndex;
   typedef size_t SampleIndex;
-  typedef ImageClassificationModel::ImageIndexes ImageIndexes;
+  typedef ImageClassificationModel::ImageIndexes ImageIndices;
   typedef typename FeatureMap<Dtype>::FeatureVec FeatureVec;
 public:
 
@@ -45,68 +49,69 @@ public:
 
   void prefetch()
   {
-    size_t N = 512;
-    size_t M = 64;
+    size_t N = m_sampledPositivePairs;
+    size_t M = m_sampledNegatives;
 
     size_t featureLength = m_featureMap.getFeatureVec( 0 ).size();
 
     if( !m_syncedFeatures )
-      m_syncedFeatures.reset( new SyncedMemory( N*(M+2) * featureLength * sizeof(Dtype) ) );
+      m_syncedFeatures.reset( new SyncedMemory( m_sampledPositivePairs*(m_sampledNegatives+2) * featureLength * sizeof(Dtype) ) );
+    if( !m_syncedDistances )
+      m_syncedDistances.reset( new SyncedMemory( m_sampledPositivePairs*(m_sampledNegatives+1) * sizeof(Dtype) ) );
 
-    std::vector<ImageIndex> indexMatrix(N*(M+2));
     Dtype * featureMatrix = (Dtype *)m_syncedFeatures->mutable_cpu_data();
+
+    typename ImageIndices::iterator indexMatrixIt = m_indexMatrix.begin( );
+
+    ClassIndex posClass, negClass;
+    ImageIndex anchor, positive, negative;
 
     for( size_t i = 0; i < N; ++i )
     {
       BasicModel const &shuffledModel = m_modelShuffler.shuffledModel();
 
-      ClassIndex posClass;
-      ImageIndex anchor, positive;
       nextPositivePair( posClass, anchor, positive );
 
-      indexMatrix[i*(M+2)] = anchor;
+      *indexMatrixIt++ = anchor;
       FeatureVec const &anchorVec = m_featureMap.getFeatureVec( anchor );
       memcpy( featureMatrix+(i*(M+2))*featureLength, &(anchorVec.at(0)), featureLength*sizeof(Dtype) );
 
-      indexMatrix[i*(M+2)+1] = positive;
+      *indexMatrixIt++ = positive;
       FeatureVec const &positiveVec = m_featureMap.getFeatureVec( positive );
       memcpy( featureMatrix+(i*(M+2)+1)*featureLength, &(positiveVec.at(0)), featureLength*sizeof(Dtype) );
 
-      ClassIndex negClass = rand() % (shuffledModel.size()-1);
-      if( negClass >= posClass )
-        ++negClass;
-
       for( size_t j = 0; j < M; ++j )
       {
-        ImageIndex negative = shuffledModel[negClass].images[rand() % shuffledModel[negClass].images.size()];
+        negClass = rand() % (shuffledModel.size()-1);
+        if( negClass >= posClass )
+          ++negClass;
 
-        indexMatrix[i*(M+2)+2+j] = negative;
+        negative = shuffledModel[negClass].images[rand() % shuffledModel[negClass].images.size()];
+
+        *indexMatrixIt++ = negative;
         FeatureVec const &negativeVec = m_featureMap.getFeatureVec( negative );
         memcpy( featureMatrix+(i*(M+2)+2+j)*featureLength, &(negativeVec.at(0)), featureLength*sizeof(Dtype) );
-
-        do {
-          ++negClass;
-          negClass %= shuffledModel.size();
-        } while( negClass == posClass );
       }
     }
 
-    std::vector<Dtype> distMatrix = computeDistances( N, 2+M, featureLength );
+    computeDistances( N, 2+M, featureLength );
+    Dtype const * pDistances = (Dtype const*)m_syncedDistances->cpu_data();
 
+    Triplet t(3);
+    size_t j;
     for( size_t i = 0; i < N; ++i )
     {
-      Triplet t;
-      for( size_t j = 0; j < M; j++ )
+      for( j = 0; j < M; j++ )
       {
-        if( distMatrix[i*(M+1)+1+j] < distMatrix[i*(M+1)] + m_margin )
+        if( pDistances[i*(M+1)+1+j] < pDistances[i*(M+1)] + m_margin )
         {
-          t.push_back( indexMatrix[i*(M+2)+0] );
-          t.push_back( indexMatrix[i*(M+2)+1] );
-          t.push_back( indexMatrix[i*(M+2)+2+j] );
+          t[0] = m_indexMatrix[i*(M+2)+0];
+          t[1] = m_indexMatrix[i*(M+2)+1];
+          t[2] = m_indexMatrix[i*(M+2)+2+j];
           break;
         }
       }
-      if( t.size() == 0 )
+      if( j == M )
         t = FeatureCollectorTripletGenerator<Dtype>::getInstance().nextTriplet();
 
       m_prefetch.push_back(t);
@@ -120,7 +125,7 @@ private:
     BasicModel const &shuffledModel = m_modelShuffler.shuffledModel();
 
     m_totalRemainingPairs = 0;
-    m_rulettSizes.clear();
+    m_remainingPairsInClasses.clear();
 
     for( size_t i = 0; i < shuffledModel.size(); i++ )
     {
@@ -129,7 +134,7 @@ private:
       size_t pairsInClass = cm.images.size() * (cm.images.size()-1);
 
       m_totalRemainingPairs += pairsInClass;
-      m_rulettSizes.push_back( pairsInClass );
+      m_remainingPairsInClasses.push_back( pairsInClass );
     }
   }
 
@@ -140,17 +145,17 @@ private:
 
     BasicModel const &shuffledModel = m_modelShuffler.shuffledModel();
 
-    uint64_t pairIndex = bigRandom( ) % m_totalRemainingPairs;
+    uint64_t pairIndex = myRandom( m_totalRemainingPairs );
 
     // compute classIndex
     clIndex = 0;
-    while( pairIndex >= m_rulettSizes[clIndex] )
+    while( pairIndex >= m_remainingPairsInClasses[clIndex] )
     {
-      pairIndex -= m_rulettSizes[clIndex];
+      pairIndex -= m_remainingPairsInClasses[clIndex];
       ++clIndex;
     }
 
-    --m_rulettSizes[clIndex];
+    --m_remainingPairsInClasses[clIndex];
     --m_totalRemainingPairs;
 
     ImageIndex nImages = shuffledModel[clIndex].images.size();
@@ -161,9 +166,9 @@ private:
     positive = shuffledModel[clIndex].images[positive];
   }
 
-  std::vector<Dtype> computeDistancesGPU( size_t N, size_t M, size_t featureLength );
+  void computeDistancesGPU( size_t N, size_t M, size_t featureLength );
 
-  std::vector<Dtype> computeDistancesCPU( size_t N, size_t M, size_t featureLength )
+  void computeDistancesCPU( size_t N, size_t M, size_t featureLength )
   {
     throw std::exception(); // TODO
     /*CHECK_GT( features.size(), 0 );
@@ -194,17 +199,22 @@ private:
     return results;*/
   }
 
-  std::vector<Dtype> computeDistances( size_t N, size_t M, size_t featureLength )
+  void computeDistances( size_t N, size_t M, size_t featureLength )
   {
     #ifdef CPU_ONLY
-    return computeDistancesCPU(N, M, featureLength );
+    computeDistancesCPU(N, M, featureLength );
     #else
-    return computeDistancesGPU(N, M, featureLength );
+    computeDistancesGPU(N, M, featureLength );
     #endif
   }
 
-  uint64_t bigRandom( )
+  uint64_t myRandom( uint64_t N )
   {
+    if( N-1 <= RAND_MAX )
+    {
+      return uint64_t(rand()) % N;
+    }
+
     uint64_t r = 0;
     r += uint64_t(rand() % 65536);
     r += uint64_t(rand() % 65536)<<16;
@@ -214,21 +224,21 @@ private:
   }
 
 private:
-  typedef std::vector<Dtype> Vec;
-  typedef std::vector<Vec> Mat;
-  typedef ImageSampler::Sample Sample;
+  typedef std::vector<Dtype> DistMatrix;
 private:
   ImageClassificationModelShuffle m_modelShuffler;
   Dtype m_margin;
   const FeatureMap<Dtype>& m_featureMap;
-  bool m_tooHardTriplets;
+  size_t m_sampledPositivePairs;
+  size_t m_sampledNegatives;
 
   shared_ptr<SyncedMemory> m_syncedFeatures;
   shared_ptr<SyncedMemory> m_syncedDistances;
+  ImageIndices m_indexMatrix;
 
   std::deque<Triplet> m_prefetch;
 
-  vector<size_t> m_rulettSizes;
+  vector<size_t> m_remainingPairsInClasses;
   uint64_t m_totalRemainingPairs;
 };
 

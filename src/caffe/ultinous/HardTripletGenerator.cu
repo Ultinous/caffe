@@ -66,6 +66,7 @@ void HardTripletGenerator<Dtype>::recalcDistancesGPU( ) {
 }
 
 template void HardTripletGenerator<float>::recalcDistancesGPU( );
+template void HardTripletGenerator<double>::recalcDistancesGPU( );
 
 
 } // namespace ultinous

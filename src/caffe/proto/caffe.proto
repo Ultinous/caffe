@@ -1350,6 +1350,7 @@ message TripletDataParameter {
   optional string strategy = 1 [default = "random"];
   optional string inputFeatures = 2 [default = ""];
   optional HardTripletParameter hard_triplet_param = 3;
+  optional OxfordTripletParameter oxford_triplet_param = 4;
 }
 
 message HardTripletParameter {
@@ -1367,6 +1368,13 @@ message HardTripletPoolParameter {
   optional uint32 poolSize = 1 [default = 100000];
   optional uint32 showCount = 2 [default = 3];
   optional uint32 showCycle = 3 [default = 5];
+}
+
+message OxfordTripletParameter {
+  optional string featureMapId = 1 [default = "defaultFeatureMapId"];
+  optional float margin = 2 [default = 1.0];
+  optional uint32 sampledPositivePairs = 3 [default = 512];
+  optional uint32 sampledNegatives = 4 [default = 128];
 }
 
 

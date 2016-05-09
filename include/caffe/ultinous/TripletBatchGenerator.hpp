@@ -54,16 +54,18 @@ public:
         )
       );
       m_prefetchSize = 1*m_batchSize;
+      m_featureMapId = m_triplet_data_param.hard_triplet_param().featuremapid();
     }
     else if( m_triplet_data_param.strategy()=="oxford" )
     {
       oxfordTripletGenerator = OxfordTripletGeneratorPtr(
         new OxfordTripletGenerator<Dtype>(
-          m_triplet_data_param.hard_triplet_param()
+          m_triplet_data_param.oxford_triplet_param()
           , m_basicModel
         )
       );
       m_prefetchSize = 1*m_batchSize;
+      m_featureMapId = m_triplet_data_param.oxford_triplet_param().featuremapid();
     }
     else if( m_triplet_data_param.strategy()=="random" )
     {
@@ -113,9 +115,7 @@ private:
     {
       static bool featuresCollected = false;
 
-      FeatureMap<Dtype>& featureMap = FeatureMapContainer<Dtype>::instance(
-        m_triplet_data_param.hard_triplet_param().featuremapid()
-      );
+      FeatureMap<Dtype>& featureMap = FeatureMapContainer<Dtype>::instance( m_featureMapId );
 
       if( !featuresCollected && featureMap.numFeatures() != m_numImagesInModel )
       {
@@ -160,6 +160,8 @@ private:
   TripletBatch m_prefetch;
   int m_numImagesInModel;
   uint64_t m_iteration;
+
+  std::string m_featureMapId;
 
   typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
   HardTripletGeneratorPtr hardTripletGenerator;
