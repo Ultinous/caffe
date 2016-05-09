@@ -28,17 +28,6 @@ public:
     , m_triplet_data_param(triplet_data_param)
     , m_iteration(0)
   {
-    m_numImagesInModel = 0;
-    for( int i = 0; i < m_basicModel.size(); ++i )
-      m_numImagesInModel += m_basicModel[i].images.size();
-
-    if( m_triplet_data_param.strategy()=="hard"
-      || m_triplet_data_param.strategy()=="oxford"
-    )
-    {
-      FeatureCollectorTripletGenerator<Dtype>::init( m_basicModel );
-    }
-
     if( m_triplet_data_param.strategy()=="hard" )
     {
       hardTripletGenerator = HardTripletGeneratorPtr(
@@ -54,7 +43,6 @@ public:
         )
       );
       m_prefetchSize = 1*m_batchSize;
-      m_featureMapId = m_triplet_data_param.hard_triplet_param().featuremapid();
     }
     else if( m_triplet_data_param.strategy()=="oxford" )
     {
@@ -65,7 +53,6 @@ public:
         )
       );
       m_prefetchSize = 1*m_batchSize;
-      m_featureMapId = m_triplet_data_param.oxford_triplet_param().featuremapid();
     }
     else if( m_triplet_data_param.strategy()=="random" )
     {
@@ -79,10 +66,8 @@ public:
     {
       throw std::exception( );
     }
-
-    FeatureMapContainer<Dtype>::instance( m_featureMapId ).resize( m_numImagesInModel );
   }
-  
+
 
   TripletBatch nextTripletBatch()
   {
@@ -112,42 +97,15 @@ private:
     if( m_prefetch.size() >= m_prefetchSize )
       return;
 
-    if( m_triplet_data_param.strategy()=="hard"
-      || m_triplet_data_param.strategy()=="oxford"
-    )
-    {
-      static bool featuresCollected = false;
-
-      FeatureMap<Dtype>& featureMap = FeatureMapContainer<Dtype>::instance( m_featureMapId );
-
-      if( !featuresCollected && featureMap.numFeatures() != m_numImagesInModel )
-      {
-        while(m_prefetch.size() < m_batchSize)
-          m_prefetch.push_back( FeatureCollectorTripletGenerator<Dtype>::getInstance().nextTriplet() );
-
-        return;
-      }
-
-      if( !featuresCollected )
-      {
-        LOG(INFO) << "All features are collected!";
-        featuresCollected = true;
-      }
-
-      if( m_triplet_data_param.strategy()=="hard" )
-        while(m_prefetch.size() < m_prefetchSize)
-          m_prefetch.push_back( hardTripletPool->nextTriplet(m_iteration) );
-      else if( m_triplet_data_param.strategy()=="oxford" )
-        while(m_prefetch.size() < m_prefetchSize)
-          m_prefetch.push_back( oxfordTripletGenerator->nextTriplet( ) );
-    }
-    else if( m_triplet_data_param.strategy()=="random" )
-    {
+    if( m_triplet_data_param.strategy()=="hard" )
       while(m_prefetch.size() < m_prefetchSize)
-      {
+        m_prefetch.push_back( hardTripletPool->nextTriplet(m_iteration) );
+    else if( m_triplet_data_param.strategy()=="oxford" )
+      while(m_prefetch.size() < m_prefetchSize)
+        m_prefetch.push_back( oxfordTripletGenerator->nextTriplet( ) );
+    else if( m_triplet_data_param.strategy()=="random" )
+      while(m_prefetch.size() < m_prefetchSize)
         m_prefetch.push_back( randomTripletGenerator->nextTriplet() );
-      }
-    }
     else
     {
       throw std::exception( );
@@ -160,10 +118,7 @@ private:
 
   int m_prefetchSize;
   TripletBatch m_prefetch;
-  int m_numImagesInModel;
   uint64_t m_iteration;
-
-  std::string m_featureMapId;
 
   typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
   HardTripletGeneratorPtr hardTripletGenerator;

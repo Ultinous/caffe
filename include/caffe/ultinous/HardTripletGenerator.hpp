@@ -5,6 +5,7 @@
 #include <caffe/ultinous/ImageClassificationModel.h>
 #include <caffe/ultinous/FeatureMap.hpp>
 #include <caffe/ultinous/AbstractTripletGenerator.hpp>
+#include <caffe/ultinous/FeatureCollectorTripletGenerator.hpp>
 
 namespace caffe {
 namespace ultinous {
@@ -31,6 +32,13 @@ public:
 
     for( size_t i = 0; i < m_classesInSample*m_imagesInSampleClass; ++i)
       m_shuffle.push_back(i);
+
+    m_numImagesInModel = 0;
+    for( int i = 0; i < basicModel.size(); ++i )
+      m_numImagesInModel += basicModel[i].images.size();
+
+    m_featureMap.resize( m_numImagesInModel );
+    FeatureCollectorTripletGenerator<Dtype>::init( basicModel );
   }
 private:
   typedef size_t ImageIndex;
@@ -41,6 +49,20 @@ public:
 
   Triplet nextTriplet()
   {
+    static bool featuresCollected = false;
+
+    if( !featuresCollected )
+    {
+      if( m_featureMap.numFeatures() != m_numImagesInModel )
+      {
+        m_isLastTripletHard = true;
+        return FeatureCollectorTripletGenerator<Dtype>::getInstance().nextTriplet();
+      }
+
+      LOG(INFO) << "All features are collected!";
+      featuresCollected = true;
+    }
+
     if(classIndex(m_indexInSample) >= m_classesInSample)
       resample();
 
@@ -260,7 +282,7 @@ private:
   Dtype m_margin;
   Sample m_sample;
   SampleIndex m_indexInSample;
-  const FeatureMap<Dtype>& m_featureMap;
+  FeatureMap<Dtype>& m_featureMap;
   bool m_tooHardTriplets;
   bool m_hardestPositive;
   bool m_hardestNegative;
@@ -270,6 +292,8 @@ private:
 
   shared_ptr<SyncedMemory> m_syncedFeatures;
   shared_ptr<SyncedMemory> m_syncedDistances;
+
+  size_t m_numImagesInModel;
 };
 
 } // namespace ultinous

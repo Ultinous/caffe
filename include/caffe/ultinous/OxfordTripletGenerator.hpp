@@ -1,6 +1,6 @@
 #pragma once
 
-//#include <chrono>
+#include <chrono>
 #include <vector>
 #include <deque>
 #include <limits>
@@ -32,6 +32,13 @@ public:
     xorshf96_x=123456789;
     xorshf96_y=362436069;
     xorshf96_z=521288629;
+
+    m_numImagesInModel = 0;
+    for( int i = 0; i < basicModel.size(); ++i )
+      m_numImagesInModel += basicModel[i].images.size();
+
+    m_featureMap.resize( m_numImagesInModel );
+    FeatureCollectorTripletGenerator<Dtype>::init( basicModel );
   }
 private:
   typedef size_t ImageIndex;
@@ -43,6 +50,18 @@ public:
 
   Triplet nextTriplet()
   {
+    static bool featuresCollected = false;
+
+    if( !featuresCollected )
+    {
+      if( m_featureMap.numFeatures() != m_numImagesInModel )
+        return FeatureCollectorTripletGenerator<Dtype>::getInstance().nextTriplet();
+
+      LOG(INFO) << "All features are collected!";
+      featuresCollected = true;
+    }
+
+
     if( m_prefetch.size() == 0 )
       prefetch();
 
@@ -54,6 +73,9 @@ public:
 
   void prefetch()
   {
+    //auto start = std::chrono::high_resolution_clock::now();
+    //uint64_t sumTime = 0;
+
     size_t N = m_sampledPositivePairs;
     size_t M = m_sampledNegatives;
 
@@ -72,10 +94,8 @@ public:
     ClassIndex posClass, negClass;
     ImageIndex anchor, positive, negative;
 
-    //uint64_t sumTime = 0;
     for( size_t i = 0; i < N; ++i )
     {
-      //auto start = std::chrono::high_resolution_clock::now();
       BasicModel const &shuffledModel = m_modelShuffler.shuffledModel();
 
       nextPositivePair( posClass, anchor, positive );
@@ -89,7 +109,6 @@ public:
       FeatureVec const &positiveVec = m_featureMap.getFeatureVec( positive );
       memcpy( featureMatrix, &(positiveVec[0]), featureBytes );
       featureMatrix += featureLength;
-
       for( size_t j = 0; j < M; ++j )
       {
         negClass = xorshf96() % (shuffledModel.size()-1);
@@ -103,10 +122,7 @@ public:
         memcpy( featureMatrix, &(negativeVec[0]), featureBytes );
         featureMatrix += featureLength;
       }
-      //sumTime+=std::chrono::duration_cast < std::chrono::nanoseconds > (std::chrono::high_resolution_clock::now() - start).count();
     }
-
-    //std::cout << (sumTime / 1000) << std::endl;
 
     computeDistances( N, 2+M, featureLength );
     Dtype const * pDistances = (Dtype const*)m_syncedDistances->cpu_data();
@@ -130,6 +146,8 @@ public:
 
       m_prefetch.push_back(t);
     }
+    //sumTime+=std::chrono::duration_cast < std::chrono::nanoseconds > (std::chrono::high_resolution_clock::now() - start).count();
+    //std::cout << (sumTime / 1000) << std::endl;
   }
 
 private:
@@ -171,14 +189,13 @@ private:
     --*it;
     --m_totalRemainingPairs;
 
-    ImageClassificationModel::ClassModel const &cm = shuffledModel[clIndex];
+    ImageClassificationModel::ImageIndexes const &images = shuffledModel[clIndex].images;
 
-    ImageIndex nImages = cm.images.size();
-    anchor = pairIndex % nImages;
-    positive = (1+anchor+pairIndex/nImages) % nImages;
+    anchor = pairIndex % images.size();
+    positive = (1+anchor+pairIndex/images.size()) % images.size();
 
-    anchor = cm.images[anchor];
-    positive = cm.images[positive];
+    anchor = images[anchor];
+    positive = images[positive];
   }
 
   void computeDistancesGPU( size_t N, size_t M, size_t featureLength );
@@ -251,13 +268,15 @@ private:
 private:
   ImageClassificationModelShuffle m_modelShuffler;
   Dtype m_margin;
-  const FeatureMap<Dtype>& m_featureMap;
+  FeatureMap<Dtype>& m_featureMap;
   size_t m_sampledPositivePairs;
   size_t m_sampledNegatives;
 
   shared_ptr<SyncedMemory> m_syncedFeatures;
   shared_ptr<SyncedMemory> m_syncedDistances;
   ImageIndices m_indexMatrix;
+
+  size_t m_numImagesInModel;
 
   std::deque<Triplet> m_prefetch;
 

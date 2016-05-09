@@ -50,7 +50,7 @@ public:
   {
     Triplet triplet = m_htg->nextTriplet( );
 
-    if( isHardTriplet(triplet) /*m_htg->isLastTripletHard( )*/ )
+    if( m_htg->isLastTripletHard( ) )
     {
       if( m_pool.size() < m_maxPoolSize )
         storeTriplet( triplet, iteration );
@@ -98,9 +98,8 @@ private:
     const typename FeatureMap<Dtype>::FeatureVec& f2 = m_featureMap.getFeatureVec( t[1] );
     const typename FeatureMap<Dtype>::FeatureVec& f3 = m_featureMap.getFeatureVec( t[2] );
 
-    CHECK_GT( f1.size(), 0 );
-    CHECK_EQ( f1.size(), f2.size() );
-    CHECK_EQ( f1.size(), f3.size() );
+    if( f1.size()==0 || f1.size()!=f2.size() || f1.size()!=f3.size() )
+      return false;
 
     typename FeatureMap<Dtype>::FeatureVec sqr( f1.size() );
 
