@@ -79,7 +79,10 @@ public:
     {
       throw std::exception( );
     }
+
+    FeatureMapContainer<Dtype>::instance( m_featureMapId ).resize( m_numImagesInModel );
   }
+  
 
   TripletBatch nextTripletBatch()
   {
@@ -149,7 +152,6 @@ private:
     {
       throw std::exception( );
     }
-
   }
 private:
   const size_t m_batchSize;

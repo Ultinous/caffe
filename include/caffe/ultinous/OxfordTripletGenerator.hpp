@@ -1,8 +1,9 @@
 #pragma once
 
-#include <cstdlib>
+//#include <chrono>
 #include <vector>
 #include <deque>
+#include <limits>
 #include <boost/graph/graph_concepts.hpp>
 #include <caffe/ultinous/ImageClassificationModel.h>
 #include <caffe/ultinous/FeatureMap.hpp>
@@ -27,6 +28,10 @@ public:
   {
     reset( );
     LOG(INFO) << "OxfordTripletGenerator - total number of positive pairs: " << m_totalRemainingPairs << std::endl;
+
+    xorshf96_x=123456789;
+    xorshf96_y=362436069;
+    xorshf96_z=521288629;
   }
 private:
   typedef size_t ImageIndex;
@@ -53,6 +58,7 @@ public:
     size_t M = m_sampledNegatives;
 
     size_t featureLength = m_featureMap.getFeatureVec( 0 ).size();
+    size_t featureBytes = featureLength*sizeof(Dtype);
 
     if( !m_syncedFeatures )
       m_syncedFeatures.reset( new SyncedMemory( m_sampledPositivePairs*(m_sampledNegatives+2) * featureLength * sizeof(Dtype) ) );
@@ -66,33 +72,41 @@ public:
     ClassIndex posClass, negClass;
     ImageIndex anchor, positive, negative;
 
+    //uint64_t sumTime = 0;
     for( size_t i = 0; i < N; ++i )
     {
+      //auto start = std::chrono::high_resolution_clock::now();
       BasicModel const &shuffledModel = m_modelShuffler.shuffledModel();
 
       nextPositivePair( posClass, anchor, positive );
 
       *indexMatrixIt++ = anchor;
       FeatureVec const &anchorVec = m_featureMap.getFeatureVec( anchor );
-      memcpy( featureMatrix+(i*(M+2))*featureLength, &(anchorVec.at(0)), featureLength*sizeof(Dtype) );
+      memcpy( featureMatrix, &(anchorVec[0]), featureBytes );
+      featureMatrix += featureLength;
 
       *indexMatrixIt++ = positive;
       FeatureVec const &positiveVec = m_featureMap.getFeatureVec( positive );
-      memcpy( featureMatrix+(i*(M+2)+1)*featureLength, &(positiveVec.at(0)), featureLength*sizeof(Dtype) );
+      memcpy( featureMatrix, &(positiveVec[0]), featureBytes );
+      featureMatrix += featureLength;
 
       for( size_t j = 0; j < M; ++j )
       {
-        negClass = rand() % (shuffledModel.size()-1);
+        negClass = xorshf96() % (shuffledModel.size()-1);
         if( negClass >= posClass )
           ++negClass;
 
-        negative = shuffledModel[negClass].images[rand() % shuffledModel[negClass].images.size()];
+        negative = shuffledModel[negClass].images[xorshf96()%shuffledModel[negClass].images.size()];
 
         *indexMatrixIt++ = negative;
         FeatureVec const &negativeVec = m_featureMap.getFeatureVec( negative );
-        memcpy( featureMatrix+(i*(M+2)+2+j)*featureLength, &(negativeVec.at(0)), featureLength*sizeof(Dtype) );
+        memcpy( featureMatrix, &(negativeVec[0]), featureBytes );
+        featureMatrix += featureLength;
       }
+      //sumTime+=std::chrono::duration_cast < std::chrono::nanoseconds > (std::chrono::high_resolution_clock::now() - start).count();
     }
+
+    //std::cout << (sumTime / 1000) << std::endl;
 
     computeDistances( N, 2+M, featureLength );
     Dtype const * pDistances = (Dtype const*)m_syncedDistances->cpu_data();
@@ -148,22 +162,23 @@ private:
     uint64_t pairIndex = myRandom( m_totalRemainingPairs );
 
     // compute classIndex
-    clIndex = 0;
-    while( pairIndex >= m_remainingPairsInClasses[clIndex] )
-    {
-      pairIndex -= m_remainingPairsInClasses[clIndex];
-      ++clIndex;
-    }
+    vector<size_t>::iterator it = m_remainingPairsInClasses.begin();
+    while( pairIndex >= *it )
+      pairIndex -= *it++;
 
-    --m_remainingPairsInClasses[clIndex];
+    clIndex = it - m_remainingPairsInClasses.begin();
+
+    --*it;
     --m_totalRemainingPairs;
 
-    ImageIndex nImages = shuffledModel[clIndex].images.size();
+    ImageClassificationModel::ClassModel const &cm = shuffledModel[clIndex];
+
+    ImageIndex nImages = cm.images.size();
     anchor = pairIndex % nImages;
     positive = (1+anchor+pairIndex/nImages) % nImages;
 
-    anchor = shuffledModel[clIndex].images[anchor];
-    positive = shuffledModel[clIndex].images[positive];
+    anchor = cm.images[anchor];
+    positive = cm.images[positive];
   }
 
   void computeDistancesGPU( size_t N, size_t M, size_t featureLength );
@@ -208,19 +223,27 @@ private:
     #endif
   }
 
+  uint32_t xorshf96(void) {          //period 2^96-1
+    xorshf96_x ^= xorshf96_x << 16;
+    xorshf96_x ^= xorshf96_x >> 5;
+    xorshf96_x ^= xorshf96_x << 1;
+    xorshf96_t = xorshf96_x;
+    xorshf96_x = xorshf96_y;
+    xorshf96_y = xorshf96_z;
+    xorshf96_z = xorshf96_t ^ xorshf96_x ^ xorshf96_y;
+    return xorshf96_z;
+  }
+
   uint64_t myRandom( uint64_t N )
   {
-    if( N-1 <= RAND_MAX )
+    if( N-1 <= std::numeric_limits<uint32_t>::max() )
     {
-      return uint64_t(rand()) % N;
+      return uint64_t(xorshf96()) % N;
     }
-
     uint64_t r = 0;
-    r += uint64_t(rand() % 65536);
-    r += uint64_t(rand() % 65536)<<16;
-    r += uint64_t(rand() % 65536)<<32;
-    r += uint64_t(rand() % 65536)<<48;
-    return r;
+    r += uint64_t(xorshf96());
+    r += uint64_t(xorshf96())<<32;
+    return r % N;
   }
 
 private:
@@ -240,6 +263,9 @@ private:
 
   vector<size_t> m_remainingPairsInClasses;
   uint64_t m_totalRemainingPairs;
+
+  uint32_t xorshf96_x, xorshf96_y, xorshf96_z;
+  uint32_t xorshf96_t;
 };
 
 } // namespace ultinous

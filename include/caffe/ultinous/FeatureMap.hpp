@@ -16,23 +16,30 @@ class FeatureMap
 public:
   typedef size_t Index;
   typedef std::vector<Dtype> FeatureVec;
-  typedef std::map<Index, FeatureVec> FeatureVecMap;
+  typedef std::vector<FeatureVec> FeatureVecMap;
 public:
+  virtual void resize( size_t length )
+  {
+    m_features.resize( length );
+    m_validFeatures.clear( );
+  }
+
   virtual void update(Index index, const FeatureVec& featureVec)
   {
     m_features[index] = featureVec;
+    m_validFeatures.insert(index);
   }
   virtual const FeatureVec& getFeatureVec(Index index) const
   {
-    typename FeatureVecMap::const_iterator it = m_features.find(index);
-    return (it == m_features.end())?m_default:it->second;
+    return m_features[index];
   }
   int numFeatures( ) const
   {
-    return m_features.size();
+    return m_validFeatures.size();
   }
 private:
   FeatureVecMap m_features;
+  std::set<Index> m_validFeatures;
   FeatureVec m_default;
 };
 
