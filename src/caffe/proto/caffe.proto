@@ -1349,8 +1349,9 @@ message TripletLossParameter {
 message TripletDataParameter {
   optional string strategy = 1 [default = "random"];
   optional string inputFeatures = 2 [default = ""];
-  optional HardTripletParameter hard_triplet_param = 3;
-  optional OxfordTripletParameter oxford_triplet_param = 4;
+  optional bool serialize = 3 [default = false];
+  optional HardTripletParameter hard_triplet_param = 4;
+  optional OxfordTripletParameter oxford_triplet_param = 5;
 }
 
 message HardTripletParameter {

@@ -48,6 +48,8 @@ private:
   typedef vector<Dtype> FeatureVector;
   vector<FeatureVector> m_inputFeatures;
   uint32_t m_inputFeatureLength;
+
+  bool m_serialize;
 };
 
 

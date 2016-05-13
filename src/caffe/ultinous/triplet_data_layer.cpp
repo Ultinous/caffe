@@ -40,6 +40,8 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   const int batch_size = this->layer_param_.image_data_param().batch_size();
   CHECK_GT(batch_size, 0) << "Positive batch size required";
 
+  m_serialize = this->layer_param_.triplet_data_param().serialize();
+
   // Init Classification Model
   read( sourceFile, m_imageClassificationModel );
 
@@ -70,8 +72,16 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       );
 
     m_top_shape = vector<int>(2);
-    m_top_shape[0] = batch_size;
-    m_top_shape[1] = 3*m_inputFeatureLength;
+    if( m_serialize )
+    {
+      m_top_shape[0] = 3*batch_size;
+      m_top_shape[1] = m_inputFeatureLength;
+    }
+    else
+    {
+      m_top_shape[0] = batch_size;
+      m_top_shape[1] = 3*m_inputFeatureLength;
+    }
   }
   else
   {
@@ -89,8 +99,15 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
     this->transformed_data_.Reshape(m_top_shape);
 
     // Reshape prefetch_data and top[0] according to the batch_size.
-    m_top_shape[0] = batch_size;
-    m_top_shape[1] *= 3;
+    if( m_serialize )
+    {
+      m_top_shape[0] = 3*batch_size;
+    }
+    else
+    {
+      m_top_shape[0] = batch_size;
+      m_top_shape[1] *= 3;
+    }
   }
 
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
@@ -105,6 +122,7 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   m_label_shape = vector<int>(2);
   m_label_shape[0] = batch_size;
   m_label_shape[1] = 3;
+
   top[1]->Reshape(m_label_shape);
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
     this->prefetch_[i].label_.Reshape(m_label_shape);
@@ -167,7 +185,9 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     for( int i = 0; i < 3; ++ i ) {
       if( inputFeatures )
       {
-        int offset = batch->data_.offset(item_id, i*m_inputFeatureLength );
+        int offset = m_serialize
+          ? batch->data_.offset( i*batch_size+item_id )
+          : batch->data_.offset(item_id, i*m_inputFeatureLength );
         memcpy( prefetch_data+offset, &(m_inputFeatures[indices[i]].at(0)), m_inputFeatureLength*sizeof(Dtype) );
       }
       else
@@ -181,10 +201,17 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
         // Apply transformations (mirror, crop...) to the image
         int offset;
 
-        if( this->layer_param_.image_data_param().is_color() )
-          offset = batch->data_.offset(item_id, 3*i);
+        if( m_serialize )
+        {
+            offset = batch->data_.offset( i*batch_size+item_id );
+        }
         else
-          offset = batch->data_.offset(item_id, i);
+        {
+          if( this->layer_param_.image_data_param().is_color() )
+            offset = batch->data_.offset(item_id, 3*i);
+          else
+            offset = batch->data_.offset(item_id, i);
+        }
 
         this->transformed_data_.set_cpu_data(prefetch_data + offset);
         this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
