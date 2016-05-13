@@ -180,22 +180,29 @@ private:
 
     BasicModel const &shuffledModel = m_modelShuffler.shuffledModel();
 
-    uint64_t pairIndex = myRandom( m_totalRemainingPairs );
-
     // compute classIndex
+    uint64_t R = myRandom( m_totalRemainingPairs );
     vector<size_t>::iterator it = m_remainingPairsInClasses.begin();
-    while( pairIndex >= *it )
-      pairIndex -= *it++;
-
+    while( R >= *it )
+      R -= *it++;
     clIndex = it - m_remainingPairsInClasses.begin();
-
-    --*it;
-    --m_totalRemainingPairs;
 
     ImageClassificationModel::ImageIndexes const &images = shuffledModel[clIndex].images;
 
-    anchor = pairIndex % images.size();
-    positive = (1+anchor+pairIndex/images.size()) % images.size();
+    --m_remainingPairsInClasses[clIndex];
+    --m_totalRemainingPairs;
+
+    size_t pairIndex = m_remainingPairsInClasses[clIndex];
+
+    size_t pairsInClass = images.size() * (images.size()-1);
+
+    if( pairIndex < pairsInClass / 2 )
+      pairIndex *= 2;
+    else
+      pairIndex = 1+2*( pairIndex - pairsInClass/2 );
+
+    positive = pairIndex % images.size();
+    anchor = (1+positive+pairIndex/images.size()) % images.size();
 
     anchor = images[anchor];
     positive = images[positive];
