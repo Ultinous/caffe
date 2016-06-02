@@ -28,6 +28,7 @@ public:
     , m_sampledNegatives( otp.samplednegatives() )
     , m_indexMatrix( m_sampledPositivePairs * (m_sampledNegatives+2) )
     , m_tooHardTriplets(otp.toohardtriplets())
+    , m_avgExaminedNegatives( m_sampledNegatives )
   {
     reset( );
     LOG(INFO) << "OxfordTripletGenerator - total number of positive pairs: " << m_totalRemainingPairs << std::endl;
@@ -43,8 +44,9 @@ public:
     m_featureMap.resize( m_numImagesInModel );
     FeatureCollectorTripletGenerator<Dtype>::init( basicModel );
 
+    m_bufferSize = m_sampledPositivePairs*(m_sampledNegatives+2);
     m_syncedFeatures.reset( new SyncedMemory( m_sampledPositivePairs*(m_sampledNegatives+2) * m_featureLength * sizeof(Dtype) ) );
-    m_syncedDistances.reset( new SyncedMemory( m_sampledPositivePairs*(m_sampledNegatives+1) * sizeof(Dtype) ) );
+    m_syncedDistances.reset( new SyncedMemory( m_sampledPositivePairs*(m_sampledNegatives+2) * sizeof(Dtype) ) );
     m_syncedFeatures->mutable_gpu_data();
     m_syncedDistances->mutable_gpu_data();
   }
@@ -59,13 +61,13 @@ private:
     ClassIndex m_classIndex;
     ImageIndex m_anchor;
     ImageIndex m_positive;
-    size_t m_lives;
+    size_t m_examinedNegatives;
 
     PositivePair( ClassIndex classIndex, ImageIndex anchor, ImageIndex positive )
       : m_classIndex(classIndex)
       , m_anchor(anchor)
       , m_positive(positive)
-      , m_lives(m_positivePairLives)
+      , m_examinedNegatives(0)
     { }
   };
 
@@ -95,15 +97,23 @@ public:
       return t;
     }
 
-    std::cout << "OxfordTripletGenerator: No hardtriplet found!" << std::endl;
+    LOG(INFO) << "No hard-triplet found!";
     return FeatureCollectorTripletGenerator<Dtype>::getInstance().nextTriplet();
   }
 
 private:
   void prefetch( )
   {
+    recomputeSampledCounts( );
+
     for(size_t i = 0; i < m_prefetchTrials && m_prefetch.size() == 0; ++i )
       doPrefetch();
+  }
+
+  void recomputeSampledCounts( )
+  {
+      m_sampledNegatives = std::max(16.0, std::min(m_avgExaminedNegatives, double(m_bufferSize/16.0)-2));
+      m_sampledPositivePairs = m_bufferSize / (2+m_sampledNegatives);
   }
 
   void doPrefetch()
@@ -134,7 +144,6 @@ private:
       posClass = ppIt->m_classIndex;
       anchor = ppIt->m_anchor;
       positive = ppIt->m_positive;
-      --ppIt->m_lives;
 
       *indexMatrixIt++ = anchor;
       FeatureVec const &anchorVec = m_featureMap.getFeatureVec( anchor );
@@ -183,9 +192,17 @@ private:
       }
 
       if( j != M )
+      {
         m_prefetch.push_back(t);
 
-      if( j != M || ppIt->m_lives==0 )
+        size_t examinedNegatives = ppIt->m_examinedNegatives + j+1;
+
+        m_avgExaminedNegatives = ((m_avgExaminedNegatives*999.0)+examinedNegatives)/1000.0;
+      }
+
+      ppIt->m_examinedNegatives += m_sampledNegatives;
+
+      if( j != M || ppIt->m_examinedNegatives >= 3 * m_avgExaminedNegatives )
         ppIt = m_positivePairList.erase(ppIt);
       else
         ++ppIt;
@@ -244,6 +261,11 @@ private:
 
     --m_remainingPairsInClasses[clIndex];
     --m_totalRemainingPairs;
+
+    if( (m_totalRemainingPairs % 640000) == 0 )
+      LOG(INFO) << "Current settings: avg: " << m_avgExaminedNegatives << " pp: "
+        << m_sampledPositivePairs << " n: " << m_sampledNegatives;
+
 
     size_t pairIndex = m_remainingPairsInClasses[clIndex];
 
@@ -356,6 +378,9 @@ private:
 
   static const size_t m_prefetchTrials = 50;
   static const size_t m_positivePairLives = 20;
+
+  double m_avgExaminedNegatives;
+  size_t m_bufferSize;
 };
 
 } // namespace ultinous
