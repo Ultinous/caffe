@@ -28,7 +28,9 @@ public:
     , m_sampledNegatives( otp.samplednegatives() )
     , m_indexMatrix( m_sampledPositivePairs * (m_sampledNegatives+2) )
     , m_tooHardTriplets(otp.toohardtriplets())
-    , m_avgExaminedNegatives( m_sampledNegatives )
+    , m_maxExaminedNegatives( 100000 )
+    , m_negativesToExamine( m_maxExaminedNegatives )
+    , m_avgExaminedNegatives( double(m_maxExaminedNegatives) )
   {
     reset( );
     LOG(INFO) << "OxfordTripletGenerator - total number of positive pairs: " << m_totalRemainingPairs << std::endl;
@@ -44,7 +46,7 @@ public:
     m_featureMap.resize( m_numImagesInModel );
     FeatureCollectorTripletGenerator<Dtype>::init( basicModel );
 
-    m_bufferSize = m_sampledPositivePairs*(m_sampledNegatives+2);
+//    m_bufferSize = m_sampledPositivePairs*(m_sampledNegatives+2);
     m_syncedFeatures.reset( new SyncedMemory( m_sampledPositivePairs*(m_sampledNegatives+2) * m_featureLength * sizeof(Dtype) ) );
     m_syncedDistances.reset( new SyncedMemory( m_sampledPositivePairs*(m_sampledNegatives+2) * sizeof(Dtype) ) );
     m_syncedFeatures->mutable_gpu_data();
@@ -104,17 +106,20 @@ public:
 private:
   void prefetch( )
   {
-    recomputeSampledCounts( );
+    //recomputeSampledCounts( );
+    m_negativesToExamine = std::min( m_maxExaminedNegatives, (size_t)(3.0 * m_avgExaminedNegatives) );
 
-    for(size_t i = 0; i < m_prefetchTrials && m_prefetch.size() == 0; ++i )
+
+    uint32_t trials = 3*(1+m_negativesToExamine / m_sampledNegatives);
+    while( trials-- > 0 && m_prefetch.size() == 0 )
       doPrefetch();
   }
 
-  void recomputeSampledCounts( )
+  /*void recomputeSampledCounts( )
   {
       m_sampledNegatives = std::max(16.0, std::min(m_avgExaminedNegatives, double(m_bufferSize/16.0)-2));
       m_sampledPositivePairs = m_bufferSize / (2+m_sampledNegatives);
-  }
+  }*/
 
   void doPrefetch()
   {
@@ -202,7 +207,8 @@ private:
 
       ppIt->m_examinedNegatives += m_sampledNegatives;
 
-      if( j != M || ppIt->m_examinedNegatives >= 3 * m_avgExaminedNegatives )
+      if( j != M
+        || ppIt->m_examinedNegatives >= m_negativesToExamine )
         ppIt = m_positivePairList.erase(ppIt);
       else
         ++ppIt;
@@ -263,8 +269,7 @@ private:
     --m_totalRemainingPairs;
 
     if( (m_totalRemainingPairs % 640000) == 0 )
-      LOG(INFO) << "Current settings: avg: " << m_avgExaminedNegatives << " pp: "
-        << m_sampledPositivePairs << " n: " << m_sampledNegatives;
+      LOG(INFO) << "Current settings: m_avgExaminedNegatives: " << m_avgExaminedNegatives;
 
 
     size_t pairIndex = m_remainingPairsInClasses[clIndex];
@@ -379,8 +384,10 @@ private:
   static const size_t m_prefetchTrials = 50;
   static const size_t m_positivePairLives = 20;
 
+  size_t m_maxExaminedNegatives;
+  size_t m_negativesToExamine;
   double m_avgExaminedNegatives;
-  size_t m_bufferSize;
+  //size_t m_bufferSize;
 };
 
 } // namespace ultinous
