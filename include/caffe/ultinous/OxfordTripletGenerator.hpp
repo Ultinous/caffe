@@ -45,6 +45,8 @@ public:
 
     m_syncedFeatures.reset( new SyncedMemory( m_sampledPositivePairs*(m_sampledNegatives+2) * m_featureLength * sizeof(Dtype) ) );
     m_syncedDistances.reset( new SyncedMemory( m_sampledPositivePairs*(m_sampledNegatives+1) * sizeof(Dtype) ) );
+    m_syncedFeatures->mutable_gpu_data();
+    m_syncedDistances->mutable_gpu_data();
   }
 private:
   typedef size_t ImageIndex;
