@@ -28,7 +28,7 @@ public:
     , m_sampledNegatives( otp.samplednegatives() )
     , m_indexMatrix( m_sampledPositivePairs * (m_sampledNegatives+2) )
     , m_tooHardTriplets(otp.toohardtriplets())
-    , m_maxExaminedNegatives( 100000 )
+    , m_maxExaminedNegatives( 10000 )
     , m_negativesToExamine( m_maxExaminedNegatives )
     , m_avgExaminedNegatives( double(m_maxExaminedNegatives) )
   {
@@ -269,7 +269,8 @@ private:
     --m_totalRemainingPairs;
 
     if( (m_totalRemainingPairs % 640000) == 0 )
-      LOG(INFO) << "Current settings: m_avgExaminedNegatives: " << m_avgExaminedNegatives;
+      LOG(INFO) << "Current settings: m_avgExNeg: " << m_avgExaminedNegatives
+          << " m_negsToEx: " << m_negativesToExamine;
 
 
     size_t pairIndex = m_remainingPairsInClasses[clIndex];
