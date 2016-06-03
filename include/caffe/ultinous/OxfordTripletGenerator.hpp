@@ -31,7 +31,6 @@ public:
     , m_indexMatrix( m_sampledPositivePairs * (m_sampledNegatives+2) )
     , m_tooHardTriplets(otp.toohardtriplets())
     , m_numImagesInModel( icm.getImageNum() )
-    , m_hardNegativesForClasses( icm.getBasicModel().size() )
     , m_maxExaminedNegatives( 10000 )
     , m_negativesToExamine( 2*m_sampledNegatives )
     , m_avgExaminedNegatives( double(m_sampledNegatives) )
@@ -84,7 +83,7 @@ private:
 
   typedef std::list<PositivePair> PositivePairList;
   typedef std::vector<ImageIndex> HardNegatives;
-  typedef std::vector<HardNegatives> HardNegativesForClasses;
+  typedef std::map<ClassIndex, HardNegatives> HardNegativesForClasses;
 public:
 
   Triplet nextTriplet()
