@@ -32,9 +32,10 @@ public:
     , m_tooHardTriplets(otp.toohardtriplets())
     , m_numImagesInModel( icm.getImageNum() )
     , m_hardNegativesForClasses( icm.getBasicModel().size() )
-    , m_maxExaminedNegatives( 10000 )
+    , m_maxExaminedNegatives( 2*m_sampledNegatives )
     , m_negativesToExamine( m_maxExaminedNegatives )
     , m_avgExaminedNegatives( double(m_maxExaminedNegatives) )
+    , m_logCycle( otp.logcycle() )
   {
     reset( );
     LOG(INFO) << "OxfordTripletGenerator - total number of positive pairs: " << m_totalRemainingPairs << std::endl;
@@ -82,7 +83,7 @@ private:
   };
 
   typedef std::list<PositivePair> PositivePairList;
-  typedef std::list<ImageIndex> HardNegatives;
+  typedef std::vector<ImageIndex> HardNegatives;
   typedef std::vector<HardNegatives> HardNegativesForClasses;
 public:
 
@@ -161,18 +162,16 @@ private:
       featureMatrix += featureLength;
 
       HardNegatives& hn = m_hardNegativesForClasses[ m_icm.getImageClass(anchor) ];
-      size_t shownHardNegatives = 0;
+      shuffle( hn.begin(), hn.end() );
+      HardNegatives::iterator hnIt = hn.begin();
       for( size_t j = 0; j < M; ++j )
       {
-        if( shownHardNegatives < hn.size()
+        if( hnIt != hn.end()
           && ppIt->m_examinedNegatives + j > m_avgExaminedNegatives/2
           && j%2
         )
         {
-          ++shownHardNegatives;
-          negative = hn.front();
-          hn.pop_front();
-          hn.push_back( negative );
+          negative = *hnIt++;
         }
         else
         {
@@ -226,9 +225,8 @@ private:
 
         if( std::find( hn.begin(), hn.end(), negative ) == hn.end() )
         {
+          hn.erase( hn.begin()+m_avgExaminedNegatives, hn.end() );
           hn.push_back( negative );
-          while( hn.size( ) > m_hardNegativePoolSize )
-            hn.pop_front( );
         }
       }
 
@@ -294,7 +292,7 @@ private:
     --m_remainingPairsInClasses[clIndex];
     --m_totalRemainingPairs;
 
-    if( (m_totalRemainingPairs % 640000) == 0 )
+    if( (m_totalRemainingPairs % m_logCycle) == 0 )
       LOG(INFO) << "Current settings: m_avgExNeg: " << m_avgExaminedNegatives
           << " m_negsToEx: " << m_negativesToExamine;
 
@@ -415,8 +413,7 @@ private:
 
   std::vector<ImageIndex> m_shuffledImages;
 
-  static const size_t m_prefetchTrials = 50;
-  static const size_t m_hardNegativePoolSize = 32;
+  size_t m_logCycle;
 
   /* Random generator variables */
   uint32_t xorshf96_x, xorshf96_y, xorshf96_z;

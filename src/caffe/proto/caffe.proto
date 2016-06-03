@@ -1379,6 +1379,7 @@ message OxfordTripletParameter {
   optional uint32 sampledPositivePairs = 5 [default = 1024];
   optional uint32 sampledNegatives = 6 [default = 16];
   optional bool tooHardTriplets = 7 [default = true];
+  optional uint32 logCycle=8 [default=640000];
 }
 
 
