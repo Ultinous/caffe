@@ -223,11 +223,20 @@ private:
         ImageIndex negative = t[2];
         HardNegatives& hn = m_hardNegativesForClasses[ m_icm.getImageClass(t[0]) ];
 
-        if( std::find( hn.begin(), hn.end(), negative ) == hn.end() )
+        if( hn.size() > 0 )
         {
-          hn.erase( hn.begin()+m_avgExaminedNegatives, hn.end() );
-          hn.push_back( negative );
+          if( std::find( hn.begin(), hn.end(), negative ) == hn.end() )
+          {
+            size_t poolSize = 1 + m_avgExaminedNegatives;
+
+            while( hn.size() >= poolSize );
+              hn.pop_back();
+
+            hn.push_back( negative );
+          }
         }
+        else
+          hn.push_back( negative );
       }
 
 
