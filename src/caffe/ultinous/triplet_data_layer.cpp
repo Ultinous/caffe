@@ -48,7 +48,7 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   tripletBatchGenerator = TripletBatchGeneratorPtr(
     new TripletBatchGenerator<Dtype>(
       batch_size
-      , m_imageClassificationModel.getBasicModel()
+      , m_imageClassificationModel
       , this->layer_param_.triplet_data_param() )
   );
 

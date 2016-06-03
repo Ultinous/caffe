@@ -19,15 +19,19 @@ template <typename Dtype>
 class OxfordTripletGenerator : public AbstractTripletGenerator
 {
 public:
-  OxfordTripletGenerator(OxfordTripletParameter const &otp, BasicModel const &basicModel)
-    : m_modelShuffler( basicModel )
+  OxfordTripletGenerator(OxfordTripletParameter const &otp, ImageClassificationModel const &icm)
+    : m_icm( icm )
+    , m_modelShuffler( icm.getBasicModel() )
     , m_margin(otp.margin())
+    , m_marginMultiplier(otp.marginmultiplier())
     , m_featureMap(FeatureMapContainer<Dtype>::instance(otp.featuremapid()))
     , m_featureLength(otp.featurelength() )
     , m_sampledPositivePairs( otp.sampledpositivepairs() )
     , m_sampledNegatives( otp.samplednegatives() )
     , m_indexMatrix( m_sampledPositivePairs * (m_sampledNegatives+2) )
     , m_tooHardTriplets(otp.toohardtriplets())
+    , m_numImagesInModel( icm.getImageNum() )
+    , m_hardNegativesForClasses( icm.getBasicModel().size() )
     , m_maxExaminedNegatives( 10000 )
     , m_negativesToExamine( m_maxExaminedNegatives )
     , m_avgExaminedNegatives( double(m_maxExaminedNegatives) )
@@ -39,14 +43,14 @@ public:
     xorshf96_y=362436069;
     xorshf96_z=521288629;
 
-    m_numImagesInModel = 0;
-    for( int i = 0; i < basicModel.size(); ++i )
-      m_numImagesInModel += basicModel[i].images.size();
-
     m_featureMap.resize( m_numImagesInModel );
-    FeatureCollectorTripletGenerator<Dtype>::init( basicModel );
+    FeatureCollectorTripletGenerator<Dtype>::init( icm.getBasicModel() );
 
-//    m_bufferSize = m_sampledPositivePairs*(m_sampledNegatives+2);
+    m_shuffledImages.resize( m_numImagesInModel );
+    for( ImageIndex i = 0; i < m_numImagesInModel; ++i )
+      m_shuffledImages[i] = i;
+    shuffle( m_shuffledImages.begin(), m_shuffledImages.end() );
+
     m_syncedFeatures.reset( new SyncedMemory( m_sampledPositivePairs*(m_sampledNegatives+2) * m_featureLength * sizeof(Dtype) ) );
     m_syncedDistances.reset( new SyncedMemory( m_sampledPositivePairs*(m_sampledNegatives+2) * sizeof(Dtype) ) );
     m_syncedFeatures->mutable_gpu_data();
@@ -59,21 +63,27 @@ private:
   typedef ImageClassificationModel::ImageIndexes ImageIndices;
   typedef typename FeatureMap<Dtype>::FeatureVec FeatureVec;
 
-  struct PositivePair {
+  class PositivePair {
+  public:
     ClassIndex m_classIndex;
     ImageIndex m_anchor;
     ImageIndex m_positive;
+    ImageIndex m_negativeIndex;
     size_t m_examinedNegatives;
 
-    PositivePair( ClassIndex classIndex, ImageIndex anchor, ImageIndex positive )
+  public:
+    PositivePair( ClassIndex classIndex, ImageIndex anchor, ImageIndex positive, ImageIndex negativeIndex )
       : m_classIndex(classIndex)
       , m_anchor(anchor)
       , m_positive(positive)
+      , m_negativeIndex( negativeIndex )
       , m_examinedNegatives(0)
     { }
   };
 
   typedef std::list<PositivePair> PositivePairList;
+  typedef std::list<ImageIndex> HardNegatives;
+  typedef std::vector<HardNegatives> HardNegativesForClasses;
 public:
 
   Triplet nextTriplet()
@@ -106,20 +116,12 @@ public:
 private:
   void prefetch( )
   {
-    //recomputeSampledCounts( );
-    m_negativesToExamine = std::min( m_maxExaminedNegatives, (size_t)(3.0 * m_avgExaminedNegatives) );
-
+    m_negativesToExamine = std::min( m_maxExaminedNegatives, (size_t)(2.0 * m_avgExaminedNegatives) );
 
     uint32_t trials = 3*(1+m_negativesToExamine / m_sampledNegatives);
     while( trials-- > 0 && m_prefetch.size() == 0 )
       doPrefetch();
   }
-
-  /*void recomputeSampledCounts( )
-  {
-      m_sampledNegatives = std::max(16.0, std::min(m_avgExaminedNegatives, double(m_bufferSize/16.0)-2));
-      m_sampledPositivePairs = m_bufferSize / (2+m_sampledNegatives);
-  }*/
 
   void doPrefetch()
   {
@@ -138,14 +140,12 @@ private:
 
     typename ImageIndices::iterator indexMatrixIt = m_indexMatrix.begin( );
 
-    ClassIndex posClass, negClass;
+    ClassIndex posClass; // In shuffledModel
     ImageIndex anchor, positive, negative;
 
     typename OxfordTripletGenerator<Dtype>::PositivePairList::iterator ppIt=m_positivePairList.begin();
     for( size_t i = 0; i < N; ++i, ++ppIt )
     {
-      BasicModel const &shuffledModel = m_modelShuffler.shuffledModel();
-
       posClass = ppIt->m_classIndex;
       anchor = ppIt->m_anchor;
       positive = ppIt->m_positive;
@@ -159,13 +159,30 @@ private:
       FeatureVec const &positiveVec = m_featureMap.getFeatureVec( positive );
       memcpy( featureMatrix, &(positiveVec[0]), featureBytes );
       featureMatrix += featureLength;
+
+      HardNegatives& hn = m_hardNegativesForClasses[ m_icm.getImageClass(anchor) ];
+      size_t shownHardNegatives = 0;
       for( size_t j = 0; j < M; ++j )
       {
-        negClass = xorshf96() % (shuffledModel.size()-1);
-        if( negClass >= posClass )
-          ++negClass;
+        if( shownHardNegatives < hn.size()
+          && ppIt->m_examinedNegatives + j > m_avgExaminedNegatives/2
+          && j%2
+        )
+        {
+          ++shownHardNegatives;
+          negative = hn.front();
+          hn.pop_front();
+          hn.push_back( negative );
+        }
+        else
+        {
+          do
+          {
+            negative = m_shuffledImages[ ppIt->m_negativeIndex ];
 
-        negative = shuffledModel[negClass].images[xorshf96()%shuffledModel[negClass].images.size()];
+            (++ppIt->m_negativeIndex) %= m_numImagesInModel;
+          } while( m_icm.getImageClass(negative) == m_icm.getImageClass(anchor) );
+        }
 
         *indexMatrixIt++ = negative;
         FeatureVec const &negativeVec = m_featureMap.getFeatureVec( negative );
@@ -185,7 +202,7 @@ private:
     {
       for( j = 0; j < M; j++ )
       {
-        if( pDistances[i*(M+1)+1+j] < pDistances[i*(M+1)] + m_margin
+        if( pDistances[i*(M+1)+1+j] < pDistances[i*(M+1)] + m_margin*m_marginMultiplier
           && (m_tooHardTriplets || pDistances[i*(M+1)+1+j] >= pDistances[i*(M+1)])
         )
         {
@@ -196,19 +213,27 @@ private:
         }
       }
 
+      ppIt->m_examinedNegatives += m_sampledNegatives;
+
       if( j != M )
       {
         m_prefetch.push_back(t);
 
-        size_t examinedNegatives = ppIt->m_examinedNegatives + j+1;
+        m_avgExaminedNegatives = ((m_avgExaminedNegatives*999.0)+ppIt->m_examinedNegatives)/1000.0;
 
-        m_avgExaminedNegatives = ((m_avgExaminedNegatives*999.0)+examinedNegatives)/1000.0;
+        ImageIndex negative = t[2];
+        HardNegatives& hn = m_hardNegativesForClasses[ m_icm.getImageClass(t[0]) ];
+
+        if( std::find( hn.begin(), hn.end(), negative ) == hn.end() )
+        {
+          hn.push_back( negative );
+          while( hn.size( ) > m_hardNegativePoolSize )
+            hn.pop_front( );
+        }
       }
 
-      ppIt->m_examinedNegatives += m_sampledNegatives;
 
-      if( j != M
-        || ppIt->m_examinedNegatives >= m_negativesToExamine )
+      if( j != M || ppIt->m_examinedNegatives >= m_negativesToExamine )
         ppIt = m_positivePairList.erase(ppIt);
       else
         ++ppIt;
@@ -226,7 +251,8 @@ private:
     {
       nextPositivePair( posClass, anchor, positive );
 
-      m_positivePairList.push_back( PositivePair( posClass, anchor, positive ) );
+      m_positivePairList.push_back( PositivePair( posClass, anchor, positive
+            , xorshf96()%m_numImagesInModel ) );
     }
   }
 
@@ -357,8 +383,10 @@ private:
 private:
   typedef std::vector<Dtype> DistMatrix;
 private:
+  ImageClassificationModel const& m_icm;
   ImageClassificationModelShuffle m_modelShuffler;
   Dtype m_margin;
+  Dtype m_marginMultiplier;
   FeatureMap<Dtype>& m_featureMap;
   size_t m_featureLength;
   size_t m_sampledPositivePairs;
@@ -374,21 +402,25 @@ private:
 
   std::deque<Triplet> m_prefetch;
 
-  vector<size_t> m_remainingPairsInClasses;
+  std::vector<size_t> m_remainingPairsInClasses;
   uint64_t m_totalRemainingPairs;
 
   PositivePairList m_positivePairList;
+  HardNegativesForClasses m_hardNegativesForClasses;
 
-  uint32_t xorshf96_x, xorshf96_y, xorshf96_z;
-  uint32_t xorshf96_t;
-
-  static const size_t m_prefetchTrials = 50;
-  static const size_t m_positivePairLives = 20;
 
   size_t m_maxExaminedNegatives;
   size_t m_negativesToExamine;
   double m_avgExaminedNegatives;
-  //size_t m_bufferSize;
+
+  std::vector<ImageIndex> m_shuffledImages;
+
+  static const size_t m_prefetchTrials = 50;
+  static const size_t m_hardNegativePoolSize = 32;
+
+  /* Random generator variables */
+  uint32_t xorshf96_x, xorshf96_y, xorshf96_z;
+  uint32_t xorshf96_t;
 };
 
 } // namespace ultinous

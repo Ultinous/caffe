@@ -22,9 +22,9 @@ public:
   typedef std::vector<Triplet> TripletBatch;
 
 public:
-  TripletBatchGenerator(size_t batchSize, const BasicModel& basicModel, const TripletDataParameter& triplet_data_param)
+  TripletBatchGenerator(size_t batchSize, const ImageClassificationModel& icm, const TripletDataParameter& triplet_data_param)
     : m_batchSize(batchSize)
-    , m_basicModel(basicModel)
+    , m_basicModel(icm.getBasicModel())
     , m_triplet_data_param(triplet_data_param)
     , m_iteration(0)
   {
@@ -49,7 +49,7 @@ public:
       oxfordTripletGenerator = OxfordTripletGeneratorPtr(
         new OxfordTripletGenerator<Dtype>(
           m_triplet_data_param.oxford_triplet_param()
-          , m_basicModel
+          , icm
         )
       );
       m_prefetchSize = 1*m_batchSize;

@@ -1374,10 +1374,11 @@ message HardTripletPoolParameter {
 message OxfordTripletParameter {
   optional string featureMapId = 1 [default = "defaultFeatureMapId"];
   optional float margin = 2 [default = 1.0];
-  required uint32 featureLength = 3;
-  optional uint32 sampledPositivePairs = 4 [default = 512];
-  optional uint32 sampledNegatives = 5 [default = 128];
-  optional bool tooHardTriplets = 6 [default = true];
+  optional float marginMultiplier = 3 [default=1.0];
+  required uint32 featureLength = 4;
+  optional uint32 sampledPositivePairs = 5 [default = 1024];
+  optional uint32 sampledNegatives = 6 [default = 16];
+  optional bool tooHardTriplets = 7 [default = true];
 }
 
 
