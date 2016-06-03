@@ -32,9 +32,9 @@ public:
     , m_tooHardTriplets(otp.toohardtriplets())
     , m_numImagesInModel( icm.getImageNum() )
     , m_hardNegativesForClasses( icm.getBasicModel().size() )
-    , m_maxExaminedNegatives( 2*m_sampledNegatives )
-    , m_negativesToExamine( m_maxExaminedNegatives )
-    , m_avgExaminedNegatives( double(m_maxExaminedNegatives) )
+    , m_maxExaminedNegatives( 10000 )
+    , m_negativesToExamine( 2*m_sampledNegatives )
+    , m_avgExaminedNegatives( double(m_sampledNegatives) )
     , m_logCycle( otp.logcycle() )
   {
     reset( );
