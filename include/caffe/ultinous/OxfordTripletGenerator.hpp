@@ -308,15 +308,10 @@ private:
 
     size_t pairIndex = m_remainingPairsInClasses[clIndex];
 
-    size_t pairsInClass = images.size() * (images.size()-1);
-
-    if( pairIndex < pairsInClass / 2 )
-      pairIndex *= 2;
-    else
-      pairIndex = 1+2*( pairIndex - pairsInClass/2 );
-
-    positive = pairIndex % images.size();
-    anchor = (1+positive+pairIndex/images.size()) % images.size();
+    anchor = pairIndex % images.size();
+    positive = (2+anchor+anchor%3+pairIndex/images.size()) % images.size();
+    if( positive == anchor )
+      (++positive) %=  images.size();
 
     anchor = images[anchor];
     positive = images[positive];
