@@ -162,7 +162,8 @@ private:
       featureMatrix += featureLength;
 
       HardNegatives& hn = m_hardNegativesForClasses[ m_icm.getImageClass(anchor) ];
-      shuffle( hn.begin(), hn.end() );
+      if( hn.size() > 0 )
+        shuffle( hn.begin(), hn.end() );
       HardNegatives::iterator hnIt = hn.begin();
       for( size_t j = 0; j < M; ++j )
       {
