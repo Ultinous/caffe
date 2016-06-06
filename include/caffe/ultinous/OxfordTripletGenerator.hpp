@@ -116,7 +116,7 @@ public:
 private:
   void prefetch( )
   {
-    m_negativesToExamine = std::min( m_maxExaminedNegatives, (size_t)(2.0 * m_avgExaminedNegatives) );
+    m_negativesToExamine = std::min( m_maxExaminedNegatives, (size_t)(3.0 * m_avgExaminedNegatives) );
 
     uint32_t trials = 3*(1+m_negativesToExamine / m_sampledNegatives);
     while( trials-- > 0 && m_prefetch.size() == 0 )
@@ -163,7 +163,7 @@ private:
       HardNegatives& hn = m_hardNegativesForClasses[ m_icm.getImageClass(anchor) ];
       if( hn.size() > 0 )
         shuffle( hn.begin(), hn.end() );
-      HardNegatives::iterator hnIt = hn.begin();
+      HardNegatives::iterator hnIt = hn.size()>0?(hn.begin()+(hn.size()-1)):hn.end();
       for( size_t j = 0; j < M; ++j )
       {
         if( hnIt != hn.end()
@@ -171,7 +171,11 @@ private:
           && j%2
         )
         {
-          negative = *hnIt++;
+          negative = *hnIt;
+          if( hnIt == hn.begin() )
+            hnIt = hn.end();
+          else
+            --hnIt;
         }
         else
         {
@@ -212,13 +216,12 @@ private:
         }
       }
 
-      ppIt->m_examinedNegatives += m_sampledNegatives;
-
       if( j != M )
       {
         m_prefetch.push_back(t);
 
-        m_avgExaminedNegatives = ((m_avgExaminedNegatives*999.0)+ppIt->m_examinedNegatives)/1000.0;
+        double examinedNegatives = ppIt->m_examinedNegatives + j + 1;
+        m_avgExaminedNegatives = ((m_avgExaminedNegatives*999.0)+examinedNegatives)/1000.0;
 
         ImageIndex negative = t[2];
         HardNegatives& hn = m_hardNegativesForClasses[ m_icm.getImageClass(t[0]) ];
@@ -239,6 +242,7 @@ private:
           hn.push_back( negative );
       }
 
+      ppIt->m_examinedNegatives += m_sampledNegatives;
 
       if( j != M || ppIt->m_examinedNegatives >= m_negativesToExamine )
         ppIt = m_positivePairList.erase(ppIt);
@@ -309,9 +313,9 @@ private:
     size_t pairIndex = m_remainingPairsInClasses[clIndex];
 
     anchor = pairIndex % images.size();
-    positive = (2+anchor+anchor%3+pairIndex/images.size()) % images.size();
-    if( positive == anchor )
-      (++positive) %=  images.size();
+    positive = (anchor + images.size()/2 + pairIndex/images.size()) % (images.size()-1);
+    if( positive >= anchor )
+      ++positive;
 
     anchor = images[anchor];
     positive = images[positive];
