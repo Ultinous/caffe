@@ -82,8 +82,9 @@ private:
   };
 
   typedef std::list<PositivePair> PositivePairList;
-  typedef std::vector<ImageIndex> HardNegatives;
-  typedef std::map<ClassIndex, HardNegatives> HardNegativesForClasses;
+  typedef std::list<ImageIndex> HardNegativesList;
+  typedef std::vector<ImageIndex> HardNegativesVector;
+  typedef std::map<ClassIndex, HardNegativesList> HardNegativesForClasses;
 public:
 
   Triplet nextTriplet()
@@ -160,10 +161,12 @@ private:
       memcpy( featureMatrix, &(positiveVec[0]), featureBytes );
       featureMatrix += featureLength;
 
-      HardNegatives& hn = m_hardNegativesForClasses[ m_icm.getImageClass(anchor) ];
+      HardNegativesList& hnList = m_hardNegativesForClasses[ m_icm.getImageClass(anchor) ];
+      HardNegativesVector hn(hnList.begin(), hnList.end()) ; // Copy!
       if( hn.size() > 0 )
         shuffle( hn.begin(), hn.end() );
-      HardNegatives::iterator hnIt = hn.size()>0?(hn.begin()+(hn.size()-1)):hn.end();
+
+      HardNegativesVector::iterator hnIt = hn.begin();
       for( size_t j = 0; j < M; ++j )
       {
         if( hnIt != hn.end()
@@ -171,11 +174,7 @@ private:
           && j%2
         )
         {
-          negative = *hnIt;
-          if( hnIt == hn.begin() )
-            hnIt = hn.end();
-          else
-            --hnIt;
+          negative = *hnIt++;
         }
         else
         {
@@ -224,7 +223,7 @@ private:
         m_avgExaminedNegatives = ((m_avgExaminedNegatives*999.0)+examinedNegatives)/1000.0;
 
         ImageIndex negative = t[2];
-        HardNegatives& hn = m_hardNegativesForClasses[ m_icm.getImageClass(t[0]) ];
+        HardNegativesList& hn = m_hardNegativesForClasses[ m_icm.getImageClass(t[0]) ];
 
         if( hn.size() > 0 )
         {
@@ -233,7 +232,7 @@ private:
             size_t poolSize = 1 + m_avgExaminedNegatives;
 
             while( hn.size() >= poolSize );
-              hn.pop_back();
+              hn.pop_front();
 
             hn.push_back( negative );
           }
