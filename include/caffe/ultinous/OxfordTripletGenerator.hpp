@@ -218,8 +218,7 @@ private:
       {
         ImageIndex negIndex = m_indexMatrix[i*(M+2)+2+j];
 
-        HardNegativesMap::iterator hnIt = (j%2==1) ? hnMap.find(negIndex) : hnMap.end();
-
+        HardNegativesMap::iterator hnIt = hnMap.find(negIndex);
 
         if( pDistances[i*(M+1)+1+j] < pDistances[i*(M+1)] + m_margin*m_marginMultiplier
           && (m_tooHardTriplets || pDistances[i*(M+1)+1+j] >= pDistances[i*(M+1)]) ) // Hard Negative
