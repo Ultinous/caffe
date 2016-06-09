@@ -88,7 +88,7 @@ private:
   typedef std::vector<ImageIndex> HardNegativesVector;
   typedef std::map<ClassIndex, HardNegativesMap> HardNegativesForClasses;
 
-  static const NegativeLives MAX_NEGATIVE_LIVES = 128;
+  static const NegativeLives MAX_NEGATIVE_LIVES = 64;
 public:
 
   Triplet nextTriplet()
@@ -180,12 +180,10 @@ private:
       for( size_t j = 0; j < M; ++j )
       {
         if( hnIt != hnVec.end()
-          && ppIt->m_examinedNegatives + j > m_avgExaminedNegatives
-          && j%2
+          && (j%2==1)
         )
         {
           negative = *hnIt++;
-          --hnMap[negative];
         }
         else
         {
@@ -207,68 +205,80 @@ private:
     computeDistances( N, 2+M, featureLength );
     Dtype const * pDistances = (Dtype const*)m_syncedDistances->cpu_data();
 
-    Triplet t(3);
-    size_t j;
-
     ppIt = m_positivePairList.begin();
     for( size_t i = 0; i < N; ++i )
     {
-      for( j = 0; j < M; j++ )
+      Triplet newTriplet;
+      size_t newTripletIndex = 0;
+
+      ImageIndex ancIndex = m_indexMatrix[i*(M+2)+0], posIndex=m_indexMatrix[i*(M+2)+1];
+      HardNegativesMap& hnMap = m_hardNegativesForClasses[ m_icm.getImageClass(ancIndex) ];
+
+      for( size_t j = 0; j < M; j++ )
       {
+        ImageIndex negIndex = m_indexMatrix[i*(M+2)+2+j];
+
+        HardNegativesMap::iterator hnIt = (j%2==1) ? hnMap.find(negIndex) : hnMap.end();
+
+
         if( pDistances[i*(M+1)+1+j] < pDistances[i*(M+1)] + m_margin*m_marginMultiplier
-          && (m_tooHardTriplets || pDistances[i*(M+1)+1+j] >= pDistances[i*(M+1)])
-        )
+          && (m_tooHardTriplets || pDistances[i*(M+1)+1+j] >= pDistances[i*(M+1)]) ) // Hard Negative
         {
-          t[0] = m_indexMatrix[i*(M+2)+0];
-          t[1] = m_indexMatrix[i*(M+2)+1];
-          t[2] = m_indexMatrix[i*(M+2)+2+j];
-          break;
-        }
+          if( newTriplet.size() == 0 )
+          {
+            newTriplet.resize(3);
+            newTriplet[0] = ancIndex;
+            newTriplet[1] = posIndex;
+            newTriplet[2] = negIndex;
+            if( hnIt != hnMap.end() ) // It will be shown up -> decrease lives
+              --hnIt->second;
+            newTripletIndex = j;
+          }
+        } else
+          if( hnIt != hnMap.end() ) // Non hard negative -> decrease lives
+            --hnIt->second;
       }
 
-      if( j != M )
+      if( newTriplet.size()==3 )
       {
-        m_prefetch.push_back(t);
+        m_prefetch.push_back(newTriplet);
 
-        float examinedNegatives = ppIt->m_examinedNegatives + j + 1;
+        float examinedNegatives = ppIt->m_examinedNegatives + newTripletIndex + 1;
         m_avgExaminedNegatives = ((m_avgExaminedNegatives*999.0)+examinedNegatives)/1000.0;
 
-        ImageIndex negative = t[2];
-        HardNegativesMap& hnMap = m_hardNegativesForClasses[ m_icm.getImageClass(t[0]) ];
+        if( hnMap.find(newTriplet[2]) == hnMap.end() ) // New negative
+          hnMap[newTriplet[2]] = MAX_NEGATIVE_LIVES;
+      }
 
+      for( HardNegativesMap::iterator it = hnMap.begin( ); it != hnMap.end(); /*NOP*/ )
+        if( it->second <= 0 )
+          hnMap.erase(it++);
+        else
+          ++it;
 
-        if( hnMap.find(negative) == hnMap.end() ) // New negative
-          hnMap[negative] = MAX_NEGATIVE_LIVES;
+      size_t poolSize = 1 + std::max(0.0f, 2*m_avgExaminedNegatives);
 
-        size_t poolSize = 1 + std::max(0.0f, m_avgExaminedNegatives);
+      // Removing the oldest stored negatives;
+      while( hnMap.size() > poolSize )
+      {
+        HardNegativesMap::iterator it, minLivesIt = hnMap.begin();
+        NegativeLives minLives = MAX_NEGATIVE_LIVES;
 
-        for( HardNegativesMap::iterator it = hnMap.begin( ); it != hnMap.end(); /*NOP*/ )
-          if( it->second <= 0 )
-            hnMap.erase(it++);
-          else
-            ++it;
-
-        // Removing the oldest stored negatives;
-        while( hnMap.size() > poolSize ) {
-          HardNegativesMap::iterator it, minLivesIt = hnMap.begin();
-          NegativeLives minLives = MAX_NEGATIVE_LIVES;
-
-          for( it = hnMap.begin( ); it != hnMap.end(); ++it )
+        for( it = hnMap.begin( ); it != hnMap.end(); ++it )
+        {
+          if( it->second < minLives )
           {
-            if( it->second < minLives )
-            {
-              minLives = it->second;
-              minLivesIt = it;
-            }
+            minLives = it->second;
+            minLivesIt = it;
           }
-
-          hnMap.erase( minLivesIt );
         }
+
+        hnMap.erase( minLivesIt );
       }
 
       ppIt->m_examinedNegatives += m_sampledNegatives;
 
-      if( j != M || ppIt->m_examinedNegatives >= m_negativesToExamine )
+      if( newTriplet.size()==3 || ppIt->m_examinedNegatives >= m_negativesToExamine )
         ppIt = m_positivePairList.erase(ppIt);
       else
         ++ppIt;
