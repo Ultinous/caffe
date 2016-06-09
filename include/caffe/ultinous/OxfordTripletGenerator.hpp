@@ -33,7 +33,7 @@ public:
     , m_numImagesInModel( icm.getImageNum() )
     , m_maxExaminedNegatives( 10000 )
     , m_negativesToExamine( 2*m_sampledNegatives )
-    , m_avgExaminedNegatives( double(m_sampledNegatives) )
+    , m_avgExaminedNegatives( float(m_sampledNegatives) )
     , m_logCycle( otp.logcycle() )
   {
     reset( );
@@ -63,6 +63,7 @@ private:
   typedef ImageClassificationModel::ImageIndexes ImageIndices;
   typedef typename FeatureMap<Dtype>::FeatureVec FeatureVec;
 
+
   class PositivePair {
   public:
     ClassIndex m_classIndex;
@@ -82,9 +83,12 @@ private:
   };
 
   typedef std::list<PositivePair> PositivePairList;
-  typedef std::list<ImageIndex> HardNegativesList;
+  typedef int16_t NegativeLives;
+  typedef std::map<ImageIndex, NegativeLives> HardNegativesMap;
   typedef std::vector<ImageIndex> HardNegativesVector;
-  typedef std::map<ClassIndex, HardNegativesList> HardNegativesForClasses;
+  typedef std::map<ClassIndex, HardNegativesMap> HardNegativesForClasses;
+
+  static const NegativeLives MAX_NEGATIVE_LIVES = 128;
 public:
 
   Triplet nextTriplet()
@@ -161,20 +165,27 @@ private:
       memcpy( featureMatrix, &(positiveVec[0]), featureBytes );
       featureMatrix += featureLength;
 
-      HardNegativesList& hnList = m_hardNegativesForClasses[ m_icm.getImageClass(anchor) ];
-      HardNegativesVector hn(hnList.begin(), hnList.end()) ; // Copy!
-      if( hn.size() > 0 )
-        shuffle( hn.begin(), hn.end() );
+      HardNegativesMap& hnMap = m_hardNegativesForClasses[ m_icm.getImageClass(anchor) ];
 
-      HardNegativesVector::iterator hnIt = hn.begin();
+      HardNegativesVector hnVec ; // Copy!
+
+      if( hnMap.size() > 0 )
+      {
+        for( HardNegativesMap::iterator it = hnMap.begin(); it!=hnMap.end(); ++it )
+          hnVec.push_back( it->first );
+        shuffle( hnVec.begin(), hnVec.end() );
+      }
+
+      HardNegativesVector::iterator hnIt = hnVec.begin();
       for( size_t j = 0; j < M; ++j )
       {
-        if( hnIt != hn.end()
-          && ppIt->m_examinedNegatives + j > m_avgExaminedNegatives/2
+        if( hnIt != hnVec.end()
+          && ppIt->m_examinedNegatives + j > m_avgExaminedNegatives
           && j%2
         )
         {
           negative = *hnIt++;
+          --hnMap[negative];
         }
         else
         {
@@ -219,26 +230,40 @@ private:
       {
         m_prefetch.push_back(t);
 
-        double examinedNegatives = ppIt->m_examinedNegatives + j + 1;
+        float examinedNegatives = ppIt->m_examinedNegatives + j + 1;
         m_avgExaminedNegatives = ((m_avgExaminedNegatives*999.0)+examinedNegatives)/1000.0;
 
         ImageIndex negative = t[2];
-        HardNegativesList& hn = m_hardNegativesForClasses[ m_icm.getImageClass(t[0]) ];
+        HardNegativesMap& hnMap = m_hardNegativesForClasses[ m_icm.getImageClass(t[0]) ];
 
-        if( hn.size() > 0 )
-        {
-          if( std::find( hn.begin(), hn.end(), negative ) == hn.end() )
+
+        if( hnMap.find(negative) == hnMap.end() ) // New negative
+          hnMap[negative] = MAX_NEGATIVE_LIVES;
+
+        size_t poolSize = 1 + std::max(0.0f, m_avgExaminedNegatives);
+
+        for( HardNegativesMap::iterator it = hnMap.begin( ); it != hnMap.end(); /*NOP*/ )
+          if( it->second <= 0 )
+            hnMap.erase(it++);
+          else
+            ++it;
+
+        // Removing the oldest stored negatives;
+        while( hnMap.size() > poolSize ) {
+          HardNegativesMap::iterator it, minLivesIt = hnMap.begin();
+          NegativeLives minLives = MAX_NEGATIVE_LIVES;
+
+          for( it = hnMap.begin( ); it != hnMap.end(); ++it )
           {
-            size_t poolSize = 1 + m_avgExaminedNegatives;
-
-            while( hn.size() >= poolSize );
-              hn.pop_front();
-
-            hn.push_back( negative );
+            if( it->second < minLives )
+            {
+              minLives = it->second;
+              minLivesIt = it;
+            }
           }
+
+          hnMap.erase( minLivesIt );
         }
-        else
-          hn.push_back( negative );
       }
 
       ppIt->m_examinedNegatives += m_sampledNegatives;
@@ -416,7 +441,7 @@ private:
 
   size_t m_maxExaminedNegatives;
   size_t m_negativesToExamine;
-  double m_avgExaminedNegatives;
+  float m_avgExaminedNegatives;
 
   std::vector<ImageIndex> m_shuffledImages;
 
