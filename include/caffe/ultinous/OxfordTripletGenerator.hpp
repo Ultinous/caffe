@@ -32,8 +32,7 @@ public:
     , m_tooHardTriplets(otp.toohardtriplets())
     , m_numImagesInModel( icm.getImageNum() )
     , m_maxExaminedNegatives( 10000 )
-    , m_negativesToExamine( 2*m_sampledNegatives )
-    , m_avgExaminedNegatives( float(m_sampledNegatives) )
+    , m_avgExaminedNegatives( icm.getBasicModel().size(), float(m_sampledNegatives) )
     , m_logCycle( otp.logcycle() )
   {
     reset( );
@@ -87,8 +86,7 @@ private:
   typedef std::map<ImageIndex, NegativeLives> HardNegativesMap;
   typedef std::vector<ImageIndex> HardNegativesVector;
   typedef std::map<ClassIndex, HardNegativesMap> HardNegativesForClasses;
-
-  static const NegativeLives MAX_NEGATIVE_LIVES = 64;
+  typedef std::vector<float> AvgExaminedNegatives;
 public:
 
   Triplet nextTriplet()
@@ -121,11 +119,20 @@ public:
 private:
   void prefetch( )
   {
-    m_negativesToExamine = std::min( m_maxExaminedNegatives, (size_t)(3.0 * m_avgExaminedNegatives) );
+    refreshTotalAvgExaminedNegatives( );
+    size_t negativesToExamine = std::min( m_maxExaminedNegatives, (size_t)(3.0 * m_totalAvgExaminedNegatives) );
 
-    uint32_t trials = 3*(1+m_negativesToExamine / m_sampledNegatives);
+    uint32_t trials = 3*(1+negativesToExamine / m_sampledNegatives);
     while( trials-- > 0 && m_prefetch.size() == 0 )
       doPrefetch();
+  }
+
+  void refreshTotalAvgExaminedNegatives( )
+  {
+    m_totalAvgExaminedNegatives = 0;
+    for( AvgExaminedNegatives::iterator it = m_avgExaminedNegatives.begin(); it != m_avgExaminedNegatives.end(); ++it)
+      m_totalAvgExaminedNegatives += *it;
+    m_totalAvgExaminedNegatives /= m_avgExaminedNegatives.size();
   }
 
   void doPrefetch()
@@ -145,15 +152,17 @@ private:
 
     typename ImageIndices::iterator indexMatrixIt = m_indexMatrix.begin( );
 
-    ClassIndex posClass; // In shuffledModel
+    ClassIndex anchorClassIndex; // In shuffledModel
+    ClassIndex anchorClass;
     ImageIndex anchor, positive, negative;
 
     typename OxfordTripletGenerator<Dtype>::PositivePairList::iterator ppIt=m_positivePairList.begin();
     for( size_t i = 0; i < N; ++i, ++ppIt )
     {
-      posClass = ppIt->m_classIndex;
+      anchorClassIndex = ppIt->m_classIndex;
       anchor = ppIt->m_anchor;
       positive = ppIt->m_positive;
+      anchorClass = m_icm.getImageClass(anchor);
 
       *indexMatrixIt++ = anchor;
       FeatureVec const &anchorVec = m_featureMap.getFeatureVec( anchor );
@@ -192,7 +201,7 @@ private:
             negative = m_shuffledImages[ ppIt->m_negativeIndex ];
 
             (++ppIt->m_negativeIndex) %= m_numImagesInModel;
-          } while( m_icm.getImageClass(negative) == m_icm.getImageClass(anchor) );
+          } while( m_icm.getImageClass(negative) == anchorClass );
         }
 
         *indexMatrixIt++ = negative;
@@ -212,6 +221,7 @@ private:
       size_t newTripletIndex = 0;
 
       ImageIndex ancIndex = m_indexMatrix[i*(M+2)+0], posIndex=m_indexMatrix[i*(M+2)+1];
+      ClassIndex anchorClass = m_icm.getImageClass(ancIndex);
       HardNegativesMap& hnMap = m_hardNegativesForClasses[ m_icm.getImageClass(ancIndex) ];
 
       for( size_t j = 0; j < M; j++ )
@@ -243,10 +253,10 @@ private:
         m_prefetch.push_back(newTriplet);
 
         float examinedNegatives = ppIt->m_examinedNegatives + newTripletIndex + 1;
-        m_avgExaminedNegatives = ((m_avgExaminedNegatives*999.0)+examinedNegatives)/1000.0;
+        m_avgExaminedNegatives[anchorClass] = ((m_avgExaminedNegatives[anchorClass]*999.0)+examinedNegatives)/1000.0;
 
         if( hnMap.find(newTriplet[2]) == hnMap.end() ) // New negative
-          hnMap[newTriplet[2]] = MAX_NEGATIVE_LIVES;
+          hnMap[newTriplet[2]] = m_avgExaminedNegatives[anchorClass];
       }
 
       for( HardNegativesMap::iterator it = hnMap.begin( ); it != hnMap.end(); /*NOP*/ )
@@ -255,15 +265,15 @@ private:
         else
           ++it;
 
-      size_t poolSize = 1 + std::max(0.0f, 2*m_avgExaminedNegatives);
+      size_t poolSize = 1 + std::max(0.0f, 2*m_avgExaminedNegatives[anchorClass]);
 
       // Removing the oldest stored negatives;
       while( hnMap.size() > poolSize )
       {
-        HardNegativesMap::iterator it, minLivesIt = hnMap.begin();
-        NegativeLives minLives = MAX_NEGATIVE_LIVES;
+        HardNegativesMap::iterator it = hnMap.begin( ), minLivesIt = hnMap.begin();
+        NegativeLives minLives = it->second;
 
-        for( it = hnMap.begin( ); it != hnMap.end(); ++it )
+        for( ++it; it != hnMap.end(); ++it )
         {
           if( it->second < minLives )
           {
@@ -277,7 +287,9 @@ private:
 
       ppIt->m_examinedNegatives += m_sampledNegatives;
 
-      if( newTriplet.size()==3 || ppIt->m_examinedNegatives >= m_negativesToExamine )
+      size_t negativesToExamine = std::min( m_maxExaminedNegatives, (size_t)(3.0 * m_avgExaminedNegatives[anchorClass]) );
+
+      if( newTriplet.size()==3 || ppIt->m_examinedNegatives >= negativesToExamine )
         ppIt = m_positivePairList.erase(ppIt);
       else
         ++ppIt;
@@ -339,9 +351,7 @@ private:
     --m_totalRemainingPairs;
 
     if( (m_totalRemainingPairs % m_logCycle) == 0 )
-      LOG(INFO) << "Current settings: m_avgExNeg: " << m_avgExaminedNegatives
-          << " m_negsToEx: " << m_negativesToExamine;
-
+      LOG(INFO) << "Current settings: m_totAvgExNeg: " << m_totalAvgExaminedNegatives;
 
     size_t pairIndex = m_remainingPairsInClasses[clIndex];
 
@@ -449,8 +459,8 @@ private:
 
 
   size_t m_maxExaminedNegatives;
-  size_t m_negativesToExamine;
-  float m_avgExaminedNegatives;
+  AvgExaminedNegatives m_avgExaminedNegatives;
+  float m_totalAvgExaminedNegatives;
 
   std::vector<ImageIndex> m_shuffledImages;
 
