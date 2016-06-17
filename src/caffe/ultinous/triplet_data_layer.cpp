@@ -1,5 +1,6 @@
 #ifdef USE_OPENCV
 #include <opencv2/core/core.hpp>
+#include <opencv2/opencv.hpp>
 
 #include <fstream>  // NOLINT(readability/streams)
 #include <iostream>  // NOLINT(readability/streams)
@@ -198,9 +199,33 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
             new_height, new_width, is_color);
         CHECK(cv_img.data) << "Could not load " << fileName;
 
+
+        // Apply color transformation
+        float satCoef = 0.3f + 0.9f*static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        float valCoef = 0.3f + 0.9f*static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        cv::cvtColor( cv_img, cv_img, CV_BGR2HSV );
+        for( size_t x = 0; x < cv_img.rows; ++x )
+        {
+          for( size_t y = 0; y < cv_img.cols; ++y )
+          {
+            cv::Vec3b &pixel = cv_img.at<cv::Vec3b>( x, y );
+
+            pixel[1] = std::min(uint8_t(255), static_cast<uint8_t>(float(pixel[1])*satCoef));
+            pixel[2] = std::min(uint8_t(255), static_cast<uint8_t>(float(pixel[2])*valCoef));
+
+            cv_img.at<cv::Vec3b>( x, y ) = pixel;
+          }
+        }
+        cv::cvtColor( cv_img, cv_img, CV_HSV2BGR );
+
+        // Apply random scale
+        float xScale = 0.87+0.4*static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        float yScale = 0.87+0.4*static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        cv::Mat cv_scaled;
+        cv::resize( cv_img, cv_scaled, cv::Size(), xScale, yScale, cv::INTER_LINEAR );
+
         // Apply transformations (mirror, crop...) to the image
         int offset;
-
         if( m_serialize )
         {
             offset = batch->data_.offset( i*batch_size+item_id );
@@ -214,7 +239,7 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
         }
 
         this->transformed_data_.set_cpu_data(prefetch_data + offset);
-        this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
+        this->data_transformer_->Transform(cv_scaled, &(this->transformed_data_));
       }
 
       prefetch_label[3*item_id+i] = indices[i];
