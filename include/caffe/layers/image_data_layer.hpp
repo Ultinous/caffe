@@ -27,7 +27,7 @@ class ImageDataLayer : public BasePrefetchingDataLayer<Dtype> {
  public:
   explicit ImageDataLayer(const LayerParameter& param)
       : BasePrefetchingDataLayer<Dtype>(param)
-      , m_unTransformer(param.ultinous_transform_param(), param.phase())
+      , m_unTransformer(this->layer_param_.ultinous_transform_param(), this->phase_)
   { }
   virtual ~ImageDataLayer();
   virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,

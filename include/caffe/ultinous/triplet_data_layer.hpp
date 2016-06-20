@@ -27,7 +27,7 @@ class TripletDataLayer : public BasePrefetchingDataLayer<Dtype> {
  public:
   explicit TripletDataLayer(const LayerParameter& param)
       : BasePrefetchingDataLayer<Dtype>(param)
-      , m_unTransformer(param.ultinous_transform_param(), param.phase())
+      , m_unTransformer(this->layer_param_.ultinous_transform_param(), this->phase_)
   { }
 
   virtual ~TripletDataLayer();
