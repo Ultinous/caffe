@@ -16,6 +16,8 @@
 #include "caffe/ultinous/RandomTripletGenerator.hpp"
 #include "caffe/ultinous/TripletBatchGenerator.hpp"
 
+#include "UltinousTransformer.hpp"
+
 namespace caffe {
 namespace ultinous {
 
@@ -24,7 +26,10 @@ template <typename Dtype>
 class TripletDataLayer : public BasePrefetchingDataLayer<Dtype> {
  public:
   explicit TripletDataLayer(const LayerParameter& param)
-      : BasePrefetchingDataLayer<Dtype>(param) {}
+      : BasePrefetchingDataLayer<Dtype>(param)
+      , m_unTransformer(param.ultinous_transform_param(), param.phase())
+  { }
+
   virtual ~TripletDataLayer();
   virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
@@ -50,6 +55,8 @@ private:
   uint32_t m_inputFeatureLength;
 
   bool m_serialize;
+
+  UltinousTransformer m_unTransformer;
 };
 
 

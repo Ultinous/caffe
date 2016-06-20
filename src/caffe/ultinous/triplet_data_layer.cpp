@@ -200,33 +200,7 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
         CHECK(cv_img.data) << "Could not load " << fileName;
 
 
-        if( this->phase_ == TRAIN )
-        {
-          // Apply color transformation
-          float satCoef = 0.8f + 0.4f*static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-          float lumCoef = 0.8f + 0.4f*static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-          cv::cvtColor( cv_img, cv_img, CV_BGR2HLS );
-          for( size_t x = 0; x < cv_img.rows; ++x )
-          {
-            for( size_t y = 0; y < cv_img.cols; ++y )
-            {
-              cv::Vec3b &pixel = cv_img.at<cv::Vec3b>( x, y );
-
-              pixel[1] = static_cast<uint8_t>( std::min(255.0f, float(pixel[1])*lumCoef) );
-              pixel[2] = static_cast<uint8_t>( std::min(255.0f, float(pixel[2])*satCoef) );
-
-              cv_img.at<cv::Vec3b>( x, y ) = pixel;
-            }
-          }
-          cv::cvtColor( cv_img, cv_img, CV_HLS2BGR );
-
-          // Apply random scale
-          float xScale = 0.9+0.2*static_cast <float>(rand()) / static_cast <float>(RAND_MAX);
-          float yScale = 0.9+0.2*static_cast <float>(rand()) / static_cast <float>(RAND_MAX);
-          cv::Mat cv_scaled;
-          cv::resize( cv_img, cv_scaled, cv::Size(), xScale, yScale, cv::INTER_LINEAR );
-          cv_img = cv_scaled;
-        }
+        m_unTransformer.transform( cv_img );
 
         // Apply transformations (mirror, crop...) to the image
         int offset;
