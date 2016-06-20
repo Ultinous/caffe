@@ -27,10 +27,10 @@ public:
     if( m_phase != TRAIN ) return;
 
     // Apply color transformation
-    if( m_params.luminanceminscale() != 0.0f
-      || m_params.luminancemaxscale() != 0.0f
-      || m_params.saturationminscale() != 0.0f
-      || m_params.saturationmaxscale() != 0.0f )
+    if( m_params.luminanceminscale() != 1.0f
+      || m_params.luminancemaxscale() != 1.0f
+      || m_params.saturationminscale() != 1.0f
+      || m_params.saturationmaxscale() != 1.0f )
     {
       float lumCoef = m_params.luminanceminscale()
         + (m_params.luminancemaxscale()-m_params.luminanceminscale())
@@ -58,10 +58,10 @@ public:
     }
 
     // Apply random scale
-    if( m_params.verticalminscale() != 0.0f
-      || m_params.verticalmaxscale() != 0.0f
-      || m_params.horizontalminscale() != 0.0f
-      || m_params.horizontalmaxscale() != 0.0f )
+    if( m_params.verticalminscale() != 1.0f
+      || m_params.verticalmaxscale() != 1.0f
+      || m_params.horizontalminscale() != 1.0f
+      || m_params.horizontalmaxscale() != 1.0f )
     {
       float xScale = m_params.verticalminscale()
         + (m_params.verticalmaxscale()-m_params.verticalminscale())
