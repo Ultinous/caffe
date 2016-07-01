@@ -1,6 +1,9 @@
 #pragma once
 
 #ifdef USE_OPENCV
+#include <boost/generator_iterator.hpp>
+#include <boost/random.hpp>
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
 
@@ -15,11 +18,19 @@ namespace ultinous {
 
 class UltinousTransformer
 {
+private:
+  typedef boost::mt19937 RNGType;
+
 public:
   UltinousTransformer( UltinousTransformationParameter const& params, Phase phase )
     : m_params( params )
     , m_phase( phase )
   {
+    CHECK_LT(m_params.uniformnoisestrength(), 128)
+      << "uniformNoiseStrength must not exceed 127!";
+
+    m_uniformNoiseStrength = static_cast<int16_t>( m_params.uniformnoisestrength() );
+
   }
 
   void transform( cv::Mat& cv_img )
@@ -74,10 +85,35 @@ public:
       cv::resize( cv_img, cv_scaled, cv::Size(), xScale, yScale, cv::INTER_LINEAR );
       cv_img = cv_scaled;
     }
+
+
+    if( m_uniformNoiseStrength != 0 )
+    {
+      CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
+      CHECK( cv_img.isContinuous() ) << "OpenCV image matrix must be contiuously stored in memory!";
+
+      boost::uniform_int<int16_t> distribution( -m_uniformNoiseStrength, m_uniformNoiseStrength );
+      boost::variate_generator< RNGType, boost::uniform_int<int16_t> > noiseGenerator(m_rng, distribution);
+
+      size_t N = cv_img.channels() * cv_img.rows * cv_img.cols;
+
+      uint8_t * p = cv_img.data;
+      int16_t MIN = static_cast<int16_t>(0);
+      int16_t MAX = static_cast<int16_t>(std::numeric_limits<uint8_t>::max());
+      for( size_t i =0; i < N; ++i, ++p)
+        *p = static_cast<uint8_t>(
+          std::max( MIN, std::min( MAX,
+            static_cast<int16_t>(static_cast<int16_t>(*p) + static_cast<int16_t>(noiseGenerator()))
+          ) )
+        );
+    }
   }
 private:
   UltinousTransformationParameter const& m_params;
   Phase m_phase;
+
+  int16_t m_uniformNoiseStrength;
+  RNGType m_rng;
 };
 
 }  // namespace ultinous

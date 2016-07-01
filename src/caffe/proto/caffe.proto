@@ -1397,4 +1397,5 @@ message UltinousTransformationParameter {
   optional float verticalMaxScale = 6 [default = 1.0];
   optional float horizontalMinScale = 7 [default = 1.0];
   optional float horizontalMaxScale = 8 [default = 1.0];
+  optional uint32 uniformNoiseStrength = 9 [default=0];
 }
