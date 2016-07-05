@@ -42,6 +42,7 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   CHECK_GT(batch_size, 0) << "Positive batch size required";
 
   m_serialize = this->layer_param_.triplet_data_param().serialize();
+  m_outputClasses = this->layer_param_.triplet_data_param().outputclasses();
 
   // Init Classification Model
   read( sourceFile, m_imageClassificationModel );
@@ -121,8 +122,11 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
   // label
   m_label_shape = vector<int>(2);
-  m_label_shape[0] = batch_size;
-  m_label_shape[1] = 3;
+  m_label_shape[0] = 3*batch_size;
+  m_label_shape[1] = 1;
+
+  if( m_outputClasses )
+    m_label_shape[0] *= 2;
 
   top[1]->Reshape(m_label_shape);
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
@@ -220,7 +224,10 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
         this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
       }
 
-      prefetch_label[3*item_id+i] = indices[i];
+      prefetch_label[i*batch_size+item_id] = indices[i];
+
+      if( m_outputClasses )
+        prefetch_label[3*batch_size + i*batch_size+item_id] = classes[i];
     }
   }
 }

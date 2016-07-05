@@ -23,8 +23,9 @@ void FeatureRegistrationLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bo
   string featureMapId = this->layer_param_.feature_registration_param().featuremapid();
   FeatureMap<Dtype>& featureMap = FeatureMapContainer<Dtype>::instance( featureMapId );
 
-  for( int i = 0; i < bottom[0]->num(); i++ ) {
-    int imageDim = bottom[0]->count() / bottom[0]->num();
+  size_t batchSize = bottom[0]->num();
+  for( int i = 0; i < batchSize; i++ ) {
+    int imageDim = bottom[0]->count() / batchSize;
 
     std::vector<Dtype> feature_a(imageDim);
     std::vector<Dtype> feature_p(imageDim);
@@ -36,9 +37,9 @@ void FeatureRegistrationLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bo
       feature_n[j] = bottom[2]->cpu_data()[ i*imageDim + j ];
     }
 
-    typename FeatureMap<Dtype>::Index index_a =  bottom[3]->cpu_data()[3*i+0];
-    typename FeatureMap<Dtype>::Index index_p =  bottom[3]->cpu_data()[3*i+1];
-    typename FeatureMap<Dtype>::Index index_n =  bottom[3]->cpu_data()[3*i+2];
+    typename FeatureMap<Dtype>::Index index_a =  bottom[3]->cpu_data()[i];
+    typename FeatureMap<Dtype>::Index index_p =  bottom[3]->cpu_data()[batchSize+i];
+    typename FeatureMap<Dtype>::Index index_n =  bottom[3]->cpu_data()[2*batchSize+i];
 
     featureMap.update( index_a, feature_a );
     featureMap.update( index_p, feature_p );

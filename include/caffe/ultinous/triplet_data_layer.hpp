@@ -55,6 +55,7 @@ private:
   uint32_t m_inputFeatureLength;
 
   bool m_serialize;
+  bool m_outputClasses;
 
   UltinousTransformer m_unTransformer;
 };
