@@ -92,7 +92,7 @@ public:
       cv::Mat dst;
 
       cv::copyMakeBorder( cv_img, dst, m_params.padtop(), m_params.padbottom()
-                    , m_params.padleft(), m_params.padright(), cv::BORDER_REFLECT_101 );
+                    , m_params.padleft(), m_params.padright(), cv::BORDER_CONSTANT );
 
       cv_img = dst;
     }
