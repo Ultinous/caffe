@@ -86,18 +86,7 @@ public:
       cv_img = cv_scaled;
     }
 
-    if( m_params.padtop() != 0 || m_params.padbottom() != 0
-      || m_params.padleft() != 0 || m_params.padright() != 0 )
-    {
-      cv::Mat dst;
-
-      cv::copyMakeBorder( cv_img, dst, m_params.padtop(), m_params.padbottom()
-                    , m_params.padleft(), m_params.padright(), cv::BORDER_CONSTANT );
-
-      cv_img = dst;
-    }
-
-
+    // Uniform noise
     if( m_uniformNoiseStrength != 0 )
     {
       CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
@@ -118,6 +107,19 @@ public:
           ) )
         );
     }
+
+    // Padding
+    if( m_params.padtop() != 0 || m_params.padbottom() != 0
+      || m_params.padleft() != 0 || m_params.padright() != 0 )
+    {
+      cv::Mat dst;
+
+      cv::copyMakeBorder( cv_img, dst, m_params.padtop(), m_params.padbottom()
+                    , m_params.padleft(), m_params.padright(), cv::BORDER_CONSTANT );
+
+      cv_img = dst;
+    }
+
   }
 private:
   UltinousTransformationParameter const& m_params;
