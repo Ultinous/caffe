@@ -86,6 +86,17 @@ public:
       cv_img = cv_scaled;
     }
 
+    if( m_params.padtop() != 0 || m_params.padbottom() != 0
+      || m_params.padleft() != 0 || m_params.padright() != 0 )
+    {
+      cv::Mat dst;
+
+      cv::copyMakeBorder( cv_img, dst, m_params.padtop(), m_params.padbottom()
+                    , m_params.padleft(), m_params.padright(), cv::BORDER_REFLECT_101 );
+
+      cv_img = dst;
+    }
+
 
     if( m_uniformNoiseStrength != 0 )
     {
