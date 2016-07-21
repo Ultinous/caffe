@@ -10,7 +10,36 @@ __global__ void sync_conv_groups() { }
 template <typename Dtype>
 void CuDNNConvolutionLayer<Dtype>::Forward_gpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-  const Dtype* weight = this->blobs_[0]->gpu_data();
+
+  if( this->layer_param_.convolution_param().binaryweights() )
+  {
+    const Dtype* weight_cpu = this->blobs_[0]->cpu_data();
+    Dtype* binary_weight_cpu = this->binary_weights_.mutable_cpu_data();
+
+    size_t channelsNum = this->blobs_[0]->shape(0);
+    size_t kernelSize = this->blobs_[0]->count(1);
+    for( size_t channel = 0; channel < channelsNum; ++channel )
+    {
+      Dtype alpha = 0;
+      for( size_t i = 0; i < kernelSize; ++i )
+      {
+        alpha += abs( weight_cpu[channel*kernelSize + i] );
+      }
+      alpha /= kernelSize;
+
+      for( size_t i = 0; i < kernelSize; ++i )
+      {
+        binary_weight_cpu[channel*kernelSize + i] =
+          weight_cpu[channel*kernelSize + i] >= 0 ? alpha : -alpha;
+      }
+    }
+  }
+
+  const Dtype* weight =
+    this->layer_param_.convolution_param().binaryweights()
+    ? this->binary_weights_.gpu_data()
+    : this->blobs_[0]->gpu_data();
+
   for (int i = 0; i < bottom.size(); ++i) {
     const Dtype* bottom_data = bottom[i]->gpu_data();
     Dtype* top_data = top[i]->mutable_gpu_data();
@@ -59,7 +88,10 @@ void CuDNNConvolutionLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   const Dtype* weight = NULL;
   Dtype* weight_diff = NULL;
   if (this->param_propagate_down_[0]) {
-    weight = this->blobs_[0]->gpu_data();
+    const Dtype* weight =
+      this->layer_param_.convolution_param().binaryweights()
+      ? this->binary_weights_.gpu_data()
+      : this->blobs_[0]->gpu_data();
     weight_diff = this->blobs_[0]->mutable_gpu_diff();
   }
   Dtype* bias_diff = NULL;
@@ -97,7 +129,10 @@ void CuDNNConvolutionLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
       // Gradient w.r.t. bottom data.
       if (propagate_down[i]) {
         if (weight == NULL) {
-          weight = this->blobs_[0]->gpu_data();
+          weight =
+            this->layer_param_.convolution_param().binaryweights()
+            ? this->binary_weights_.gpu_data()
+            : this->blobs_[0]->gpu_data();
         }
         Dtype* bottom_diff = bottom[i]->mutable_gpu_diff();
         CUDNN_CHECK(cudnnConvolutionBackwardData_v3(

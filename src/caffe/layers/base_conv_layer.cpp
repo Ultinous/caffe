@@ -196,6 +196,12 @@ void BaseConvolutionLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
     CHECK(bottom[0]->shape() == bottom[bottom_id]->shape())
         << "All inputs must have the same shape.";
   }
+
+  if( this->layer_param_.convolution_param().binaryweights() )
+  {
+    binary_weights_.Reshape( this->blobs_[0]->shape() );
+  }
+
   // Shape the tops.
   bottom_shape_ = &bottom[0]->shape();
   compute_output_shape();

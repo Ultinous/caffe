@@ -17,6 +17,12 @@ namespace caffe {
 template <typename Dtype>
 void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
+
+  if( this->layer_param_.convolution_param().binaryweights() )
+  {
+    std::cout << "Initializing CuDNNConvolutionLayer binary_weights_!" << std::endl;
+  }
+
   ConvolutionLayer<Dtype>::LayerSetUp(bottom, top);
   // Initialize CUDA streams and cuDNN.
   stream_         = new cudaStream_t[this->group_ * CUDNN_STREAMS_PER_GROUP];
