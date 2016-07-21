@@ -43,7 +43,9 @@ __global__ void kernel_channel_div(const int num, const int channels,
     int n = index / spatial_dim;
     int s = index % spatial_dim;
     for (int c = 0; c < channels; ++c) {
-      data[(n * channels + c) * spatial_dim + s] /= channel_sum[index];
+      Dtype D = channel_sum[index];
+      if( D == 0 ) D = 1;
+      data[(n * channels + c) * spatial_dim + s] /= D;
     }
   }
 }
