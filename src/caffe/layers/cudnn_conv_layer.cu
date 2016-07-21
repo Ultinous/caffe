@@ -30,7 +30,7 @@ void CuDNNConvolutionLayer<Dtype>::Forward_gpu(
       for( size_t i = 0; i < kernelSize; ++i )
       {
         binary_weight_cpu[channel*kernelSize + i] =
-          weight_cpu[channel*kernelSize + i] >= 0 ? alpha : -alpha;
+          ((weight_cpu[channel*kernelSize + i] >= 0) ? alpha : -alpha);
       }
     }
   }
