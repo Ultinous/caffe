@@ -394,7 +394,9 @@ message LayerParameter {
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
-
+  optional SmoothL1LossParameter smooth_l1_loss_param = 8266712;
+  optional ROIPoolingParameter roi_pooling_param = 8266711;
+  optional ProposalParameter proposal_param= 7000;
   // UltiNous
   optional TripletLossParameter triplet_loss_param = 5001;
   optional TripletDataParameter triplet_data_param = 5002;
@@ -1362,4 +1364,32 @@ message HardTripletParameter {
 
 message FeatureRegistrationParameter {
   optional string featureMapId = 1 [default = "defaultFeatureMapId"];
+}
+
+message ProposalParameter {
+  optional int32 feat_stride = 1 [default = 16 ];//
+  repeated int32 scales = 2;//Training scales
+  
+  optional int32 pre_nms_topN = 3 [default = 6000 ];  
+  optional int32 post_nms_topN = 4 [default = 300];
+  optional float nms_thresh = 5 [default = 0.7];    
+  optional int32 min_size = 6 [default = 16];   
+}
+
+// Message that stores parameters used by ROIPoolingLayer
+message ROIPoolingParameter {
+  // Pad, kernel size, and stride are all given as a single value for equal
+  // dimensions in height and width or as Y, X pairs.
+  optional uint32 pooled_h = 1 [default = 0]; // The pooled output height
+  optional uint32 pooled_w = 2 [default = 0]; // The pooled output width
+  // Multiplicative spatial scale factor to translate ROI coords from their
+  // input scale to the scale used when pooling
+  optional float spatial_scale = 3 [default = 1];
+}
+
+message SmoothL1LossParameter {
+  // SmoothL1Loss(x) =
+  //   0.5 * (sigma * x) ** 2    -- if x < 1.0 / sigma / sigma
+  //   |x| - 0.5 / sigma / sigma -- otherwise
+  optional float sigma = 1 [default = 1];
 }
