@@ -21,6 +21,71 @@ class UltinousTransformer
 private:
   typedef boost::mt19937 RNGType;
 
+  void applyAffine( cv::Mat& src, cv::Mat& dst )
+  {
+    const double pi = std::acos(-1);
+
+    float sx=1.0f, sy=1.0f, ex=0.0f, ey=0.0f, ca=1.0f, sa=0.0f;
+
+    float ty = static_cast<float>(src.rows)/2.0f;
+    float tx = static_cast<float>(src.cols)/2.0f;
+
+    if( m_params.verticalminscale() != 1.0f || m_params.verticalmaxscale() != 1.0f)
+    {
+      sy = m_params.verticalminscale()
+        + (m_params.verticalmaxscale()-m_params.verticalminscale())
+          *static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+    }
+    if( m_params.horizontalminscale() != 1.0f || m_params.horizontalmaxscale() != 1.0f )
+    {
+      sx = m_params.horizontalminscale()
+        + (m_params.horizontalmaxscale()-m_params.horizontalminscale())
+          *static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+    }
+
+    if( m_params.verticalminshear() != 0.0f || m_params.verticalmaxshear() != 0.0f)
+    {
+      ey = m_params.verticalminshear()
+        + (m_params.verticalmaxshear()-m_params.verticalminshear())
+          *static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+    }
+
+    if( m_params.horizontalminshear() != 0.0f || m_params.horizontalmaxshear() != 0.0f)
+    {
+      ex = m_params.horizontalminshear()
+        + (m_params.horizontalmaxshear()-m_params.horizontalminshear())
+          *static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+    }
+
+    if( m_params.minrotation() != 0.0f || m_params.maxrotation() != 0.0f)
+    {
+      float deg = m_params.minrotation()
+        + (m_params.maxrotation()-m_params.minrotation())
+          *static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+      float rad = deg / 180.0f * pi;
+
+      ca = std::cos(rad);
+      sa = std::sin(rad);
+    }
+
+    cv::Mat affine( 2, 3, CV_32FC1 );
+
+    affine.at<float>( 0, 0 ) = sx*(ca+sa*ex);
+    affine.at<float>( 0, 1 ) = sx*(-sa+ca*ex);
+
+    affine.at<float>( 1, 0 ) = sy*(ca*ey+sa);
+    affine.at<float>( 1, 1 ) = sy*(-sa*ey+ca);
+
+    affine.at<float>( 0, 2 ) = affine.at<float>(0,0)*(-tx)
+              + affine.at<float>(0,1)*(-ty)
+              + tx;
+    affine.at<float>( 1, 2 ) = affine.at<float>(1,0)*(-tx)
+              + affine.at<float>(1,1)*(-ty)
+              + ty;
+
+    cv::warpAffine( src, dst, affine, src.size(), CV_INTER_CUBIC );
+  }
+
 public:
   UltinousTransformer( UltinousTransformationParameter const& params, Phase phase )
     : m_params( params )
@@ -68,23 +133,10 @@ public:
       cv::cvtColor( cv_img, cv_img, CV_HLS2BGR );
     }
 
-    // Apply random scale
-    if( m_params.verticalminscale() != 1.0f
-      || m_params.verticalmaxscale() != 1.0f
-      || m_params.horizontalminscale() != 1.0f
-      || m_params.horizontalmaxscale() != 1.0f )
-    {
-      float xScale = m_params.verticalminscale()
-        + (m_params.verticalmaxscale()-m_params.verticalminscale())
-          *static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-
-      float yScale = m_params.horizontalminscale()
-        + (m_params.horizontalmaxscale()-m_params.horizontalminscale())
-          *static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-      cv::Mat cv_scaled;
-      cv::resize( cv_img, cv_scaled, cv::Size(), xScale, yScale, cv::INTER_LINEAR );
-      cv_img = cv_scaled;
-    }
+    // Apply affine transformation
+    cv::Mat cv_affine;
+    applyAffine( cv_img, cv_affine );
+    cv_img = cv_affine;
 
     // Uniform noise
     if( m_uniformNoiseStrength != 0 )
@@ -120,6 +172,12 @@ public:
       cv_img = dst;
     }
 
+    /*
+    static int ccc = 0;
+    std::string fname = boost::lexical_cast<std::string>(ccc) + ".png";
+    cv::imwrite( fname, cv_img );
+    ++ccc;
+    */
   }
 private:
   UltinousTransformationParameter const& m_params;

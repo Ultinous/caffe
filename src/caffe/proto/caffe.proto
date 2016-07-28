@@ -1390,17 +1390,29 @@ message FeatureRegistrationParameter {
 }
 
 message UltinousTransformationParameter {
+  // color transformation parameters
   optional float luminanceMinScale = 1 [default = 1.0];
   optional float luminanceMaxScale = 2 [default = 1.0];
   optional float saturationMinScale = 3 [default = 1.0];
   optional float saturationMaxScale = 4 [default = 1.0];
+
+  // affine parameters
   optional float verticalMinScale = 5 [default = 1.0];
   optional float verticalMaxScale = 6 [default = 1.0];
   optional float horizontalMinScale = 7 [default = 1.0];
   optional float horizontalMaxScale = 8 [default = 1.0];
-  optional uint32 uniformNoiseStrength = 9 [default = 0];
-  optional uint32 padTop = 10 [default = 0];
-  optional uint32 padBottom = 11 [default = 0];
-  optional uint32 padLeft = 12 [default = 0];
-  optional uint32 padRight = 13 [default = 0];
+  optional float horizontalMinShear = 9 [default = 0];
+  optional float horizontalMaxShear = 10 [default = 0];
+  optional float verticalMinShear = 11 [default = 0];
+  optional float verticalMaxShear = 12 [default = 0];
+  optional float minRotation = 13 [default = 0];
+  optional float maxRotation = 14 [default = 0];
+
+
+  optional uint32 padTop = 15 [default = 0];
+  optional uint32 padBottom = 16 [default = 0];
+  optional uint32 padLeft = 17 [default = 0];
+  optional uint32 padRight = 18 [default = 0];
+
+  optional uint32 uniformNoiseStrength = 19 [default = 0];
 }
