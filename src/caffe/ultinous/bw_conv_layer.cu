@@ -86,11 +86,81 @@ __global__ void my_gpu_gemm_kernel(
   }
 }
 
+// A is shape (m,n), B is shape (n,k) and C is shape (m,k)
+#define BLOCK_SIZE 16
+__global__ void my_gpu_gemm_kernel_v2(
+    const int m, const int n, const int k,
+    const float* A, const bool* B,
+    float* C
+    //, const Dtype * alpha
+  )
+{
+    // Block row and column
+    int blockRow = blockIdx.y;
+    int blockCol = blockIdx.x;
+
+    // Thread row and column within Csub
+    int row = threadIdx.y;
+    int col = threadIdx.x;
+
+    // Each thread block computes one sub-matrix Csub of C
+    float* Csub = &C[BLOCK_SIZE * k * blockRow + BLOCK_SIZE * blockCol];
+
+    // Shared memory used to store Asub and Bsub respectively
+    __shared__ float As[BLOCK_SIZE][BLOCK_SIZE];
+    __shared__ bool Bs[BLOCK_SIZE][BLOCK_SIZE];
+
+    // Each thread computes one element of Csub
+    // by accumulating results into Cvalue
+    // block_size = 16 -> 256 threads, one per Csub element
+    float Cvalue = 0.0;
+
+    // Loop over all the sub-matrices of A and B that are
+    // required to compute Csub
+    // Multiply each pair of sub-matrices together
+    // and accumulate the results
+    for (int i = 0; i < (n / BLOCK_SIZE); ++i) {
+
+        // Get sub-matrix Asub of A
+        const float* Asub = &A[BLOCK_SIZE * blockRow * n + BLOCK_SIZE * i];
+
+        // Get sub-matrix Bsub of B
+        const bool* Bsub = &B[BLOCK_SIZE * k * i + BLOCK_SIZE * blockCol];
+
+        // Load Asub and Bsub from device memory to shared memory
+        // Each thread loads one element of each sub-matrix
+        As[row][col] = Asub[row*n+col];
+        Bs[row][col] = Bsub[row*k+col];
+
+        // Synchronize to make sure the sub-matrices are loaded
+        // before starting the computation
+        __syncthreads();
+
+        // Multiply Asub and Bsub together
+        for (int j = 0; j < BLOCK_SIZE; ++j)
+          Cvalue += Bs[j][col]? As[row][j] : -As[row][j];
+
+        // Synchronize to make sure that the preceding
+        // computation is done before loading two new
+        // sub-matrices of A and B in the next iteration
+        __syncthreads();
+    }
+
+    // Write Csub to device memory
+    // Each thread writes one element
+    if(col + blockCol* BLOCK_SIZE< k && row + blockRow* BLOCK_SIZE< m) Csub[row*k+col] = Cvalue;
+}
+
 template<> void BWConvolutionLayer<float>::my_gpu_gemm(
     const int M, const int N, const int K,
     const bool* A, const float* B,
     float* C)
 {
+/*    dim3 blockDim(BLOCK_SIZE, BLOCK_SIZE);
+    dim3 gridDim(M / BLOCK_SIZE + 1, K / BLOCK_SIZE + 1);
+    my_gpu_gemm_kernel_v2 <<<gridDim, blockDim>>> (
+        N, M, K, B, A, C//, this->alpha_.gpu_data()
+    );*/
     my_gpu_gemm_kernel<float> <<<CAFFE_GET_BLOCKS(M*N), CAFFE_CUDA_NUM_THREADS>>> (
         N, M, K, B, A, C//, this->alpha_.gpu_data()
     );
