@@ -49,6 +49,7 @@ public:
       || m_params.saturationminscale() != 1.0f
       || m_params.saturationmaxscale() != 1.0f )
     {
+
       float lumCoef = m_params.luminanceminscale()
         + (m_params.luminancemaxscale()-m_params.luminanceminscale())
           *static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
@@ -59,18 +60,21 @@ public:
 
       cv::cvtColor( cv_img, cv_img, CV_BGR2HLS );
 
-      for( size_t x = 0; x < cv_img.rows; ++x )
+      CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
+      CHECK( cv_img.isContinuous() ) << "OpenCV image matrix must be contiuously stored in memory!";
+
+      uint8_t * p = cv_img.data;
+      size_t N = cv_img.rows * cv_img.cols;
+
+      for( size_t i = 0; i < N; ++i)
       {
-        for( size_t y = 0; y < cv_img.cols; ++y )
-        {
-          cv::Vec3b &pixel = cv_img.at<cv::Vec3b>( x, y );
-
-          pixel[1] = static_cast<uint8_t>( std::min(255.0f, float(pixel[1])*lumCoef) );
-          pixel[2] = static_cast<uint8_t>( std::min(255.0f, float(pixel[2])*satCoef) );
-
-          cv_img.at<cv::Vec3b>( x, y ) = pixel;
-        }
+        ++p; // skip hue
+        *p = static_cast<uint8_t>( std::min(255.0f, float(*p)*lumCoef) );
+        ++p;
+        *p = static_cast<uint8_t>( std::min(255.0f, float(*p)*satCoef) );
+        ++p;
       }
+
       cv::cvtColor( cv_img, cv_img, CV_HLS2BGR );
     }
 
@@ -110,11 +114,10 @@ public:
       //vector<int16_t> rndVec(N);
       //generate(rndVec.begin(), rndVec.end(), noiseGenerator);
 
-
       uint8_t * p = cv_img.data;
       int16_t MIN = static_cast<int16_t>(0);
       int16_t MAX = static_cast<int16_t>(std::numeric_limits<uint8_t>::max());
-      for( size_t i =0; i < N; ++i, ++p) {
+      for( size_t i = 0; i < N; ++i, ++p) {
         *p = static_cast<uint8_t>(
           std::max( MIN, std::min( MAX,
             static_cast<int16_t>(static_cast<int16_t>(*p)
@@ -137,7 +140,7 @@ public:
     }
 
 
-    /*static int ccc = 0;
+/*    static int ccc = 0;
     std::string fname = boost::lexical_cast<std::string>(ccc) + ".png";
     cv::imwrite( fname, cv_img );
     ++ccc;*/
