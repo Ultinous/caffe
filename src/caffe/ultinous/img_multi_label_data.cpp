@@ -16,7 +16,7 @@
 #include "caffe/util/rng.hpp"
 
 namespace caffe {
-  
+
 namespace ultinous {
 
 template <typename Dtype>
@@ -40,7 +40,7 @@ void ImgMultiLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& b
   LOG(INFO) << "Opening file " << source;
   std::ifstream infile(source.c_str());
   string filename;
-  
+
   std::vector<double> output;
   std::string line;
   while (std::getline(infile, line))
@@ -53,7 +53,7 @@ void ImgMultiLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& b
       output.push_back(o);
     lines_.push_back(std::make_pair(filename, output));
   }
-  
+
   /*while (infile >> filename >> label) {
     lines_.push_back(std::make_pair(filename, label));
   }*/
@@ -153,6 +153,9 @@ void ImgMultiLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[lines_id_].first,
         new_height, new_width, is_color);
     CHECK(cv_img.data) << "Could not load " << lines_[lines_id_].first;
+
+    m_unTransformer.transform( cv_img );
+
     read_time += timer.MicroSeconds();
     timer.Start();
     // Apply transformations (mirror, crop...) to the image
@@ -160,8 +163,8 @@ void ImgMultiLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     this->transformed_data_.set_cpu_data(prefetch_data + offset);
     this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
     trans_time += timer.MicroSeconds();
-    
-    
+
+
     offset = batch->label_.offset(item_id);
     for( size_t i=0; i<lines_[lines_id_].second.size(); ++i)
       prefetch_label[offset+i] = lines_[lines_id_].second[i];
