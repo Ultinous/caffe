@@ -43,6 +43,13 @@ public:
   {
     if( m_phase != TRAIN ) return;
 
+    if( cv_img.channels() == 1 )
+    {
+      cv::cvtColor( cv_img, cv_img, CV_GRAY2BGR );
+    }
+
+    CHECK(cv_img.channels() == 3) << "Image must have 3 channels";
+
     // Apply color transformation
     if( m_params.luminanceminscale() != 1.0f
       || m_params.luminancemaxscale() != 1.0f
