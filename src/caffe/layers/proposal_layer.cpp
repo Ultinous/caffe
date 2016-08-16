@@ -98,7 +98,6 @@ void ProposalLayer<Dtype>::Reshape( const vector< Blob< Dtype >* > &bottom,
   m_scores.Reshape(std::vector<int>(1,scores_num-m_num_anchors));
   m_indexes.Reshape(std::vector<int>(1,scores_num-m_num_anchors));
   
-  std::cout<<"Reshape end"<<std::endl;
   for(int i=0; i<scores_num-m_num_anchors;++i)
     m_indexes.mutable_cpu_data()[i]=i;
   
