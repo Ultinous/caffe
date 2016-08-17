@@ -22,12 +22,30 @@ __device__ Dtype d_max(const Dtype a, const Dtype b)
 {
   return a > b ? a : b; 
 }
+template <typename Dtype>
+__global__ void create_full_anchors(const int nthreads,
+                                    const Dtype* base_anchors, const int num_anchors, const int width, const int feat_stride,
+                                    Dtype* anchors)
+{
+  CUDA_KERNEL_LOOP(index, nthreads)
+  {
+    int j = index%num_anchors;
+    int i = index/num_anchors;
+    
+    anchors[index*4] = base_anchors[j*4+0]+(i%width)*feat_stride;
+    anchors[index*4+1] = base_anchors[j*4+1]+(i/width)*feat_stride;
+    anchors[index*4+2] = base_anchors[j*4+2]+(i%width)*feat_stride;
+    anchors[index*4+3] = base_anchors[j*4+3]+(i/width)*feat_stride;
+  }
+}
+
+
 
 template <typename Dtype>
 __global__ void create_full_proposals(const int nthreads, 
                                       const Dtype* const bottom_data_1 ,const int channels_1, const int height_1, const int width_1 ,
                                       const Dtype* const bottom_data_0, const int channels_0, const int height_0, const int width_0 ,
-                                      Dtype* proposals, Dtype* anchors, Dtype* scores,
+                                      Dtype* proposals, Dtype* anchors, Dtype* scores, int* indexes,
                                       const Dtype* const im_info, const int num_anchors , const int min_size)
 {
   CUDA_KERNEL_LOOP(index, nthreads)
@@ -57,7 +75,7 @@ __global__ void create_full_proposals(const int nthreads,
     proposals[index*4+2] = d_max<Dtype>(d_min<Dtype>(pred_ctr_x + 0.5 * pred_w,img_w-1),0);
     proposals[index*4+3] = d_max<Dtype>(d_min<Dtype>( pred_ctr_y + 0.5 * pred_h,img_h-1),0);
     
-    
+    indexes[index] = index;
     scores[index] = 
     minimal_size <= (proposals[index*4+2]-proposals[index*4]+1) && minimal_size <= (proposals[index*4+3]-proposals[index*4+1]+1) ?
     bottom_data_0[bottom_offset(0,ch_0+num_anchors, h_0, w_0, channels_0, height_0, width_0 )] : 0;
@@ -171,6 +189,10 @@ void ProposalLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   }
   
   int count = m_anchors.count()/4;
+  create_full_anchors<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
+    m_base_anchors.gpu_data(), m_num_anchors, bottom[0]->shape(3), m_feat_stride,
+    m_anchors.mutable_gpu_data());
+  
   const Dtype* bottom_1 = bottom[1]->gpu_data();
   const Dtype* bottom_0 = bottom[0]->gpu_data();
   
@@ -182,7 +204,7 @@ void ProposalLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   create_full_proposals<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
     bottom_1, bottom[1]->shape(1), bottom[1]->shape(2), bottom[1]->shape(3),
     bottom_0, bottom[0]->shape(1), bottom[0]->shape(2), bottom[0]->shape(3),
-    proposals, anchors, scores,
+    proposals, anchors, scores, indexes,
     bottom[2]->gpu_data(), m_num_anchors, m_min_size);
   CUDA_POST_KERNEL_CHECK;
   
