@@ -55,7 +55,7 @@ protected:
   Blob<Dtype> m_anchors;
   Blob<Dtype> m_proposals;
   
-  vector<std::vector<double> > m_base_anchors;
+  Blob<Dtype> m_base_anchors;
   //vector<Anchor> m_img_anchors;
   //std::vector<std::vector<Dtype>> m_proposals;
   Blob<Dtype> m_scores;
