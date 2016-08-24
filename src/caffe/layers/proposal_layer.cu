@@ -22,6 +22,7 @@ __device__ Dtype d_max(const Dtype a, const Dtype b)
 {
   return a > b ? a : b; 
 }
+
 template <typename Dtype>
 __global__ void create_full_anchors(const int nthreads,
                                     const Dtype* base_anchors, const int num_anchors, const int width, const int feat_stride,
@@ -78,7 +79,7 @@ __global__ void create_full_proposals(const int nthreads,
     indexes[index] = index;
     scores[index] = 
     minimal_size <= (proposals[index*4+2]-proposals[index*4]+1) && minimal_size <= (proposals[index*4+3]-proposals[index*4+1]+1) ?
-    bottom_data_0[bottom_offset(0,ch_0+num_anchors, h_0, w_0, channels_0, height_0, width_0 )] : 0;
+    bottom_data_0[bottom_offset(0,ch_0+num_anchors, h_0, w_0, channels_0, height_0, width_0 )] : -1;
     
   }
 }
@@ -125,7 +126,8 @@ __global__ void base_gpu_nms(const int nthreads, int* indexes, Dtype* scores, co
   for(int j = 0; j < nthreads; ++j)
   {
     index_j = indexes[j];
-    if(scores[index_j]!=0)
+    
+    if(scores[index_j]>0)
     {
       Dtype x1_j = proposals[index_j*4];
       Dtype x2_j = proposals[index_j*4+2];
@@ -151,7 +153,7 @@ __global__ void base_gpu_nms(const int nthreads, int* indexes, Dtype* scores, co
           
           Dtype inter = d_max<Dtype>(0.0, x2_inter - y1_inter + 1) * d_max<Dtype>(0.0, y2_inter - y1_inter + 1);
           if(threshold >= inter / (area_i + area_j - inter))
-            scores[index_i]=0;
+            scores[index_i]=-1;
         }
       }         
     }
@@ -173,6 +175,105 @@ __global__ void data_to_top(const int nthreads, const int* indexes, const Dtype*
   }
 }
 
+template <typename Dtype>
+__device__ Dtype IOU(const Dtype x1_i, const Dtype y1_i, const Dtype x2_i, const Dtype y2_i, 
+                     const Dtype x1_j, const Dtype y1_j, const Dtype x2_j, const Dtype y2_j )
+{
+    Dtype area_j = x2_j-x1_j+1 * y2_j-y1_j+1;
+
+    Dtype area_i = x2_i-x1_i+1 * y2_i-y1_i+1;
+
+    Dtype  x1_inter = d_max<Dtype>(x1_j, x1_i);
+    Dtype  y1_inter = d_max<Dtype>(y1_j, y1_i);
+    Dtype  x2_inter = d_min<Dtype>(x2_j, x2_i);
+    Dtype  y2_inter = d_min<Dtype>(y2_j, y2_i);
+    Dtype inter = d_max<Dtype>(0.0, x2_inter - y1_inter + 1) * d_max<Dtype>(0.0, y2_inter - y1_inter + 1);
+    
+    return inter / (area_i + area_j - inter);
+}
+
+
+
+template <typename Dtype>
+__global__ void calc_iou_matrix(const int nthreads, const int dmax,  const int* indexes, const Dtype* proposals, Dtype* scores, int* ioumat, const Dtype threshold )
+{
+  CUDA_KERNEL_LOOP(index, nthreads)
+  {
+    int i = index / dmax;
+    int j = index % dmax;
+    
+    int i_ind = indexes[i];
+    int j_ind = indexes[j];
+    
+    if( scores[i_ind]<scores[j_ind] )
+    {
+      Dtype x1_j = proposals[j_ind*4];
+      Dtype x2_j = proposals[j_ind*4+2];
+      Dtype y1_j = proposals[j_ind*4+1];
+      Dtype y2_j = proposals[j_ind*4+3];      
+      Dtype area_j = x2_j-x1_j+1 * y2_j-y1_j+1;
+      
+      Dtype x1_i = proposals[i_ind*4];
+      Dtype y1_i = proposals[i_ind*4+1];
+      Dtype x2_i = proposals[i_ind*4+2];
+      Dtype y2_i = proposals[i_ind*4+3];
+      Dtype area_i = x2_i-x1_i+1 * y2_i-y1_i+1;
+      
+      Dtype  x1_inter = d_max<Dtype>(x1_j, x1_i);
+      Dtype  y1_inter = d_max<Dtype>(y1_j, y1_i);
+      Dtype  x2_inter = d_min<Dtype>(x2_j, x2_i);
+      Dtype  y2_inter = d_min<Dtype>(y2_j, y2_i);
+      Dtype inter = d_max<Dtype>(0.0, x2_inter - y1_inter + 1) * d_max<Dtype>(0.0, y2_inter - y1_inter + 1);
+      
+      ioumat[index] = threshold >= inter / (area_i + area_j - inter)? 1 : 0;
+
+    }
+  }
+
+}
+
+
+
+template <typename Dtype>
+__global__ void nms_improve(const int indexes_count, const int* indexes, const Dtype* proposals, Dtype* scores, const Dtype threshold)
+{
+  __shared__ Dtype cache_x[4*16];
+  __shared__ Dtype cache_y[4*16];
+ 
+  int i = (blockIdx.x * blockDim.x) + threadIdx.x;
+  int j = (blockIdx.y * blockDim.y) + threadIdx.y;
+  if ( i < indexes_count && j < indexes_count )
+  { 
+    int j_ind= indexes[i];
+    int i_ind= indexes[j];
+    if(threadIdx.x == threadIdx.y)
+    {
+      cache_x[threadIdx.x*4] = proposals[i_ind*4];
+      cache_x[threadIdx.x*4+1] = proposals[i_ind*4+1];
+      cache_x[threadIdx.x*4+2] = proposals[i_ind*4+2];
+      cache_x[threadIdx.x*4+3] = proposals[i_ind*4+3];
+      
+      cache_y[threadIdx.y*4] = proposals[j_ind*4];
+      cache_y[threadIdx.y*4+1] = proposals[j_ind*4+1];
+      cache_y[threadIdx.y*4+2] = proposals[j_ind*4+2];
+      cache_y[threadIdx.y*4+3] = proposals[j_ind*4+3];
+    } 
+  }
+
+   __syncthreads();
+  if ( i < indexes_count && j < indexes_count )
+  {
+    Dtype iou = IOU<Dtype>(cache_x[threadIdx.x*4],cache_x[threadIdx.x*4+1],cache_x[threadIdx.x*4+2],cache_x[threadIdx.x*4+3],
+                        cache_y[threadIdx.y*4],cache_y[threadIdx.y*4+1],cache_y[threadIdx.y*4+2],cache_y[threadIdx.y*4+3]);
+    if(threshold >= iou )
+    {
+      int j_ind= indexes[i];
+      int i_ind= indexes[j];
+      scores[i_ind]<scores[j_ind] ? scores[i_ind] : scores[j_ind] = -1; 
+      
+    }
+  } 
+}
 
 
   
@@ -189,9 +290,29 @@ void ProposalLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   }
   
   int count = m_anchors.count()/4;
-  create_full_anchors<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
+//   {
+//     float time;
+//     cudaEvent_t start, stop;
+// 
+//    cudaEventCreate(&start) ;
+//    cudaEventCreate(&stop) ;
+//    cudaEventRecord(start, 0);
+  
+    create_full_anchors<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
     m_base_anchors.gpu_data(), m_num_anchors, bottom[0]->shape(3), m_feat_stride,
     m_anchors.mutable_gpu_data());
+    
+//     cudaEventRecord(stop, 0);
+//     cudaEventSynchronize(stop);
+//     cudaEventElapsedTime(&time, start, stop);
+// 
+//     printf("Time to create_full_anchors:  %3.10f ms \n", time);
+//   }
+
+
+  
+  
+
   
   const Dtype* bottom_1 = bottom[1]->gpu_data();
   const Dtype* bottom_0 = bottom[0]->gpu_data();
@@ -200,33 +321,151 @@ void ProposalLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   Dtype* scores = m_scores.mutable_gpu_data();
   Dtype* anchors = m_anchors.mutable_gpu_data();
   int* indexes = m_indexes.mutable_gpu_data();
+  int* ioumat = m_iou.mutable_gpu_data();
+  
+//   {
+//   float time;
+//   cudaEvent_t start, stop;
+// 
+//   cudaEventCreate(&start) ;
+//   cudaEventCreate(&stop) ;
+//   cudaEventRecord(start, 0) ;
   
   create_full_proposals<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
     bottom_1, bottom[1]->shape(1), bottom[1]->shape(2), bottom[1]->shape(3),
     bottom_0, bottom[0]->shape(1), bottom[0]->shape(2), bottom[0]->shape(3),
     proposals, anchors, scores, indexes,
     bottom[2]->gpu_data(), m_num_anchors, m_min_size);
+  
+//     cudaEventRecord(stop, 0) ;
+//     cudaEventSynchronize(stop) ;
+//     cudaEventElapsedTime(&time, start, stop) ;
+// 
+//     printf("Time to create_full_proposals:  %3.10f ms \n", time);
+//   }  
+    
   CUDA_POST_KERNEL_CHECK;
   
+//     {
+//   float time;
+//   cudaEvent_t start, stop;
+// 
+//    cudaEventCreate(&start) ;
+//    cudaEventCreate(&stop) ;
+//    cudaEventRecord(start, 0) ;
   int j, k;
   for (k = 2; k <= count; k <<= 1) {
     for (j=k>>1; j>0; j=j>>1) {
       bitonic_sort_base<<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count, j, k, indexes, scores);
     }
   }
+//     cudaEventRecord(stop, 0) ;
+//     cudaEventSynchronize(stop) ;
+//     cudaEventElapsedTime(&time, start, stop) ;
+// 
+//     printf("Time to sort1:  %3.10f ms \n", time);
+//   }  
   CUDA_POST_KERNEL_CHECK;
+  
+/*  
+  {
+  float time;
+  cudaEvent_t start, stop;
+
+   cudaEventCreate(&start) ;
+   cudaEventCreate(&stop) ;
+   cudaEventRecord(start, 0) ;
   
   base_gpu_nms<Dtype><<<CAFFE_GET_BLOCKS(m_pre_nms_topN), CAFFE_CUDA_NUM_THREADS>>>(m_pre_nms_topN, indexes, scores, proposals, m_nms_thresh);
   CUDA_POST_KERNEL_CHECK;
+    cudaEventRecord(stop, 0) ;
+    cudaEventSynchronize(stop) ;
+    cudaEventElapsedTime(&time, start, stop) ;
+
+    printf("Time to nms:  %3.1f ms \n", time);
+  }  
+ */
+//   {
+//     float time;
+//     cudaEvent_t start, stop;
+// 
+//     cudaEventCreate(&start) ;
+//     cudaEventCreate(&stop) ;
+//     cudaEventRecord(start, 0) ;
+//     calc_iou_matrix<Dtype><<<CAFFE_GET_BLOCKS(m_pre_nms_topN * m_pre_nms_topN), CAFFE_CUDA_NUM_THREADS>>>(m_pre_nms_topN*m_pre_nms_topN, m_pre_nms_topN, indexes, proposals, scores, ioumat ,m_nms_thresh);
+//     CUDA_POST_KERNEL_CHECK;
+//     cudaEventRecord(stop, 0) ;
+//     cudaEventSynchronize(stop) ;
+//     cudaEventElapsedTime(&time, start, stop) ;
+// 
+//     printf("Time to nms:  %3.10f ms \n", time);
+//   }  
+// 
+//   
+//   {
+//     float time;
+//     cudaEvent_t start, stop;
+// 
+//     cudaEventCreate(&start);
+//     cudaEventCreate(&stop);
+//     cudaEventRecord(start, 0);
+    
+    dim3 threadsPerBlock(16, 16);
+    dim3 numBlocks((m_pre_nms_topN +15) /threadsPerBlock.x,
+                   (m_pre_nms_topN +15) /threadsPerBlock.y);  
+    
+    nms_improve<Dtype><<<numBlocks, threadsPerBlock>>>(m_pre_nms_topN, indexes, proposals, scores, m_nms_thresh);
+    
+    
+    CUDA_POST_KERNEL_CHECK;
+//     cudaEventRecord(stop, 0) ;
+//     cudaEventSynchronize(stop) ;
+//     cudaEventElapsedTime(&time, start, stop) ;
+// 
+//     printf("Time to nms:  %3.10f ms \n", time);
+//   }  
   
+  
+  
+  
+  
+//       {
+//   float time;
+//   cudaEvent_t start, stop;
+// 
+//   cudaEventCreate(&start) ;
+//   cudaEventCreate(&stop) ;
+//   cudaEventRecord(start, 0) ;
+//   int j, k;
   for (k = 2; k <= m_pre_nms_topN; k <<= 1) {
     for (j=k>>1; j>0; j=j>>1) {
       bitonic_sort_base<<<CAFFE_GET_BLOCKS(m_pre_nms_topN), CAFFE_CUDA_NUM_THREADS>>>(m_pre_nms_topN, j, k, indexes, scores);
     }
   }
+//     cudaEventRecord(stop, 0) ;
+//     cudaEventSynchronize(stop) ;
+//    cudaEventElapsedTime(&time, start, stop) ;
+// 
+//     printf("Time to sort2:  %3.10f ms \n", time);
+//   }  
   
+//   {
+//   float time;
+//   cudaEvent_t start, stop;
+// 
+//    cudaEventCreate(&start) ;
+//    cudaEventCreate(&stop) ;
+//    cudaEventRecord(start, 0);
+//   
   data_to_top<Dtype><<<CAFFE_GET_BLOCKS(m_post_nms_topN), CAFFE_CUDA_NUM_THREADS>>>(m_post_nms_topN, indexes, proposals, top[0]->mutable_gpu_data() );
   CUDA_POST_KERNEL_CHECK;
+//     cudaEventRecord(stop, 0) ;
+//     cudaEventSynchronize(stop) ;
+//     cudaEventElapsedTime(&time, start, stop);
+// 
+//     printf("Time to copy to top:  %3.10f ms \n", time);
+//   }  
+//   
   
   //TODO write scores to output blob
 }
