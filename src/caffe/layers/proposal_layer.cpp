@@ -80,7 +80,7 @@ void ProposalLayer<Dtype>::Reshape( const vector< Blob< Dtype >* > &bottom,
 //       );
 //     }
 //   }
-
+  
   m_anchors.Reshape(std::vector<int>( {height * width * m_num_anchors, 4}));  
   
   m_proposals.ReshapeLike(m_anchors);
@@ -88,7 +88,7 @@ void ProposalLayer<Dtype>::Reshape( const vector< Blob< Dtype >* > &bottom,
   std::size_t scores_num = bottom[0]->shape(2)*bottom[0]->shape(3)*bottom[0]->shape(1);
   m_scores.Reshape(std::vector<int>(1,scores_num-m_num_anchors));
   m_indexes.Reshape(std::vector<int>(1,scores_num-m_num_anchors));
-  
+  m_iou.Reshape(std::vector<int>(1,m_pre_nms_topN*m_pre_nms_topN));
   top[0]->Reshape(std::vector<int>({static_cast<int>(m_post_nms_topN),5}));
 }
 
