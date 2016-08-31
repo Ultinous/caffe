@@ -152,10 +152,10 @@ private:
   {
     const double pi = std::acos(-1);
 
-    float sx=1.0f, sy=1.0f, ex=0.0f, ey=0.0f, ca=1.0f, sa=0.0f;
+    float sx=1.0f, sy=1.0f, ex=0.0f, ey=0.0f, ca=1.0f, sa=0.0f, tx=0.0f, ty=0.0f;
 
-    float ty = static_cast<float>(src.rows)/2.0f;
-    float tx = static_cast<float>(src.cols)/2.0f;
+    float centery = static_cast<float>(src.rows)/2.0f;
+    float centerx = static_cast<float>(src.cols)/2.0f;
 
     if( m_params.verticalminscale() != 1.0f || m_params.verticalmaxscale() != 1.0f)
     {
@@ -195,6 +195,18 @@ private:
       sa = std::sin(rad);
     }
 
+    if( m_params.horizontaltranslation() != 0.0f )
+    {
+      tx = m_params.horizontaltranslation()
+          *(2.0f*static_cast<float>(rand()) / static_cast<float>(RAND_MAX)-1);
+    }
+    if( m_params.verticaltranslation() != 0.0f )
+    {
+      ty = m_params.verticaltranslation()
+          *(2.0f*static_cast<float>(rand()) / static_cast<float>(RAND_MAX)-1);
+    }
+
+
     cv::Mat affine( 2, 3, CV_32FC1 );
 
     affine.at<float>( 0, 0 ) = sx*(ca+sa*ex);
@@ -203,12 +215,12 @@ private:
     affine.at<float>( 1, 0 ) = sy*(ca*ey+sa);
     affine.at<float>( 1, 1 ) = sy*(-sa*ey+ca);
 
-    affine.at<float>( 0, 2 ) = affine.at<float>(0,0)*(-tx)
-              + affine.at<float>(0,1)*(-ty)
-              + tx;
-    affine.at<float>( 1, 2 ) = affine.at<float>(1,0)*(-tx)
-              + affine.at<float>(1,1)*(-ty)
-              + ty;
+    affine.at<float>( 0, 2 ) = affine.at<float>(0,0)*(-centerx)
+              + affine.at<float>(0,1)*(-centery)
+              + centerx + tx;
+    affine.at<float>( 1, 2 ) = affine.at<float>(1,0)*(-centerx)
+              + affine.at<float>(1,1)*(-centery)
+              + centery + ty;
 
     cv::warpAffine( src, dst, affine, src.size(), CV_INTER_CUBIC );
   }

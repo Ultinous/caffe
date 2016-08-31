@@ -1407,16 +1407,18 @@ message UltinousTransformationParameter {
   optional float verticalMaxShear = 12 [default = 0];
   optional float minRotation = 13 [default = 0];
   optional float maxRotation = 14 [default = 0];
+  optional float horizontalTranslation = 15 [default = 0];
+  optional float verticalTranslation = 16 [default = 0];
 
   // occlusion
-  optional uint32 numOcclusions = 15 [default = 0];
-  optional uint32 minOcclusionRadius = 16 [default = 0];
-  optional uint32 maxOcclusionRadius = 17 [default = 0];
+  optional uint32 numOcclusions = 17 [default = 0];
+  optional uint32 minOcclusionRadius = 18 [default = 0];
+  optional uint32 maxOcclusionRadius = 19 [default = 0];
 
-  optional uint32 padTop = 18 [default = 0];
-  optional uint32 padBottom = 19 [default = 0];
-  optional uint32 padLeft = 20 [default = 0];
-  optional uint32 padRight = 21 [default = 0];
+  optional uint32 padTop = 20 [default = 0];
+  optional uint32 padBottom = 21 [default = 0];
+  optional uint32 padLeft = 22 [default = 0];
+  optional uint32 padRight = 23 [default = 0];
 
-  optional uint32 uniformNoiseStrength = 22 [default = 0];
+  optional uint32 uniformNoiseStrength = 24 [default = 0];
 }
