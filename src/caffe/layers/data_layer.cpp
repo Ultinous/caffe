@@ -5,6 +5,7 @@
 
 #include <vector>
 
+#include "caffe/util/io.hpp"
 #include "caffe/data_transformer.hpp"
 #include "caffe/layers/data_layer.hpp"
 #include "caffe/util/benchmark.hpp"
@@ -14,7 +15,9 @@ namespace caffe {
 template <typename Dtype>
 DataLayer<Dtype>::DataLayer(const LayerParameter& param)
   : BasePrefetchingDataLayer<Dtype>(param),
-    reader_(param) {
+    reader_(param)
+   , m_unTransformer(this->layer_param_.ultinous_transform_param(), this->phase_)
+    {
 }
 
 template <typename Dtype>
@@ -66,6 +69,7 @@ void DataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   // on single input batches allows for inputs of varying dimension.
   const int batch_size = this->layer_param_.data_param().batch_size();
   Datum& datum = *(reader_.full().peek());
+
   // Use data_transformer to infer the expected blob shape from datum.
   vector<int> top_shape = this->data_transformer_->InferBlobShape(datum);
   this->transformed_data_.Reshape(top_shape);
@@ -81,8 +85,39 @@ void DataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   }
   for (int item_id = 0; item_id < batch_size; ++item_id) {
     timer.Start();
+
     // get a datum
     Datum& datum = *(reader_.full().pop("Waiting for data"));
+
+    std::string datumData( datum.data() );
+    std::vector<char> vec_data(datumData.c_str(), datumData.c_str() + datumData.size());
+
+    cv::Mat cvImg;
+    bool is_color = datum.channels() > 1;
+    if( is_color )
+    {
+      cvImg = cv::Mat(datum.height(), datum.width(), CV_8UC3);
+
+      size_t channelSize = datum.height() * datum.width();
+      for( int i = 0; i < datum.height(); ++i )
+        for( int j = 0; j < datum.width(); ++j )
+        {
+          size_t offset = i*datum.width()+j;
+          cvImg.data[offset*3+2] = vec_data[offset];
+          cvImg.data[offset*3+1] = vec_data[channelSize+offset];
+          cvImg.data[offset*3+0] = vec_data[2*channelSize+offset];
+        }
+    }
+    else
+    {
+      cvImg = cv::Mat(datum.height(), datum.width(), CV_8UC1 );
+      memcpy( cvImg.data, &(vec_data[0]), vec_data.size() );
+    }
+
+    m_unTransformer.transform( cvImg );
+    CVMatToDatum( cvImg, &datum );
+
+
     read_time += timer.MicroSeconds();
     timer.Start();
     // Apply data transformations (mirror, scale, crop...)
