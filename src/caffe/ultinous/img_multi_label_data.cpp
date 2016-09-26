@@ -15,32 +15,36 @@
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/rng.hpp"
 
-namespace caffe {
-  
-namespace ultinous {
+namespace caffe
+{
+
+namespace ultinous
+{
 
 template <typename Dtype>
-ImgMultiLabelDataLayer<Dtype>::~ImgMultiLabelDataLayer<Dtype>() {
+ImgMultiLabelDataLayer<Dtype>::~ImgMultiLabelDataLayer<Dtype>()
+{
   this->StopInternalThread();
 }
 
 template <typename Dtype>
 void ImgMultiLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top) {
+    const vector<Blob<Dtype>*>& top)
+{
   const int new_height = this->layer_param_.image_data_param().new_height();
   const int new_width  = this->layer_param_.image_data_param().new_width();
   const bool is_color  = this->layer_param_.image_data_param().is_color();
   string root_folder = this->layer_param_.image_data_param().root_folder();
 
   CHECK((new_height == 0 && new_width == 0) ||
-      (new_height > 0 && new_width > 0)) << "Current implementation requires "
-      "new_height and new_width to be set at the same time.";
+        (new_height > 0 && new_width > 0)) << "Current implementation requires "
+            "new_height and new_width to be set at the same time.";
   // Read the file with filenames and labels
   const string& source = this->layer_param_.image_data_param().source();
   LOG(INFO) << "Opening file " << source;
   std::ifstream infile(source.c_str());
   string filename;
-  
+
   std::vector<double> output;
   std::string line;
   while (std::getline(infile, line))
@@ -49,16 +53,17 @@ void ImgMultiLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& b
     std::istringstream iss(line);
     iss >> filename;
     double o;
-    while( iss >> o )
+    while (iss >> o)
       output.push_back(o);
     lines_.push_back(std::make_pair(filename, output));
   }
-  
+
   /*while (infile >> filename >> label) {
     lines_.push_back(std::make_pair(filename, label));
   }*/
 
-  if (this->layer_param_.image_data_param().shuffle()) {
+  if (this->layer_param_.image_data_param().shuffle())
+  {
     // randomly shuffle data
     LOG(INFO) << "Shuffling data";
     const unsigned int prefetch_rng_seed = caffe_rng_rand();
@@ -69,9 +74,10 @@ void ImgMultiLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& b
 
   lines_id_ = 0;
   // Check if we would need to randomly skip a few data points
-  if (this->layer_param_.image_data_param().rand_skip()) {
+  if (this->layer_param_.image_data_param().rand_skip())
+  {
     unsigned int skip = caffe_rng_rand() %
-        this->layer_param_.image_data_param().rand_skip();
+                        this->layer_param_.image_data_param().rand_skip();
     LOG(INFO) << "Skipping first " << skip << " data points.";
     CHECK_GT(lines_.size(), skip) << "Not enough points to skip";
     lines_id_ = skip;
@@ -87,34 +93,38 @@ void ImgMultiLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& b
   const int batch_size = this->layer_param_.image_data_param().batch_size();
   CHECK_GT(batch_size, 0) << "Positive batch size required";
   top_shape[0] = batch_size;
-  for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
+  for (int i = 0; i < this->PREFETCH_COUNT; ++i)
+  {
     this->prefetch_[i].data_.Reshape(top_shape);
   }
   top[0]->Reshape(top_shape);
 
   LOG(INFO) << "output data size: " << top[0]->num() << ","
-      << top[0]->channels() << "," << top[0]->height() << ","
-      << top[0]->width();
+            << top[0]->channels() << "," << top[0]->height() << ","
+            << top[0]->width();
   // label
   vector<int> label_shape;
   label_shape.push_back(batch_size);
   label_shape.push_back(output.size());
   top[1]->Reshape(label_shape);
-  for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
+  for (int i = 0; i < this->PREFETCH_COUNT; ++i)
+  {
     this->prefetch_[i].label_.Reshape(label_shape);
   }
 }
 
 template <typename Dtype>
-void ImgMultiLabelDataLayer<Dtype>::ShuffleImages() {
+void ImgMultiLabelDataLayer<Dtype>::ShuffleImages()
+{
   caffe::rng_t* prefetch_rng =
-      static_cast<caffe::rng_t*>(prefetch_rng_->generator());
+    static_cast<caffe::rng_t*>(prefetch_rng_->generator());
   shuffle(lines_.begin(), lines_.end(), prefetch_rng);
 }
 
 // This function is called on prefetch thread
 template <typename Dtype>
-void ImgMultiLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
+void ImgMultiLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch)
+{
   CPUTimer batch_timer;
   batch_timer.Start();
   double read_time = 0;
@@ -132,7 +142,7 @@ void ImgMultiLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   // Reshape according to the first image of each batch
   // on single input batches allows for inputs of varying dimension.
   cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[lines_id_].first,
-      new_height, new_width, is_color);
+                                    new_height, new_width, is_color);
   CHECK(cv_img.data) << "Could not load " << lines_[lines_id_].first;
   // Use data_transformer to infer the expected blob shape from a cv_img.
   vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
@@ -146,12 +156,13 @@ void ImgMultiLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
 
   // datum scales
   const int lines_size = lines_.size();
-  for (int item_id = 0; item_id < batch_size; ++item_id) {
+  for (int item_id = 0; item_id < batch_size; ++item_id)
+  {
     // get a blob
     timer.Start();
     CHECK_GT(lines_size, lines_id_);
     cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[lines_id_].first,
-        new_height, new_width, is_color);
+                                      new_height, new_width, is_color);
     CHECK(cv_img.data) << "Could not load " << lines_[lines_id_].first;
     read_time += timer.MicroSeconds();
     timer.Start();
@@ -160,20 +171,22 @@ void ImgMultiLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     this->transformed_data_.set_cpu_data(prefetch_data + offset);
     this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
     trans_time += timer.MicroSeconds();
-    
-    
+
+
     offset = batch->label_.offset(item_id);
-    for( size_t i=0; i<lines_[lines_id_].second.size(); ++i)
-      prefetch_label[offset+i] = lines_[lines_id_].second[i];
+    for (size_t i = 0; i < lines_[lines_id_].second.size(); ++i)
+      prefetch_label[offset + i] = lines_[lines_id_].second[i];
 
     //prefetch_label[item_id] = lines_[lines_id_].second;
     // go to the next iter
     lines_id_++;
-    if (lines_id_ >= lines_size) {
+    if (lines_id_ >= lines_size)
+    {
       // We have reached the end. Restart from the first.
       DLOG(INFO) << "Restarting data prefetching from start.";
       lines_id_ = 0;
-      if (this->layer_param_.image_data_param().shuffle()) {
+      if (this->layer_param_.image_data_param().shuffle())
+      {
         ShuffleImages();
       }
     }

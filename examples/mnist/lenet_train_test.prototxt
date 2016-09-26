@@ -33,11 +33,13 @@ layer {
     backend: LMDB
   }
 }
+
+
 layer {
   name: "conv1"
   type: "Convolution"
   bottom: "data"
-  top: "conv1"
+  top: "conv1a"
   param {
     lr_mult: 1
   }
@@ -45,9 +47,10 @@ layer {
     lr_mult: 2
   }
   convolution_param {
-    num_output: 20
-    kernel_size: 5
+    num_output: 10
+    kernel_size: 3
     stride: 1
+    pad: 1
     weight_filler {
       type: "xavier"
     }
@@ -56,10 +59,100 @@ layer {
     }
   }
 }
+
+
+layer {
+  name: "concat1"
+  bottom: "data"
+  bottom: "conv1a"
+  top: "conv1b"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+
+
+layer {
+  name: "conv1a"
+  type: "Convolution"
+  bottom: "conv1b"
+  top: "conv1c"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 10
+    kernel_size: 3
+    stride: 1
+    pad: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+
+layer {
+  name: "concat2"
+  bottom: "conv1b"
+  bottom: "conv1c"
+  top: "conv1d"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+
+layer {
+  name: "conv1b"
+  type: "Convolution"
+  bottom: "conv1d"
+  top: "conv1e"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 10
+    kernel_size: 3
+    stride: 1
+    pad: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+
+layer {
+  name: "concat3"
+  bottom: "conv1d"
+  bottom: "conv1e"
+  top: "conv1f"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+
+
+
+
+
 layer {
   name: "pool1"
   type: "Pooling"
-  bottom: "conv1"
+  bottom: "conv1f"
   top: "pool1"
   pooling_param {
     pool: MAX
@@ -80,7 +173,7 @@ layer {
   }
   convolution_param {
     num_output: 50
-    kernel_size: 5
+    kernel_size: 3
     stride: 1
     weight_filler {
       type: "xavier"
@@ -128,10 +221,22 @@ layer {
   bottom: "ip1"
   top: "ip1"
 }
+
+layer {
+  name: "drop"
+  type: "Dropout"
+  bottom: "ip1"
+  top: "ip1d"
+  dropout_param {
+    dropout_ratio: 0.4
+  }
+}
+
+
 layer {
   name: "ip2"
   type: "InnerProduct"
-  bottom: "ip1"
+  bottom: "ip1d"
   top: "ip2"
   param {
     lr_mult: 1
@@ -149,6 +254,7 @@ layer {
     }
   }
 }
+
 layer {
   name: "accuracy"
   type: "Accuracy"
