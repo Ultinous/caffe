@@ -11,15 +11,15 @@
 #include "caffe/layers/base_data_layer.hpp"
 
 namespace caffe {
+namespace ultinous {
 
 template <typename Dtype>
 class ImageROIDataLayer : public BaseDataLayer<Dtype>, public InternalThread {
 public:
 
-  template<typename Dt>
   class Batch {
     public:
-    Blob<Dt> data_, info_, bboxes_;
+    Blob<Dtype> data_, info_, bboxes_;
   };
 
   struct BBox
@@ -71,19 +71,20 @@ public:
  protected:
   virtual void InternalThreadEntry();
   virtual void ShuffleImages();
-  virtual void load_batch(Batch<Dtype>* batch);
+  virtual void load_batch(Batch* batch);
 
 
 
 
 protected:
-  Batch<Dtype> prefetch_[PREFETCH_COUNT];
-  BlockingQueue<Batch<Dtype>*> prefetch_free_;
-  BlockingQueue<Batch<Dtype>*> prefetch_full_;
+  Batch prefetch_[PREFETCH_COUNT];
+  BlockingQueue<Batch*> prefetch_free_;
+  BlockingQueue<Batch*> prefetch_full_;
   Blob<Dtype> transformed_data_;
   shared_ptr<Caffe::RNG> prefetch_rng_;
   Samples samples;
   int lines_id_;
 };
 
+}  // namespace ultinous
 }  // namespace caffe

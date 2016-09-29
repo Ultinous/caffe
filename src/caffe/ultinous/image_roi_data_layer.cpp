@@ -19,6 +19,7 @@
 #include "caffe/util/rng.hpp"
 
 namespace caffe {
+namespace ultinous {
 
 template <typename Dtype>
 ImageROIDataLayer<Dtype>::~ImageROIDataLayer<Dtype>()
@@ -128,7 +129,7 @@ void ImageROIDataLayer<Dtype>::ShuffleImages()
 
 // This function is called on prefetch thread
 template <typename Dtype>
-void ImageROIDataLayer<Dtype>::load_batch(Batch<Dtype>* batch)
+void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 {
   CPUTimer batch_timer;
   batch_timer.Start();
@@ -308,7 +309,7 @@ void ImageROIDataLayer<Dtype>::InternalThreadEntry() {
 
   try {
     while (!must_stop()) {
-      Batch<Dtype>* batch = prefetch_free_.pop();
+      Batch* batch = prefetch_free_.pop();
       load_batch(batch);
 #ifndef CPU_ONLY
       if (Caffe::mode() == Caffe::GPU) {
@@ -331,7 +332,7 @@ void ImageROIDataLayer<Dtype>::InternalThreadEntry() {
 template <typename Dtype>
 void ImageROIDataLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-  Batch<Dtype>* batch = prefetch_full_.pop("Data layer prefetch queue empty");
+  Batch* batch = prefetch_full_.pop("Data layer prefetch queue empty");
 
   // Reshape to loaded image.
   top[0]->ReshapeLike(batch->data_);
@@ -356,6 +357,8 @@ void ImageROIDataLayer<Dtype>::Forward_cpu(
   prefetch_free_.push(batch);
 }
 
+
+
 #ifdef CPU_ONLY
 STUB_GPU_FORWARD(ImageROIDataLayer, Forward);
 #endif
@@ -363,4 +366,5 @@ STUB_GPU_FORWARD(ImageROIDataLayer, Forward);
 INSTANTIATE_CLASS(ImageROIDataLayer);
 REGISTER_LAYER_CLASS(ImageROIData);
 
+}  // namespace ultinous
 }  // namespace caffe

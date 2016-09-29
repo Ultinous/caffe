@@ -3,11 +3,12 @@
 #include "caffe/ultinous/image_roi_data_layer.hpp"
 
 namespace caffe {
+namespace ultinous {
 
 template <typename Dtype>
 void ImageROIDataLayer<Dtype>::Forward_gpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-  Batch<Dtype>* batch = prefetch_full_.pop("Data layer prefetch queue empty");
+  Batch * batch = prefetch_full_.pop("Data layer prefetch queue empty");
   // Reshape to loaded data.
   top[0]->ReshapeLike(batch->data_);
   // Copy the data
@@ -34,4 +35,5 @@ void ImageROIDataLayer<Dtype>::Forward_gpu(
 
 INSTANTIATE_LAYER_GPU_FORWARD(ImageROIDataLayer);
 
+}  // namespace ultinous
 }  // namespace caffe
