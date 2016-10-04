@@ -38,7 +38,7 @@ CUDA_ARCH := -gencode arch=compute_20,code=sm_20 \
 		-gencode arch=compute_35,code=sm_35 \
 		-gencode arch=compute_50,code=sm_50 \
 		-gencode arch=compute_50,code=compute_50 \
-		-gencode arch=compute_60,code=compute_60
+		-gencode arch=compute_62,code=compute_62
 
 # BLAS choice:
 # atlas for ATLAS (default)
