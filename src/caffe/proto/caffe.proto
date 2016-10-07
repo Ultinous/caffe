@@ -407,6 +407,7 @@ message LayerParameter {
   optional ROIPoolingParameter roi_pooling_param = 8266711;
   optional ProposalParameter proposal_param= 7000;
   optional ImageROIDataParameter image_roi_data_param = 7001;
+  optional ProposalTargetParameter proposal_target_param = 7002;
   // UltiNous
   optional TripletLossParameter triplet_loss_param = 5001;
   optional TripletDataParameter triplet_data_param = 5002;
@@ -1438,6 +1439,7 @@ message ProposalParameter {
   optional int32 post_nms_topN = 4 [default = 300];
   optional float nms_thresh = 5 [default = 0.7];
   optional int32 min_size = 6 [default = 16];
+  repeated float ratios =7;
 }
 
 // Message that stores parameters used by ROIPoolingLayer
@@ -1462,4 +1464,18 @@ message ImageROIDataParameter {
   // Resize the smaller dimension of the image to this size (0 indicates no resize)
   required uint32 smallerDimensionSize = 1;
   optional bool mirror = 2 [default = false];
+}
+
+message ProposalTargetParameter {
+  required int32 num_classes = 1; 
+  optional int32 minibatch_size = 2 [default = 128];
+  optional float fg_fraction = 3 [default = 0.25];
+  optional float fg_treshold = 4 [default = 0.5];
+  optional float bg_treshold_hi = 5 [default = 0.5];
+  optional float bg_treshold_lo = 6 [default = 0.1];
+  optional bool bbox_normalize_targets_precomputed = 8 [default = true];
+  //these filds size has to be four exactly, if you left out def value will be initialized
+  repeated float bbox_inside_weights = 9;
+  repeated float bbox_normalize_means = 10;
+  repeated float bbox_normalize_stds = 11;
 }

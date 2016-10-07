@@ -10,7 +10,7 @@ template <typename Dtype>
 void AnchorTargetLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
 
-  std::vector<int> anchor_scales{8,16,32}; // TODO: = layer_params.get('scales', (8, 16, 32))
+  std::vector<int> anchor_scales{4,8,16,32}; // TODO: = layer_params.get('scales', (8, 16, 32))
   base_anchors_ = generate_anchors(anchor_scales);
 
   feat_stride_ = 16; // TODO: = layer_params['feat_stride']
