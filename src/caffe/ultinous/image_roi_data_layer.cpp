@@ -44,15 +44,20 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   const string& source = this->layer_param_.image_data_param().source();
   LOG(INFO) << "Opening file " << source;
   std::ifstream infile(source.c_str());
+  CHECK(infile.good()) << "Can not open source file";
+  
   std::string line;
   while (std::getline(infile, line))
   {
     Sample sample;
     std::istringstream iss(line);
+    
     iss >> sample.image_file;
     BBox bbox;
     while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2 >> bbox.cls )
       sample.bboxes.push_back(bbox);
+    
+    samples.push_back( sample );
   }
 
   CHECK(!samples.empty()) << "File is empty";
@@ -156,22 +161,14 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
                                     new_height, new_width, is_color);
   CHECK(cv_img.data) << "Could not load " << samples[lines_id_].image_file;
   // Use data_transformer to infer the expected blob shape from a cv_img.
-  vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
-  this->transformed_data_.Reshape(top_shape);
-  // Reshape batch according to the batch_size.
-  top_shape[0] = batch_size;
-  batch->data_.Reshape(top_shape);
 
-  Dtype* prefetch_data = batch->data_.mutable_cpu_data();
-  Dtype* prefetch_info = batch->info_.mutable_cpu_data();
-  Dtype* prefetch_bboxes = batch->bboxes_.mutable_cpu_data();
+  int MAX_SIZE = 1000; // TODO: from config file
 
   // datum scales
   const int lines_size = samples.size();
   for (int item_id = 0; item_id < batch_size; ++item_id)
   {
-    bool mirror = image_roi_data_param.mirror()
-      && ((rand()%2)==1);
+    bool mirror = image_roi_data_param.mirror() && ((rand()%2)==1);
 
     // get a blob
     timer.Start();
@@ -180,19 +177,34 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
                                       new_height, new_width, is_color);
     CHECK(cv_img.data) << "Could not load " << samples[lines_id_].image_file;
     read_time += timer.MicroSeconds();
+    
+    //std::cout << "---- cv_img size: " << cv_img.rows << " " << cv_img.cols << std::endl;
 
     float scale = 1.0f;
 
     // resize
     if( smallerDimensionSize > 0 )
     {
-      scale = static_cast<float>(smallerDimensionSize)
+      float scale1 = static_cast<float>(smallerDimensionSize)
             / std::min(cv_img.rows, cv_img.cols);
+      float scale2 = static_cast<float>(MAX_SIZE) / static_cast<float>(std::max(cv_img.rows, cv_img.cols));
+      scale = std::min(scale1, scale2 );
+      
+    } else if( std::max(cv_img.rows, cv_img.cols) > MAX_SIZE )
+    {
+      scale = static_cast<float>(MAX_SIZE) / static_cast<float>(std::max(cv_img.rows, cv_img.cols));
+    }
+    
+    if( scale != 1.0f)
+    {
       cv::Mat cv_resized;
       cv::resize( cv_img, cv_resized, cv::Size(0,0), scale, scale, cv::INTER_LINEAR );
 
       cv_img = cv_resized;
     }
+
+
+    //std::cout << "---- scale: " << scale << std::endl;
 
     // mirror
     if( mirror )
@@ -201,8 +213,21 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       cv::flip(cv_img, cv_flipped, 1);
       cv_img = cv_flipped;
     }
+    //std::cout << "---- cv_img size2: " << cv_img.rows << " " << cv_img.cols << std::endl;
 
-
+    vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
+    //std::cout << "---- top_shape: ";
+    //for( auto v : top_shape ) std::cout << v << " ";
+    //std::cout << std::endl;
+    
+    this->transformed_data_.Reshape(top_shape);
+    // Reshape batch according to the batch_size.
+    top_shape[0] = batch_size;
+    batch->data_.Reshape(top_shape);
+    Dtype* prefetch_data = batch->data_.mutable_cpu_data();
+    Dtype* prefetch_info = batch->info_.mutable_cpu_data();
+    Dtype* prefetch_bboxes = batch->bboxes_.mutable_cpu_data();
+    
     timer.Start();
     // Apply transformations (mirror, crop...) to the image
     int offset = batch->data_.offset(item_id);
@@ -215,6 +240,8 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     prefetch_info[1] = static_cast<Dtype>(cv_img.cols);
     prefetch_info[2] = static_cast<Dtype>(scale);
 
+    //std::cout << "---- samples[lines_id_].bboxes.size(): " << samples[lines_id_].bboxes.size() << std::endl;
+    
     // bboxes
     for( int bboxIx = 0; bboxIx < samples[lines_id_].bboxes.size(); ++bboxIx )
     {
@@ -227,11 +254,12 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
       if( mirror )
       {
-        std::swap(y1,y2);
         Dtype temp = x1;
         x1 = cv_img.cols - x2;
         x2 = cv_img.cols - temp;
       }
+      
+      //std::cout << "---- x1:" << x1 << " y1:" << y1<< " x2:" << x2 << " y2:" << y1 << " cls:" << cls << std::endl;
 
       prefetch_bboxes[ 5*bboxIx ] = x1;
       prefetch_bboxes[ 5*bboxIx + 1 ] = y1;
@@ -334,25 +362,37 @@ void ImageROIDataLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   Batch* batch = prefetch_full_.pop("Data layer prefetch queue empty");
 
+  //std::cout << "---- ImageROIDataLayer<Dtype>::Forward_cpu" << std::endl;
+  
   // Reshape to loaded image.
   top[0]->ReshapeLike(batch->data_);
   // Copy the data
   caffe_copy(batch->data_.count(), batch->data_.cpu_data(),
              top[0]->mutable_cpu_data());
   DLOG(INFO) << "Prefetch copied";
+  //std::cout << "---- batch->data_.count()" << batch->data_.count() << std::endl;
 
   // Reshape to image info.
   top[1]->ReshapeLike(batch->info_);
   // Copy info.
   caffe_copy(batch->info_.count(), batch->info_.cpu_data(),
       top[1]->mutable_cpu_data());
+  //std::cout << "---- batch->info_.count()" << batch->info_.count() << std::endl;
 
   // Reshape to image info.
   top[2]->ReshapeLike(batch->bboxes_);
   // Copy bbox.
   caffe_copy(batch->bboxes_.count(), batch->bboxes_.cpu_data(),
       top[2]->mutable_cpu_data());
+  //std::cout << "---- batch->bboxes_.count()" << batch->bboxes_.count() << std::endl;
 
+  //std::cout << "--- INFO: ";
+  //for( int i = 0; i < 3; ++i ) std::cout << batch->info_.cpu_data()[i]<< " " ;
+  //std::cout << std::endl;
+
+  //std::cout << "--- BBOXES: ";
+  //for( int i = 0; i < batch->bboxes_.count(); ++i ) std::cout << batch->bboxes_.cpu_data()[i]<< " " ;
+  //std::cout << std::endl;
 
   prefetch_free_.push(batch);
 }
