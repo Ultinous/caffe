@@ -83,7 +83,7 @@ protected:
   Blob<Dtype> transformed_data_;
   shared_ptr<Caffe::RNG> prefetch_rng_;
   Samples samples;
-  int lines_id_;
+  int sample_id_;
 };
 
 }  // namespace ultinous

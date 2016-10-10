@@ -33,7 +33,6 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
 {
   const int new_height = this->layer_param_.image_data_param().new_height();
   const int new_width  = this->layer_param_.image_data_param().new_width();
-  const bool is_color  = this->layer_param_.image_data_param().is_color();
   string root_folder = this->layer_param_.image_data_param().root_folder();
 
   CHECK((new_height == 0 && new_width == 0) ||
@@ -45,18 +44,18 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   LOG(INFO) << "Opening file " << source;
   std::ifstream infile(source.c_str());
   CHECK(infile.good()) << "Can not open source file";
-  
+
   std::string line;
   while (std::getline(infile, line))
   {
     Sample sample;
     std::istringstream iss(line);
-    
+
     iss >> sample.image_file;
     BBox bbox;
     while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2 >> bbox.cls )
       sample.bboxes.push_back(bbox);
-    
+
     samples.push_back( sample );
   }
 
@@ -73,37 +72,17 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   LOG(INFO) << "A total of " << samples.size() << " images.";
 
   // Check if we would need to randomly skip a few data points
-  lines_id_ = 0;
+  sample_id_ = 0;
   if (this->layer_param_.image_data_param().rand_skip())
   {
     unsigned int skip = caffe_rng_rand() %
                         this->layer_param_.image_data_param().rand_skip();
     LOG(INFO) << "Skipping first " << skip << " data points.";
     CHECK_GT(samples.size(), skip) << "Not enough points to skip";
-    lines_id_ = skip;
+    sample_id_ = skip;
   }
-  // Read an image, and use it to initialize the top blob.
-  cv::Mat cv_img = ReadImageToCVMat(root_folder + samples[lines_id_].image_file,
-                                    new_height, new_width, is_color);
-  CHECK(cv_img.data) << "Could not load " << samples[lines_id_].image_file;
-  // Use data_transformer to infer the expected blob shape from a cv_image.
-  vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
-  this->transformed_data_.Reshape(top_shape);
-  // Reshape prefetch_data and top[0] according to the batch_size.
-  const int batch_size = this->layer_param_.image_data_param().batch_size();
-  CHECK_GT(batch_size, 0) << "Positive batch size required";
-  top_shape[0] = batch_size;
-  for (int i = 0; i < this->PREFETCH_COUNT; ++i)
-  {
-    this->prefetch_[i].data_.Reshape(top_shape);
-  }
-  top[0]->Reshape(top_shape);
 
-  LOG(INFO) << "output data size: " << top[0]->num() << ","
-            << top[0]->channels() << "," << top[0]->height() << ","
-            << top[0]->width();
-
-  // im_info
+  // Set im_info shape
   vector<int> info_shape(2);
   info_shape[0] = 1;
   info_shape[1] = 3;
@@ -113,15 +92,6 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     this->prefetch_[i].info_.Reshape(info_shape);
   }
 
-  // bbox
-  vector<int> bboxes_shape(2);
-  bboxes_shape[0] = batch_size;
-  bboxes_shape[1] = 5;
-  top[2]->Reshape(bboxes_shape);
-  for (int i = 0; i < this->PREFETCH_COUNT; ++i)
-  {
-    this->prefetch_[i].bboxes_.Reshape(bboxes_shape);
-  }
 }
 
 template <typename Dtype>
@@ -152,135 +122,122 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
   ImageROIDataParameter image_roi_data_param = this->layer_param_.image_roi_data_param();
   uint32_t smallerDimensionSize = image_roi_data_param.smallerdimensionsize();
+  uint32_t maxSize = image_roi_data_param.maxsize();
 
   CHECK( batch_size==1 ) << "Currently implemented only for batch_size=1";
 
-  // Reshape according to the first image of each batch
-  // on single input batches allows for inputs of varying dimension.
-  cv::Mat cv_img = ReadImageToCVMat(root_folder + samples[lines_id_].image_file,
+  const int samples_size = samples.size();
+
+
+  // Load image
+  timer.Start();
+  CHECK_GT(samples_size, sample_id_);
+  cv::Mat cv_img = ReadImageToCVMat(root_folder + samples[sample_id_].image_file,
                                     new_height, new_width, is_color);
-  CHECK(cv_img.data) << "Could not load " << samples[lines_id_].image_file;
-  // Use data_transformer to infer the expected blob shape from a cv_img.
+  CHECK(cv_img.data) << "Could not load " << samples[sample_id_].image_file;
+  read_time += timer.MicroSeconds();
 
-  int MAX_SIZE = 1000; // TODO: from config file
+  //std::cout << "---- cv_img size: " << cv_img.rows << " " << cv_img.cols << std::endl;
 
-  // datum scales
-  const int lines_size = samples.size();
-  for (int item_id = 0; item_id < batch_size; ++item_id)
+  float scale = 1.0f;
+
+  // resize
+  if( smallerDimensionSize > 0 )
   {
-    bool mirror = image_roi_data_param.mirror() && ((rand()%2)==1);
+    float scale1 = static_cast<float>(smallerDimensionSize)
+          / std::min(cv_img.rows, cv_img.cols);
+    float scale2 = static_cast<float>(maxSize) / static_cast<float>(std::max(cv_img.rows, cv_img.cols));
+    scale = std::min(scale1, scale2 );
 
-    // get a blob
-    timer.Start();
-    CHECK_GT(lines_size, lines_id_);
-    cv::Mat cv_img = ReadImageToCVMat(root_folder + samples[lines_id_].image_file,
-                                      new_height, new_width, is_color);
-    CHECK(cv_img.data) << "Could not load " << samples[lines_id_].image_file;
-    read_time += timer.MicroSeconds();
-    
-    //std::cout << "---- cv_img size: " << cv_img.rows << " " << cv_img.cols << std::endl;
+  } else if( std::max(cv_img.rows, cv_img.cols) > maxSize )
+  {
+    scale = static_cast<float>(maxSize) / static_cast<float>(std::max(cv_img.rows, cv_img.cols));
+  }
 
-    float scale = 1.0f;
+  if( scale != 1.0f)
+  {
+    cv::Mat cv_resized;
+    cv::resize( cv_img, cv_resized, cv::Size(0,0), scale, scale, cv::INTER_LINEAR );
 
-    // resize
-    if( smallerDimensionSize > 0 )
-    {
-      float scale1 = static_cast<float>(smallerDimensionSize)
-            / std::min(cv_img.rows, cv_img.cols);
-      float scale2 = static_cast<float>(MAX_SIZE) / static_cast<float>(std::max(cv_img.rows, cv_img.cols));
-      scale = std::min(scale1, scale2 );
-      
-    } else if( std::max(cv_img.rows, cv_img.cols) > MAX_SIZE )
-    {
-      scale = static_cast<float>(MAX_SIZE) / static_cast<float>(std::max(cv_img.rows, cv_img.cols));
-    }
-    
-    if( scale != 1.0f)
-    {
-      cv::Mat cv_resized;
-      cv::resize( cv_img, cv_resized, cv::Size(0,0), scale, scale, cv::INTER_LINEAR );
+    cv_img = cv_resized;
+  }
 
-      cv_img = cv_resized;
-    }
+  bool mirror = image_roi_data_param.mirror() && ((rand()%2)==1);
 
+  if( mirror )
+  {
+    cv::Mat cv_flipped;
+    cv::flip(cv_img, cv_flipped, 1);
+    cv_img = cv_flipped;
+  }
 
-    //std::cout << "---- scale: " << scale << std::endl;
+  vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
+  this->transformed_data_.Reshape(top_shape);
+  // Reshape batch according to the batch_size.
+  top_shape[0] = batch_size;
+  batch->data_.Reshape(top_shape);
 
-    // mirror
+  Dtype* prefetch_data = batch->data_.mutable_cpu_data();
+
+  timer.Start();
+  // Apply transformations (mirror, crop...) to the image
+  int offset = batch->data_.offset(0); // (item_id)
+  this->transformed_data_.set_cpu_data(prefetch_data + offset);
+  this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
+  trans_time += timer.MicroSeconds();
+
+  // info
+  Dtype* prefetch_info = batch->info_.mutable_cpu_data();
+  prefetch_info[0] = static_cast<Dtype>(cv_img.rows);
+  prefetch_info[1] = static_cast<Dtype>(cv_img.cols);
+  prefetch_info[2] = static_cast<Dtype>(scale);
+
+  // bboxes
+  vector<int> bboxes_shape(2);
+  bboxes_shape[0] = samples[sample_id_].bboxes.size();
+  bboxes_shape[1] = 5;
+  batch->bboxes_.Reshape(bboxes_shape);
+
+  Dtype* prefetch_bboxes = batch->bboxes_.mutable_cpu_data();
+
+  for( int bboxIx = 0; bboxIx < samples[sample_id_].bboxes.size(); ++bboxIx )
+  {
+    BBox bbox = samples[sample_id_].bboxes[bboxIx];
+    Dtype x1 = static_cast<Dtype>(bbox.x1) * scale;
+    Dtype y1 = static_cast<Dtype>(bbox.y1) * scale;
+    Dtype x2 = static_cast<Dtype>(bbox.x2) * scale;
+    Dtype y2 = static_cast<Dtype>(bbox.y2) * scale;
+    Dtype cls = static_cast<Dtype>(bbox.cls);
+
     if( mirror )
     {
-      cv::Mat cv_flipped;
-      cv::flip(cv_img, cv_flipped, 1);
-      cv_img = cv_flipped;
-    }
-    //std::cout << "---- cv_img size2: " << cv_img.rows << " " << cv_img.cols << std::endl;
-
-    vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
-    //std::cout << "---- top_shape: ";
-    //for( auto v : top_shape ) std::cout << v << " ";
-    //std::cout << std::endl;
-    
-    this->transformed_data_.Reshape(top_shape);
-    // Reshape batch according to the batch_size.
-    top_shape[0] = batch_size;
-    batch->data_.Reshape(top_shape);
-    Dtype* prefetch_data = batch->data_.mutable_cpu_data();
-    Dtype* prefetch_info = batch->info_.mutable_cpu_data();
-    Dtype* prefetch_bboxes = batch->bboxes_.mutable_cpu_data();
-    
-    timer.Start();
-    // Apply transformations (mirror, crop...) to the image
-    int offset = batch->data_.offset(item_id);
-    this->transformed_data_.set_cpu_data(prefetch_data + offset);
-    this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
-    trans_time += timer.MicroSeconds();
-
-    // info
-    prefetch_info[0] = static_cast<Dtype>(cv_img.rows);
-    prefetch_info[1] = static_cast<Dtype>(cv_img.cols);
-    prefetch_info[2] = static_cast<Dtype>(scale);
-
-    //std::cout << "---- samples[lines_id_].bboxes.size(): " << samples[lines_id_].bboxes.size() << std::endl;
-    
-    // bboxes
-    for( int bboxIx = 0; bboxIx < samples[lines_id_].bboxes.size(); ++bboxIx )
-    {
-      BBox bbox = samples[lines_id_].bboxes[bboxIx];
-      Dtype x1 = static_cast<Dtype>(bbox.x1) * scale;
-      Dtype y1 = static_cast<Dtype>(bbox.y1) * scale;
-      Dtype x2 = static_cast<Dtype>(bbox.x2) * scale;
-      Dtype y2 = static_cast<Dtype>(bbox.y2) * scale;
-      Dtype cls = static_cast<Dtype>(bbox.cls);
-
-      if( mirror )
-      {
-        Dtype temp = x1;
-        x1 = cv_img.cols - x2;
-        x2 = cv_img.cols - temp;
-      }
-      
-      //std::cout << "---- x1:" << x1 << " y1:" << y1<< " x2:" << x2 << " y2:" << y1 << " cls:" << cls << std::endl;
-
-      prefetch_bboxes[ 5*bboxIx ] = x1;
-      prefetch_bboxes[ 5*bboxIx + 1 ] = y1;
-      prefetch_bboxes[ 5*bboxIx + 2 ] = x2;
-      prefetch_bboxes[ 5*bboxIx + 3 ] = y2;
-      prefetch_bboxes[ 5*bboxIx + 4 ] = cls;
+      Dtype temp = x1;
+      x1 = cv_img.cols - x2;
+      x2 = cv_img.cols - temp;
     }
 
-    // go to the next iter
-    lines_id_++;
-    if (lines_id_ >= lines_size)
+    //std::cout << "---- x1:" << x1 << " y1:" << y1<< " x2:" << x2 << " y2:" << y1 << " cls:" << cls << std::endl;
+
+    prefetch_bboxes[ 5*bboxIx ] = x1;
+    prefetch_bboxes[ 5*bboxIx + 1 ] = y1;
+    prefetch_bboxes[ 5*bboxIx + 2 ] = x2;
+    prefetch_bboxes[ 5*bboxIx + 3 ] = y2;
+    prefetch_bboxes[ 5*bboxIx + 4 ] = cls;
+  }
+
+  // go to the next iter
+  sample_id_++;
+  if (sample_id_ >= samples_size)
+  {
+    // We have reached the end. Restart from the first.
+    DLOG(INFO) << "Restarting data prefetching from start.";
+    sample_id_ = 0;
+    if (this->layer_param_.image_data_param().shuffle())
     {
-      // We have reached the end. Restart from the first.
-      DLOG(INFO) << "Restarting data prefetching from start.";
-      lines_id_ = 0;
-      if (this->layer_param_.image_data_param().shuffle())
-      {
-        ShuffleImages();
-      }
+      ShuffleImages();
     }
   }
+
   batch_timer.Stop();
   DLOG(INFO) << "Prefetch batch: " << batch_timer.MilliSeconds() << " ms.";
   DLOG(INFO) << "     Read time: " << read_time / 1000 << " ms.";
@@ -363,7 +320,7 @@ void ImageROIDataLayer<Dtype>::Forward_cpu(
   Batch* batch = prefetch_full_.pop("Data layer prefetch queue empty");
 
   //std::cout << "---- ImageROIDataLayer<Dtype>::Forward_cpu" << std::endl;
-  
+
   // Reshape to loaded image.
   top[0]->ReshapeLike(batch->data_);
   // Copy the data

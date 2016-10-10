@@ -1463,11 +1463,12 @@ message SmoothL1LossParameter {
 message ImageROIDataParameter {
   // Resize the smaller dimension of the image to this size (0 indicates no resize)
   required uint32 smallerDimensionSize = 1;
-  optional bool mirror = 2 [default = false];
+  optional uint32 maxSize = 2 [default = 1000];
+  optional bool mirror = 3 [default = false];
 }
 
 message ProposalTargetParameter {
-  required int32 num_classes = 1; 
+  required int32 num_classes = 1;
   optional int32 minibatch_size = 2 [default = 128];
   optional float fg_fraction = 3 [default = 0.25];
   optional float fg_treshold = 4 [default = 0.5];
