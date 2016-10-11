@@ -33,6 +33,7 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
 {
   const int new_height = this->layer_param_.image_data_param().new_height();
   const int new_width  = this->layer_param_.image_data_param().new_width();
+  const bool is_color  = this->layer_param_.image_data_param().is_color();
   string root_folder = this->layer_param_.image_data_param().root_folder();
 
   CHECK((new_height == 0 && new_width == 0) ||
@@ -81,6 +82,21 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     CHECK_GT(samples.size(), skip) << "Not enough points to skip";
     sample_id_ = skip;
   }
+  
+  
+  cv::Mat cv_img = ReadImageToCVMat(root_folder + samples[0].image_file,
+                                    new_height, new_width, is_color);
+  CHECK(cv_img.data) << "Could not load " << samples[0].image_file;
+  vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
+  this->transformed_data_.Reshape(top_shape);
+  // Reshape prefetch_data and top[0] according to the batch_size.
+  const int batch_size = this->layer_param_.image_data_param().batch_size();
+  CHECK_GT(batch_size, 0) << "Positive batch size required";
+  top_shape[0] = batch_size;
+  for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
+    this->prefetch_[i].data_.Reshape(top_shape);
+  }
+  top[0]->Reshape(top_shape);
 
   // Set im_info shape
   vector<int> info_shape(2);
@@ -91,7 +107,15 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   {
     this->prefetch_[i].info_.Reshape(info_shape);
   }
-
+  
+  vector<int> bboxes_shape(2);
+  bboxes_shape[0] = 1;
+  bboxes_shape[1] = 5;
+  top[2]->Reshape(bboxes_shape);
+  for (int i = 0; i < this->PREFETCH_COUNT; ++i)
+  {
+    this->prefetch_[i].bboxes_.Reshape(bboxes_shape);
+  }
 }
 
 template <typename Dtype>

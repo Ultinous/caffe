@@ -9,6 +9,7 @@ typedef std::vector<double> Anchor;
 std::vector<Anchor> generate_anchors(
                                const std::vector<int>& scales = std::vector<int>({8, 16, 32}), 
                                const std::vector<double>& ratios = std::vector<double>({0.5, 1, 2}),
+                               //const std::vector<double>& ratios = std::vector<double>({1}),
                                const int& base_size = 16 );
 
 std::vector<Anchor> ratio_enum(const Anchor& anchor, const std::vector<double>& ratios);
