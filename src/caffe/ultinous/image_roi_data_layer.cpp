@@ -57,7 +57,8 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2 >> bbox.cls )
       sample.bboxes.push_back(bbox);
 
-    samples.push_back( sample );
+    if( !sample.bboxes.empty() )
+      samples.push_back( sample );
   }
 
   CHECK(!samples.empty()) << "File is empty";
