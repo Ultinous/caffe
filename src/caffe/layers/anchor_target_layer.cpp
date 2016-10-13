@@ -10,8 +10,8 @@ template <typename Dtype>
 void AnchorTargetLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
 
-  std::vector<int> anchor_scales{4,8,16,32}; // TODO: = layer_params.get('scales', (8, 16, 32))
-  base_anchors_ = generate_anchors(anchor_scales);
+  std::vector<int> anchor_scales{2,4,8,16}; // TODO: = layer_params.get('scales', (8, 16, 32))
+  base_anchors_ = generate_anchors(anchor_scales, {1});
 
   feat_stride_ = 16; // TODO: = layer_params['feat_stride']
   allowed_border_ = 0;  // TODO: = layer_params.get('allowed_border', 0)
@@ -156,7 +156,7 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     // assign bg labels first so that positive labels can clobber them
     for( size_t i = 0; i < anchors.size(); ++i )
     {
-      if( anchor_max_overlaps[i] < RPN_NEGATIVE_OVERLAP )
+      if( anchor_max_overlaps[i] <= RPN_NEGATIVE_OVERLAP )
       {
         Shift anchorShift = anchors_shifts[i];
         labels[ anchor_base_indices[i] * (width*height) + anchorShift.y*width + anchorShift.x ] = 0;
@@ -188,7 +188,7 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     // assign bg labels first so that positive labels can clobber them
     for( size_t i = 0; i < anchors.size(); ++i )
     {
-      if( anchor_max_overlaps[i] < RPN_NEGATIVE_OVERLAP )
+      if( anchor_max_overlaps[i] <= RPN_NEGATIVE_OVERLAP )
       {
         Shift anchorShift = anchors_shifts[i];
         labels[ anchor_base_indices[i] * (width*height) + anchorShift.y*width + anchorShift.x ] = 0;
@@ -201,6 +201,7 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   std::vector<size_t> fg_inds; fg_inds.reserve( num_fg );
   for( int i = 0; i < base_anchors_.size()*width*height; ++i )
     if( labels[i] == 1 ) fg_inds.push_back(i);
+
   if( fg_inds.size() > num_fg )
   {
     std::random_shuffle( fg_inds.begin(), fg_inds.end() );
@@ -209,18 +210,54 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   else
     num_fg = fg_inds.size();
 
-  // subsample negative labels if we have too many
+  // subsample negative labels if we have too many,
+  // Apply hard negative mining.
   int num_bg = RPN_BATCHSIZE - num_fg;
-  std::vector<size_t> bg_inds; bg_inds.reserve( num_bg );
-  for( int i = 0; i < base_anchors_.size()*width*height; ++i )
-    if( labels[i] == 0 ) bg_inds.push_back(i);
-  if( bg_inds.size() > num_bg )
+  int num_bg_per_baseAnchor = 1 + num_bg / base_anchors_.size();
+
+  typedef std::pair<size_t, Dtype> IndexScorePair;
+  typedef std::vector<IndexScorePair> IndexScorePairs;
+  std::vector<IndexScorePairs> bg_inds(base_anchors_.size()); //bg_inds.reserve( num_bg );
+
+  Dtype const * scores = bottom[0]->cpu_data();
+
+  for( size_t anchorIx = 0; anchorIx < base_anchors_.size(); ++anchorIx )
   {
-    std::random_shuffle( bg_inds.begin(), bg_inds.end() );
-    std::for_each( bg_inds.begin()+num_bg, bg_inds.end(), [labels](size_t ix){labels[ix]=-1;} );
+    for( size_t spatialIx = 0; spatialIx < width*height; ++spatialIx )
+    {
+      size_t labelIx = anchorIx * width*height + spatialIx;
+      if( labels[labelIx] == 0 ) {
+        Dtype scorePos = scores[ anchorIx*2*width*height + spatialIx ];
+        Dtype scoreNeg = scores[ (anchorIx*2+1)*width*height + spatialIx ];
+        Dtype score = exp(scorePos)/(exp(scorePos)+exp(scoreNeg)); // softmax
+
+        bg_inds[anchorIx].push_back( std::make_pair(labelIx, score) );
+      }
+    }
   }
-  else
-    num_bg = bg_inds.size();
+
+  num_bg = 0;
+  for( size_t anchorIx = 0; anchorIx < base_anchors_.size(); ++anchorIx )
+  {
+    if( bg_inds[anchorIx].size() > num_bg_per_baseAnchor )
+    {
+      //std::random_shuffle( bg_inds[anchorIx].begin(), bg_inds[anchorIx].end() ); // No hard selection;
+
+      IndexScorePairs list1( bg_inds[anchorIx].begin(), bg_inds[anchorIx].begin()+bg_inds[anchorIx].size()/2);
+      IndexScorePairs list2( bg_inds[anchorIx].begin()+bg_inds[anchorIx].size()/2, bg_inds[anchorIx].end() );
+
+
+      std::sort( list1.begin(), list1.end(), [](IndexScorePair const& p1, IndexScorePair const& p2) {return p1.second > p2.second;} );
+      std::random_shuffle( list2.begin(), list2.end() ); // No hard selection;
+
+      std::for_each( list1.begin()+num_bg_per_baseAnchor/2, list1.end(), [labels](IndexScorePair const& p){labels[p.first]=-1;} );
+      std::for_each( list2.begin()+(num_bg_per_baseAnchor-num_bg_per_baseAnchor/2), list2.end(), [labels](IndexScorePair const& p){labels[p.first]=-1;} );
+
+      num_bg += num_bg_per_baseAnchor;
+    }
+    else
+      num_bg += bg_inds[anchorIx].size();
+  }
   // At this point labels are ready :)
 
   // Computing bbox_targets
