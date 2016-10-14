@@ -227,8 +227,8 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     {
       size_t labelIx = anchorIx * width*height + spatialIx;
       if( labels[labelIx] == 0 ) {
-        Dtype scorePos = scores[ anchorIx*2*width*height + spatialIx ];
-        Dtype scoreNeg = scores[ (anchorIx*2+1)*width*height + spatialIx ];
+        Dtype scoreNeg = scores[ (anchorIx)*width*height + spatialIx ];
+        Dtype scorePos = scores[ (base_anchors_.size()+anchorIx)*width*height + spatialIx ];
         Dtype score = exp(scorePos)/(exp(scorePos)+exp(scoreNeg)); // softmax
 
         bg_inds[anchorIx].push_back( std::make_pair(labelIx, score) );
@@ -241,7 +241,7 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   {
     if( bg_inds[anchorIx].size() > num_bg_per_baseAnchor )
     {
-      //std::random_shuffle( bg_inds[anchorIx].begin(), bg_inds[anchorIx].end() ); // No hard selection;
+      std::random_shuffle( bg_inds[anchorIx].begin(), bg_inds[anchorIx].end() );
 
       IndexScorePairs list1( bg_inds[anchorIx].begin(), bg_inds[anchorIx].begin()+bg_inds[anchorIx].size()/2);
       IndexScorePairs list2( bg_inds[anchorIx].begin()+bg_inds[anchorIx].size()/2, bg_inds[anchorIx].end() );
