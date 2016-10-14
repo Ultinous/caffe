@@ -412,6 +412,7 @@ message LayerParameter {
   optional TripletLossParameter triplet_loss_param = 5001;
   optional TripletDataParameter triplet_data_param = 5002;
   optional FeatureRegistrationParameter feature_registration_param = 5003;
+  optional UltinousTransformationParameter ultinous_transform_param = 5004;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1415,7 +1416,11 @@ message TripletLossParameter {
 
 message TripletDataParameter {
   optional string strategy = 1 [default = "random"];
-  optional HardTripletParameter hard_triplet_param = 3;
+  optional string inputFeatures = 2 [default = ""];
+  optional bool serialize = 3 [default = false];
+  optional bool outputClasses = 4 [default = false];
+  optional HardTripletParameter hard_triplet_param = 5;
+  optional OxfordTripletParameter oxford_triplet_param = 6;
 }
 
 message HardTripletParameter {
@@ -1423,9 +1428,29 @@ message HardTripletParameter {
   optional uint32 sampledClasses = 2 [default = 32];
   optional uint32 sampledPictures = 3 [default = 32];
   optional float margin = 4 [default = 1.0];
-  optional uint32 poolSize = 5 [default = 100000];
-  optional bool tooHardTriplets = 6 [default = true];
+  optional bool tooHardTriplets = 5 [default = true];
+  optional bool hardestPositive = 6 [default = true];
+  optional bool hardestNegative = 7 [default = true];
+  optional HardTripletPoolParameter hard_triplet_pool_param = 8;
 }
+
+message HardTripletPoolParameter {
+  optional uint32 poolSize = 1 [default = 100000];
+  optional uint32 showCount = 2 [default = 3];
+  optional uint32 showCycle = 3 [default = 5];
+}
+
+message OxfordTripletParameter {
+  optional string featureMapId = 1 [default = "defaultFeatureMapId"];
+  optional float margin = 2 [default = 1.0];
+  optional float marginMultiplier = 3 [default=1.0];
+  required uint32 featureLength = 4;
+  optional uint32 sampledPositivePairs = 5 [default = 1024];
+  optional uint32 sampledNegatives = 6 [default = 16];
+  optional bool tooHardTriplets = 7 [default = true];
+  optional uint32 logCycle=8 [default=640000];
+}
+
 
 message FeatureRegistrationParameter {
   optional string featureMapId = 1 [default = "defaultFeatureMapId"];
@@ -1479,4 +1504,38 @@ message ProposalTargetParameter {
   repeated float bbox_inside_weights = 9;
   repeated float bbox_normalize_means = 10;
   repeated float bbox_normalize_stds = 11;
+}
+
+message UltinousTransformationParameter {
+  // color transformation parameters
+  optional float luminanceMinScale = 1 [default = 1.0];
+  optional float luminanceMaxScale = 2 [default = 1.0];
+  optional float saturationMinScale = 3 [default = 1.0];
+  optional float saturationMaxScale = 4 [default = 1.0];
+
+  // affine parameters
+  optional float verticalMinScale = 5 [default = 1.0];
+  optional float verticalMaxScale = 6 [default = 1.0];
+  optional float horizontalMinScale = 7 [default = 1.0];
+  optional float horizontalMaxScale = 8 [default = 1.0];
+  optional float horizontalMinShear = 9 [default = 0];
+  optional float horizontalMaxShear = 10 [default = 0];
+  optional float verticalMinShear = 11 [default = 0];
+  optional float verticalMaxShear = 12 [default = 0];
+  optional float minRotation = 13 [default = 0];
+  optional float maxRotation = 14 [default = 0];
+  optional float horizontalTranslation = 15 [default = 0];
+  optional float verticalTranslation = 16 [default = 0];
+
+  // occlusion
+  optional uint32 numOcclusions = 17 [default = 0];
+  optional uint32 minOcclusionRadius = 18 [default = 0];
+  optional uint32 maxOcclusionRadius = 19 [default = 0];
+
+  optional uint32 padTop = 20 [default = 0];
+  optional uint32 padBottom = 21 [default = 0];
+  optional uint32 padLeft = 22 [default = 0];
+  optional uint32 padRight = 23 [default = 0];
+
+  optional uint32 uniformNoiseStrength = 24 [default = 0];
 }

@@ -1,12 +1,12 @@
 #pragma once
 
 #include <vector>
-#include <caffe/ultinous/PictureClassificationModel.h>
+#include <caffe/ultinous/ImageClassificationModel.h>
 #include <caffe/ultinous/FeatureMap.hpp>
 #include "caffe/ultinous/AbstractTripletGenerator.hpp"
 #include "caffe/ultinous/HardTripletPool.hpp"
-#include "caffe/ultinous/AllTripletGenerator.hpp"
 #include "caffe/ultinous/RandomTripletGenerator.hpp"
+#include "caffe/ultinous/OxfordTripletGenerator.hpp"
 
 
 namespace caffe {
@@ -22,40 +22,37 @@ public:
   typedef std::vector<Triplet> TripletBatch;
 
 public:
-  TripletBatchGenerator(size_t batchSize, const BasicModel& basicModel, const TripletDataParameter triplet_data_param)
+  TripletBatchGenerator(size_t batchSize, const ImageClassificationModel& icm, const TripletDataParameter& triplet_data_param)
     : m_batchSize(batchSize)
-    , m_basicModel(basicModel)
+    , m_basicModel(icm.getBasicModel())
     , m_triplet_data_param(triplet_data_param)
+    , m_iteration(0)
   {
-    m_numImagesInModel = 0;
-    for( int i = 0; i < basicModel.size(); ++i )
-      m_numImagesInModel += basicModel[i].images.size();
-
     if( m_triplet_data_param.strategy()=="hard" )
     {
-      allTripletGenerator = AllTripletGeneratorPtr(
-        new AllTripletGenerator<Dtype>( m_basicModel )
-      );
-
       hardTripletGenerator = HardTripletGeneratorPtr(
         new HardTripletGenerator<Dtype>(
-          m_triplet_data_param.hard_triplet_param().sampledclasses()
-          , m_triplet_data_param.hard_triplet_param().sampledpictures()
-          , m_triplet_data_param.hard_triplet_param().margin()
+          m_triplet_data_param.hard_triplet_param()
           , m_basicModel
-          , m_triplet_data_param.hard_triplet_param().featuremapid()
-          , m_triplet_data_param.hard_triplet_param().toohardtriplets()
         )
       );
-
       hardTripletPool = HardTripletPoolPtr(
         new HardTripletPool<Dtype>(
           hardTripletGenerator
-          , m_triplet_data_param.hard_triplet_param().poolsize()
+          , m_triplet_data_param.hard_triplet_param().hard_triplet_pool_param()
         )
       );
-
-      m_prefetchSize = 4*m_batchSize;
+      m_prefetchSize = 1*m_batchSize;
+    }
+    else if( m_triplet_data_param.strategy()=="oxford" )
+    {
+      oxfordTripletGenerator = OxfordTripletGeneratorPtr(
+        new OxfordTripletGenerator<Dtype>(
+          m_triplet_data_param.oxford_triplet_param()
+          , icm
+        )
+      );
+      m_prefetchSize = 1*m_batchSize;
     }
     else if( m_triplet_data_param.strategy()=="random" )
     {
@@ -63,13 +60,14 @@ public:
         new RandomTripletGenerator<Dtype>( m_basicModel )
       );
 
-      m_prefetchSize = 10*m_batchSize;
+      m_prefetchSize = 1*m_batchSize;
     }
     else
     {
       throw std::exception( );
     }
   }
+
 
   TripletBatch nextTripletBatch()
   {
@@ -85,6 +83,8 @@ public:
       m_prefetch.pop_back();
     }
 
+    ++m_iteration;
+
     return batch;
   }
 
@@ -97,29 +97,18 @@ private:
     if( m_prefetch.size() >= m_prefetchSize )
       return;
 
-    if( m_triplet_data_param.strategy()=="hard")
-    {
-      FeatureMap<Dtype>& featureMap = FeatureMapContainer<Dtype>::instance(
-        m_triplet_data_param.hard_triplet_param().featuremapid()
-      );
-
-      if( featureMap.numFeatures() != m_numImagesInModel )
-      {
-        while(m_prefetch.size() < m_batchSize)
-          m_prefetch.push_back( allTripletGenerator->nextTriplet() );
-
-        return;
-      }
-
+    if( m_triplet_data_param.strategy()=="hard" )
       while(m_prefetch.size() < m_prefetchSize)
-      {
-        m_prefetch.push_back( hardTripletPool->nextTriplet() );
-      }
-    }
-
-    while(m_prefetch.size() < m_prefetchSize)
+        m_prefetch.push_back( hardTripletPool->nextTriplet(m_iteration) );
+    else if( m_triplet_data_param.strategy()=="oxford" )
+      while(m_prefetch.size() < m_prefetchSize)
+        m_prefetch.push_back( oxfordTripletGenerator->nextTriplet( ) );
+    else if( m_triplet_data_param.strategy()=="random" )
+      while(m_prefetch.size() < m_prefetchSize)
+        m_prefetch.push_back( randomTripletGenerator->nextTriplet() );
+    else
     {
-       m_prefetch.push_back( randomTripletGenerator->nextTriplet() );
+      throw std::exception( );
     }
   }
 private:
@@ -129,13 +118,10 @@ private:
 
   int m_prefetchSize;
   TripletBatch m_prefetch;
-  int m_numImagesInModel;
+  uint64_t m_iteration;
 
   typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
   HardTripletGeneratorPtr hardTripletGenerator;
-
-  typedef boost::shared_ptr<AllTripletGenerator<Dtype> > AllTripletGeneratorPtr;
-  AllTripletGeneratorPtr allTripletGenerator;
 
   typedef boost::shared_ptr<RandomTripletGenerator<Dtype> > RandomTripletGeneratorPtr;
   RandomTripletGeneratorPtr randomTripletGenerator;
@@ -143,6 +129,8 @@ private:
   typedef boost::shared_ptr<HardTripletPool<Dtype> > HardTripletPoolPtr;
   HardTripletPoolPtr hardTripletPool;
 
+  typedef boost::shared_ptr<OxfordTripletGenerator<Dtype> > OxfordTripletGeneratorPtr;
+  OxfordTripletGeneratorPtr oxfordTripletGenerator;
 };
 
 } // namespace ultinous

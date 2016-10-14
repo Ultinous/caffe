@@ -12,6 +12,9 @@
 #include "caffe/layers/base_data_layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 
+#include "../ultinous/UltinousTransformer.hpp"
+
+
 namespace caffe {
 
 /**
@@ -23,7 +26,9 @@ template <typename Dtype>
 class ImageDataLayer : public BasePrefetchingDataLayer<Dtype> {
  public:
   explicit ImageDataLayer(const LayerParameter& param)
-      : BasePrefetchingDataLayer<Dtype>(param) {}
+      : BasePrefetchingDataLayer<Dtype>(param)
+      , m_unTransformer(this->layer_param_.ultinous_transform_param(), this->phase_)
+  { }
   virtual ~ImageDataLayer();
   virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
@@ -39,6 +44,8 @@ class ImageDataLayer : public BasePrefetchingDataLayer<Dtype> {
 
   vector<std::pair<std::string, int> > lines_;
   int lines_id_;
+
+  ultinous::UltinousTransformer m_unTransformer;
 };
 
 

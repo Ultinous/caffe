@@ -3,6 +3,7 @@
 #include <deque>
 #include <boost/concept_check.hpp>
 #include <caffe/ultinous/HardTripletGenerator.hpp>
+#include <caffe/ultinous/FeatureCollectorTripletGenerator.hpp>
 
 namespace caffe {
 namespace ultinous {
@@ -10,43 +11,83 @@ namespace ultinous {
 template <typename Dtype>
 class HardTripletPool : public AbstractTripletGenerator
 {
-
 private:
   typedef boost::shared_ptr<HardTripletGenerator<Dtype> > HardTripletGeneratorPtr;
+
+  typedef int16_t Lives;
+
+  struct StoredTriplet
+  {
+    StoredTriplet( Triplet triplet, uint64_t lastShown, Lives lives )
+      : m_triplet( triplet )
+      , m_lastShown( lastShown )
+      , m_lives( lives )
+    { }
+
+    Triplet m_triplet;
+    uint64_t m_lastShown;
+    Lives m_lives;
+  };
+
+  typedef std::deque<StoredTriplet> Pool;
+
 public:
-  HardTripletPool( HardTripletGeneratorPtr const &htg, size_t maxPoolSize)
+  HardTripletPool( HardTripletGeneratorPtr const &htg, const HardTripletPoolParameter& hard_triplet_pool_param )
     : m_htg(htg)
     , m_featureMap(m_htg->getFeatureMap())
     , m_margin(m_htg->getMargin())
-    , m_maxPoolSize( maxPoolSize )
+    , m_maxPoolSize( hard_triplet_pool_param.poolsize() )
+    , m_showCount( hard_triplet_pool_param.showcount() )
+    , m_showCycle( hard_triplet_pool_param.showcycle() )
   { }
-public:
 
   Triplet nextTriplet()
   {
-    Triplet t = m_htg->nextTriplet( );
+    throw std::exception( );
+  }
+
+  Triplet nextTriplet(uint64_t iteration)
+  {
+    Triplet triplet = m_htg->nextTriplet( );
 
     if( m_htg->isLastTripletHard( ) )
     {
       if( m_pool.size() < m_maxPoolSize )
-        m_pool.push_back( t );
+        storeTriplet( triplet, iteration );
+      return triplet;
     }
-    else
-    {
-      while( !m_pool.empty() )
-      {
-        t = m_pool.front( );
-        m_pool.pop_front( );
 
-        if( isHardTriplet( t ) )
+    for( typename HardTripletPool<Dtype>::Pool::iterator it = m_pool.begin(); it!= m_pool.end(); /* NOP */ )
+    {
+      if( iteration - it->m_lastShown >= m_showCycle )
+      {
+        if( isHardTriplet( it->m_triplet ) )
         {
-          m_pool.push_back( t );
-          break;
+          Triplet triplet = it->m_triplet;
+
+          --it->m_lives;
+          if( it->m_lives == 0 )
+            it = m_pool.erase(it);
+          else
+            it->m_lastShown = iteration;
+
+          return triplet;
         }
+        it = m_pool.erase(it);
+      }
+      else
+      {
+        ++it;
       }
     }
 
-    return t;
+    return FeatureCollectorTripletGenerator<Dtype>::getInstance().nextTriplet();
+  }
+
+private:
+  void storeTriplet( Triplet t, uint64_t iteration )
+  {
+    m_pool.push_back( StoredTriplet(t, iteration, m_showCount) );
   }
 
   bool isHardTriplet( Triplet const &t )
@@ -57,9 +98,8 @@ public:
     const typename FeatureMap<Dtype>::FeatureVec& f2 = m_featureMap.getFeatureVec( t[1] );
     const typename FeatureMap<Dtype>::FeatureVec& f3 = m_featureMap.getFeatureVec( t[2] );
 
-    CHECK_GT( f1.size(), 0 );
-    CHECK_EQ( f1.size(), f2.size() );
-    CHECK_EQ( f1.size(), f3.size() );
+    if( f1.size()==0 || f1.size()!=f2.size() || f1.size()!=f3.size() )
+      return false;
 
     typename FeatureMap<Dtype>::FeatureVec sqr( f1.size() );
 
@@ -72,13 +112,18 @@ public:
 
     return  dist2 < dist1 + m_margin;
   }
+
 private:
+
   HardTripletGeneratorPtr const m_htg;
   FeatureMap<Dtype>const &m_featureMap;
   Dtype m_margin;
 
-  std::deque<Triplet> m_pool;
   size_t const m_maxPoolSize;
+  Lives const m_showCount;
+  uint64_t const m_showCycle;
+
+  Pool m_pool;
 };
 
 } // namespace ultinous

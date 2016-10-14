@@ -53,6 +53,12 @@ void L2NormLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     // root the square norm_data
     caffe_powx<Dtype>(spatial_dim, norm_data + i * spatial_dim, 0.5,
                       norm_data + i * spatial_dim);
+
+    // by Jozsef Nemeth
+    for( int ii = 0; ii < spatial_dim; ++ii )
+      if( norm_data[ii] == 0 )
+        norm_data[ii] = 1;
+
     // division
     for (int j = 0; j < channels; j++)
     {

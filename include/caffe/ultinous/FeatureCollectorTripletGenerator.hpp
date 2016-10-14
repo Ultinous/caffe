@@ -2,7 +2,8 @@
 
 #include <vector>
 #include <boost/concept_check.hpp>
-#include <caffe/ultinous/PictureClassificationModel.h>
+#include <boost/make_shared.hpp>
+#include <caffe/ultinous/ImageClassificationModel.h>
 #include <caffe/ultinous/FeatureMap.hpp>
 #include <caffe/ultinous/AbstractTripletGenerator.hpp>
 
@@ -11,17 +12,38 @@ namespace caffe {
 namespace ultinous {
 
 template <typename Dtype>
-class AllTripletGenerator : public AbstractTripletGenerator
+class FeatureCollectorTripletGenerator : public AbstractTripletGenerator
 {
 public:
-  AllTripletGenerator(const BasicModel& basicModel)
+  typedef boost::shared_ptr<FeatureCollectorTripletGenerator<Dtype> > FeatureCollectorTripletGeneratorPtr;
+
+private:
+  FeatureCollectorTripletGenerator(const BasicModel& basicModel)
     : m_basicModel(basicModel)
     , m_imageIndices( vector<int>(m_basicModel.size(), 0) )
     , m_currentClass(0)
   {
   }
 
+  static FeatureCollectorTripletGeneratorPtr& s_instance( )
+  {
+    static FeatureCollectorTripletGeneratorPtr data;
+    return data;
+  }
+
 public:
+  static void init( const BasicModel& basicModel )
+  {
+    if( s_instance() ) throw std::exception();
+    s_instance().reset( new FeatureCollectorTripletGenerator<Dtype>( basicModel ) );
+  }
+
+  static FeatureCollectorTripletGenerator& getInstance( )
+  {
+    if( !s_instance() ) throw std::exception();
+    return *s_instance();
+  }
+
   Triplet nextTriplet()
   {
     Triplet t;

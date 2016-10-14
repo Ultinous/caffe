@@ -12,8 +12,11 @@
 #include "caffe/layers/base_data_layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 
+#include "../ultinous/UltinousTransformer.hpp"
+
+
 namespace caffe {
-  
+
 namespace ultinous{
 
 /**
@@ -25,7 +28,9 @@ template <typename Dtype>
 class ImgMultiLabelDataLayer : public BasePrefetchingDataLayer<Dtype> {
  public:
   explicit ImgMultiLabelDataLayer(const LayerParameter& param)
-      : BasePrefetchingDataLayer<Dtype>(param) {}
+      : BasePrefetchingDataLayer<Dtype>(param)
+      , m_unTransformer(this->layer_param_.ultinous_transform_param(), this->phase_)
+  { }
   virtual ~ImgMultiLabelDataLayer();
   virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
@@ -41,6 +46,8 @@ class ImgMultiLabelDataLayer : public BasePrefetchingDataLayer<Dtype> {
 
   vector<std::pair<std::string, std::vector<double> > > lines_;
   int lines_id_;
+  
+  ultinous::UltinousTransformer m_unTransformer;
 };
 
 }  // nemaspace ultinous
