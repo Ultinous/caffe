@@ -17,6 +17,8 @@ add_definitions(-DCAFFE_VERSION=${CAFFE_TARGET_VERSION})
 # ---[ Using cmake scripts and modules
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
+
 include(ExternalProject)
 
 include(cmake/Utils.cmake)
