@@ -9,6 +9,7 @@
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/util/blocking_queue.hpp"
 #include "caffe/layers/base_data_layer.hpp"
+#include "caffe/ultinous/UltinousTransformer.hpp"
 
 namespace caffe {
 namespace ultinous {
@@ -84,6 +85,8 @@ protected:
   shared_ptr<Caffe::RNG> prefetch_rng_;
   Samples samples;
   int sample_id_;
+
+  UltinousTransformer m_unTransformer;
 };
 
 }  // namespace ultinous

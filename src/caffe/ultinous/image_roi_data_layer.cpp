@@ -83,8 +83,8 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     CHECK_GT(samples.size(), skip) << "Not enough points to skip";
     sample_id_ = skip;
   }
-  
-  
+
+
   cv::Mat cv_img = ReadImageToCVMat(root_folder + samples[0].image_file,
                                     new_height, new_width, is_color);
   CHECK(cv_img.data) << "Could not load " << samples[0].image_file;
@@ -108,7 +108,7 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   {
     this->prefetch_[i].info_.Reshape(info_shape);
   }
-  
+
   vector<int> bboxes_shape(2);
   bboxes_shape[0] = 1;
   bboxes_shape[1] = 5;
@@ -162,6 +162,8 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   CHECK(cv_img.data) << "Could not load " << samples[sample_id_].image_file;
   read_time += timer.MicroSeconds();
 
+  m_unTransformer.transform( cv_img );
+  
   //std::cout << "---- cv_img size: " << cv_img.rows << " " << cv_img.cols << std::endl;
 
   float scale = 1.0f;
@@ -273,8 +275,10 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 template <typename Dtype>
 ImageROIDataLayer<Dtype>::ImageROIDataLayer(
     const LayerParameter& param)
-    : BaseDataLayer<Dtype>(param),
-      prefetch_free_(), prefetch_full_() {
+    : BaseDataLayer<Dtype>(param)
+    , prefetch_free_(), prefetch_full_()
+    , m_unTransformer(this->layer_param_.ultinous_transform_param(), this->phase_)
+{
   for (int i = 0; i < PREFETCH_COUNT; ++i) {
     prefetch_free_.push(&prefetch_[i]);
   }
