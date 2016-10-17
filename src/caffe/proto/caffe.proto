@@ -1552,6 +1552,5 @@ message AnchorTargetParameter {
   required float fg_fraction = 8;
   required uint32 batchSize = 9;
   repeated float bbox_inside_weights = 10;
-  required float bbox_outside_weights = 11;
-  required float positive_weight = 12;
+  required float positive_weight = 11;
 }
