@@ -63,7 +63,7 @@ public:
       CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
       CHECK( cv_img.isContinuous() ) << "OpenCV image matrix must be contiuously stored in memory!";
 
-      uint8_t * p = cv_img.data;
+/*      uint8_t * p = cv_img.data;
       size_t N = cv_img.rows * cv_img.cols;
 
       for( size_t i = 0; i < N; ++i)
@@ -73,7 +73,12 @@ public:
         ++p;
         *p = static_cast<uint8_t>( std::min(255.0f, float(*p)*satCoef) );
         ++p;
-      }
+      }*/
+      cv::Mat hls[3];
+      cv::split( cv_img, hls );
+      hls[1] *= lumCoef;
+      hls[2] *= satCoef;
+      cv::merge( hls, 3, cv_img );
 
       cv::cvtColor( cv_img, cv_img, CV_HLS2BGR );
     }
