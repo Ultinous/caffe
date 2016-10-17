@@ -408,6 +408,7 @@ message LayerParameter {
   optional ProposalParameter proposal_param= 7000;
   optional ImageROIDataParameter image_roi_data_param = 7001;
   optional ProposalTargetParameter proposal_target_param = 7002;
+  optional AnchorTargetParameter anchor_target_param = 7003;
   // UltiNous
   optional TripletLossParameter triplet_loss_param = 5001;
   optional TripletDataParameter triplet_data_param = 5002;
@@ -1538,4 +1539,19 @@ message UltinousTransformationParameter {
   optional uint32 padRight = 23 [default = 0];
 
   optional uint32 uniformNoiseStrength = 24 [default = 0];
+}
+
+message AnchorTargetParameter {
+  required uint32 feat_stride = 1;
+  repeated uint32 scales = 2;
+  repeated uint32 ratios = 3;
+  required uint32 allowed_border = 4;
+  required float positive_overlap = 5;
+  required float negative_overlap = 6;
+  required bool clobber_positives = 7;
+  required float fg_fraction = 8;
+  required uint32 batchSize = 9;
+  repeated float bbox_inside_weights = 10;
+  required float bbox_outside_weights = 11;
+  required float positive_weight = 12;
 }

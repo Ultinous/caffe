@@ -10,11 +10,21 @@ template <typename Dtype>
 void AnchorTargetLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
 
-  std::vector<int> anchor_scales{2,4,8,16}; // TODO: = layer_params.get('scales', (8, 16, 32))
-  base_anchors_ = generate_anchors(anchor_scales, {1});
+  CHECK( anchorTargetParam_.scales().size() > 0 );
+  CHECK( anchorTargetParam_.ratios().size() > 0 );
 
-  feat_stride_ = 16; // TODO: = layer_params['feat_stride']
-  allowed_border_ = 0;  // TODO: = layer_params.get('allowed_border', 0)
+  std::vector<int> anchor_scales; // TODO: = layer_params.get('scales', (8, 16, 32))
+  for( auto s : anchorTargetParam_.scales() )
+    anchor_scales.push_back( s );
+
+  std::vector<double> anchor_ratios;
+  for( auto r : anchorTargetParam_.ratios() )
+    anchor_ratios.push_back( r );
+
+  base_anchors_ = generate_anchors(anchor_scales, anchor_ratios);
+
+  feat_stride_ = anchorTargetParam_.feat_stride();
+  allowed_border_ = anchorTargetParam_.allowed_border();
 
   int height = bottom[0]->shape(2);
   int width = bottom[0]->shape(3);
@@ -143,13 +153,18 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   Dtype * labels = top[0]->mutable_cpu_data();
   std::fill( labels, labels + base_anchors_.size()*height*width, Dtype(-1) );
 
-  float RPN_POSITIVE_OVERLAP = 0.7;
-  float RPN_NEGATIVE_OVERLAP = 0.3;
-  bool RPN_CLOBBER_POSITIVES = false;
-  float RPN_FG_FRACTION = 0.5;
-  int RPN_BATCHSIZE = 256;
-  std::vector<Dtype> RPN_BBOX_INSIDE_WEIGHTS{1.0, 1.0, 1.0, 1.0};
-  Dtype RPN_POSITIVE_WEIGHT = -1.0;
+  float RPN_POSITIVE_OVERLAP = anchorTargetParam_.positive_overlap();
+  float RPN_NEGATIVE_OVERLAP = anchorTargetParam_.negative_overlap();
+  bool RPN_CLOBBER_POSITIVES = anchorTargetParam_.clobber_positives();
+  float RPN_FG_FRACTION = anchorTargetParam_.fg_fraction();
+  int RPN_BATCHSIZE = anchorTargetParam_.batchsize();
+
+  CHECK( anchorTargetParam_.bbox_inside_weights().size() == 4 );
+  std::vector<Dtype> RPN_BBOX_INSIDE_WEIGHTS;
+  for( auto w : anchorTargetParam_.bbox_inside_weights() )
+    RPN_BBOX_INSIDE_WEIGHTS.push_back( w );
+
+  Dtype RPN_POSITIVE_WEIGHT = anchorTargetParam_.positive_weight();
 
   if( !RPN_CLOBBER_POSITIVES )
   {

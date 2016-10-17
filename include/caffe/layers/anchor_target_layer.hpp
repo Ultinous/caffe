@@ -24,7 +24,9 @@ protected:
 
  public:
   explicit AnchorTargetLayer(const LayerParameter& param)
-      : Layer<Dtype>(param) {}
+      : Layer<Dtype>(param)
+      , anchorTargetParam_( this->layer_param_.anchor_target_param() )
+  {}
 
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
@@ -47,9 +49,11 @@ protected:
 
 
   std::vector<Anchor> base_anchors_;
-  
+
   int feat_stride_;
   int allowed_border_;
+
+  AnchorTargetParameter const& anchorTargetParam_;
 };
 
 }  // namespace caffe
