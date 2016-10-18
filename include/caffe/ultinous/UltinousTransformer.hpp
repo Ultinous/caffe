@@ -46,6 +46,16 @@ public:
   {
     if( m_phase != TRAIN ) return;
 
+    uint32_t cropSize = m_params.cropsize();
+    if( cropSize > 0 )
+    {
+      CHECK( cropSize <= cv_img.rows && cropSize <= cv_img.cols );
+      uint32_t offX = rand() % (cv_img.cols-cropSize);
+      uint32_t offY = rand() % (cv_img.rows-cropSize);
+
+      cv_img = cv_img( cv::Rect(offX, offY, cropSize, cropSize ) );
+    }
+
     // Apply color transformation
     if( m_params.luminanceminscale() != 1.0f
       || m_params.luminancemaxscale() != 1.0f
