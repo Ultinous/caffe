@@ -46,6 +46,8 @@ protected:
 
   Overlaps bbox_overlaps(  Boxes& boxes, Boxes& query_boxes );
 
+  uint32_t hardNegativeMining( uint32_t num_fg, Dtype const * scores, Dtype * labels, uint32_t width, uint32_t height );
+  uint32_t randomNegativeMining( uint32_t num_fg, Dtype const * scores, Dtype * labels, uint32_t width, uint32_t height );
 
 
   std::vector<Anchor> base_anchors_;

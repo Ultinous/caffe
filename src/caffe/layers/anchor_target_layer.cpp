@@ -13,6 +13,10 @@ void AnchorTargetLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   CHECK( anchorTargetParam_.scales().size() > 0 );
   CHECK( anchorTargetParam_.ratios().size() > 0 );
 
+  std::string miningStrat = anchorTargetParam_.negative_mining();
+
+  CHECK( miningStrat=="hard" || miningStrat=="random" ) << "Unknown negative mining strategy!";
+
   std::vector<int> anchor_scales; // TODO: = layer_params.get('scales', (8, 16, 32))
   for( auto s : anchorTargetParam_.scales() )
     anchor_scales.push_back( s );
@@ -226,53 +230,14 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     num_fg = fg_inds.size();
 
   // subsample negative labels if we have too many,
-  // Apply hard negative mining.
-  int num_bg = RPN_BATCHSIZE - num_fg;
-  int num_bg_per_baseAnchor = 1 + num_bg / base_anchors_.size();
-
-  typedef std::pair<size_t, Dtype> IndexScorePair;
-  typedef std::vector<IndexScorePair> IndexScorePairs;
-  std::vector<IndexScorePairs> bg_inds(base_anchors_.size()); //bg_inds.reserve( num_bg );
-
   Dtype const * scores = bottom[0]->cpu_data();
+  std::string miningStrat = anchorTargetParam_.negative_mining();
+  int num_bg;
+  if( miningStrat == "hard" )
+    num_bg = hardNegativeMining( num_fg, scores, labels, width, height );
+  else if ( miningStrat == "random" )
+    num_bg = randomNegativeMining( num_fg, scores, labels, width, height );
 
-  for( size_t anchorIx = 0; anchorIx < base_anchors_.size(); ++anchorIx )
-  {
-    for( size_t spatialIx = 0; spatialIx < width*height; ++spatialIx )
-    {
-      size_t labelIx = anchorIx * width*height + spatialIx;
-      if( labels[labelIx] == 0 ) {
-        Dtype scoreNeg = scores[ (anchorIx)*width*height + spatialIx ];
-        Dtype scorePos = scores[ (base_anchors_.size()+anchorIx)*width*height + spatialIx ];
-        Dtype score = exp(scorePos)/(exp(scorePos)+exp(scoreNeg)); // softmax
-
-        bg_inds[anchorIx].push_back( std::make_pair(labelIx, score) );
-      }
-    }
-  }
-
-  num_bg = 0;
-  for( size_t anchorIx = 0; anchorIx < base_anchors_.size(); ++anchorIx )
-  {
-    if( bg_inds[anchorIx].size() > num_bg_per_baseAnchor )
-    {
-      std::random_shuffle( bg_inds[anchorIx].begin(), bg_inds[anchorIx].end() );
-
-      IndexScorePairs list1( bg_inds[anchorIx].begin(), bg_inds[anchorIx].begin()+bg_inds[anchorIx].size()/2);
-      IndexScorePairs list2( bg_inds[anchorIx].begin()+bg_inds[anchorIx].size()/2, bg_inds[anchorIx].end() );
-
-
-      std::sort( list1.begin(), list1.end(), [](IndexScorePair const& p1, IndexScorePair const& p2) {return p1.second > p2.second;} );
-      std::random_shuffle( list2.begin(), list2.end() ); // No hard selection;
-
-      std::for_each( list1.begin()+num_bg_per_baseAnchor/2, list1.end(), [labels](IndexScorePair const& p){labels[p.first]=-1;} );
-      std::for_each( list2.begin()+(num_bg_per_baseAnchor-num_bg_per_baseAnchor/2), list2.end(), [labels](IndexScorePair const& p){labels[p.first]=-1;} );
-
-      num_bg += num_bg_per_baseAnchor;
-    }
-    else
-      num_bg += bg_inds[anchorIx].size();
-  }
   // At this point labels are ready :)
 
   // Computing bbox_targets
@@ -371,6 +336,79 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     }
   }
 
+}
+
+template <typename Dtype>
+uint32_t AnchorTargetLayer<Dtype>::hardNegativeMining( uint32_t num_fg, Dtype const * scores, Dtype * labels, uint32_t width, uint32_t height )
+{
+  int RPN_BATCHSIZE = anchorTargetParam_.batchsize();
+  int num_bg = RPN_BATCHSIZE - num_fg;
+  int num_bg_per_baseAnchor = 1 + num_bg / base_anchors_.size();
+
+  typedef std::pair<size_t, Dtype> IndexScorePair;
+  typedef std::vector<IndexScorePair> IndexScorePairs;
+  std::vector<IndexScorePairs> bg_inds(base_anchors_.size()); //bg_inds.reserve( num_bg );
+
+  for( size_t anchorIx = 0; anchorIx < base_anchors_.size(); ++anchorIx )
+  {
+    for( size_t spatialIx = 0; spatialIx < width*height; ++spatialIx )
+    {
+      size_t labelIx = anchorIx * width*height + spatialIx;
+      if( labels[labelIx] == 0 ) {
+        Dtype scoreNeg = scores[ (anchorIx)*width*height + spatialIx ];
+        Dtype scorePos = scores[ (base_anchors_.size()+anchorIx)*width*height + spatialIx ];
+        Dtype score = exp(scorePos)/(exp(scorePos)+exp(scoreNeg)); // softmax
+
+        bg_inds[anchorIx].push_back( std::make_pair(labelIx, score) );
+      }
+    }
+  }
+
+  num_bg = 0;
+  for( size_t anchorIx = 0; anchorIx < base_anchors_.size(); ++anchorIx )
+  {
+    if( bg_inds[anchorIx].size() > num_bg_per_baseAnchor )
+    {
+      std::random_shuffle( bg_inds[anchorIx].begin(), bg_inds[anchorIx].end() );
+
+      IndexScorePairs list1( bg_inds[anchorIx].begin(), bg_inds[anchorIx].begin()+bg_inds[anchorIx].size()/2);
+      IndexScorePairs list2( bg_inds[anchorIx].begin()+bg_inds[anchorIx].size()/2, bg_inds[anchorIx].end() );
+
+      std::sort( list1.begin(), list1.end(), [](IndexScorePair const& p1, IndexScorePair const& p2) {return p1.second > p2.second;} );
+      std::random_shuffle( list2.begin(), list2.end() ); // No hard selection;
+
+      std::for_each( list1.begin()+num_bg_per_baseAnchor/2, list1.end(), [labels](IndexScorePair const& p){labels[p.first]=-1;} );
+      std::for_each( list2.begin()+(num_bg_per_baseAnchor-num_bg_per_baseAnchor/2), list2.end(), [labels](IndexScorePair const& p){labels[p.first]=-1;} );
+
+      num_bg += num_bg_per_baseAnchor;
+    }
+    else
+      num_bg += bg_inds[anchorIx].size();
+  }
+
+  return num_bg;
+}
+
+
+template <typename Dtype>
+uint32_t AnchorTargetLayer<Dtype>::randomNegativeMining( uint32_t num_fg, Dtype const * scores, Dtype * labels, uint32_t width, uint32_t height )
+{
+  int RPN_BATCHSIZE = anchorTargetParam_.batchsize();
+  int num_bg = RPN_BATCHSIZE - num_fg;
+
+  std::vector<size_t> bg_inds; bg_inds.reserve( num_bg );
+  for( int i = 0; i < base_anchors_.size()*width*height; ++i )
+    if( labels[i] == 0 ) bg_inds.push_back(i);
+
+  if( bg_inds.size() > num_bg )
+  {
+    std::random_shuffle( bg_inds.begin(), bg_inds.end() );
+    std::for_each( bg_inds.begin()+num_bg, bg_inds.end(), [labels](size_t ix){labels[ix]=-1;} );
+  }
+  else
+    num_bg = bg_inds.size();
+
+  return num_bg;
 }
 
 template <typename Dtype>
