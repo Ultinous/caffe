@@ -1421,4 +1421,7 @@ message UltinousTransformationParameter {
   optional uint32 padRight = 23 [default = 0];
 
   optional uint32 uniformNoiseStrength = 24 [default = 0];
+
+  optional float minBlurSigma = 25 [default = 0];
+  optional float maxBlurSigma = 26 [default = 0];
 }
