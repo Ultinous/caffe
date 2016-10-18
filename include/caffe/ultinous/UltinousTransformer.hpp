@@ -53,7 +53,7 @@ public:
       uint32_t offX = rand() % (cv_img.cols-cropSize);
       uint32_t offY = rand() % (cv_img.rows-cropSize);
 
-      cv_img = cv_img( cv::Rect(offX, offY, cropSize, cropSize ) );
+      cv_img = cv_img( cv::Rect(offX, offY, cropSize, cropSize ) ).clone();
     }
 
     // Apply color transformation
