@@ -32,7 +32,7 @@ public:
     CHECK_LE(m_params.minocclusionradius(), m_params.maxocclusionradius())
       << "minOcclusionRadius must be less than maxOcclusionRadius!";
 
-    CHECK_LT(m_params.minblursigma(), m_params.maxblursigma())
+    CHECK_LE(m_params.minblursigma(), m_params.maxblursigma())
       << "minBlurSigma must be less then or equal to maxBlurSigma";
 
     m_uniformNoiseStrength = static_cast<int16_t>( m_params.uniformnoisestrength() );
@@ -90,7 +90,7 @@ public:
       GaussianBlur( cv_img, cv_dst, cv::Size( 0, 0 ), sigma, sigma );
       cv_img = cv_dst;
     }
-    
+
     // Occlusion
     if( m_params.numocclusions() != 0 && m_params.maxocclusionradius() != 0 )
     {
