@@ -1553,5 +1553,5 @@ message AnchorTargetParameter {
   required uint32 batchSize = 9;
   repeated float bbox_inside_weights = 10;
   required float positive_weight = 11;
-  required string negative_mining = 12; // random | hard
+  required float hard_negative_mining = 12; // 0->random, 1->totally sorted
 }
