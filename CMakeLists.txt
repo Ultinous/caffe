@@ -9,6 +9,14 @@ endif()
 # ---[ Caffe project
 project(Caffe C CXX)
 
+include_directories(
+	${GLOG_INCLUDE_DIR}
+	${OpenCV_INCLUDE_DIR}
+	${GFLAGS_INCLUDE_DIR}
+)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP /Qpar")
+
 # ---[ Caffe version
 set(CAFFE_TARGET_VERSION "1.0.0-rc3" CACHE STRING "Caffe logical version")
 set(CAFFE_TARGET_SOVERSION "1.0.0-rc3" CACHE STRING "Caffe soname version")
@@ -54,7 +62,7 @@ if(USE_libstdcpp)
   message("-- Warning: forcing libstdc++ (controlled by USE_libstdcpp option in cmake)")
 endif()
 
-add_definitions(-DGTEST_USE_OWN_TR1_TUPLE)
+add_definitions(-DGTEST_USE_OWN_TR1_TUPLE=0)
 
 # ---[ Warnings
 caffe_warnings_disable(CMAKE_CXX_FLAGS -Wno-sign-compare -Wno-uninitialized)
@@ -69,6 +77,11 @@ include_directories(BEFORE src) # This is needed for gtest.
 
 # ---[ Subdirectories
 add_subdirectory(src/gtest)
+
+include_directories(
+  ${gtest_SOURCE_DIR}/include
+  ${gtest_SOURCE_DIR})
+
 add_subdirectory(src/caffe)
 add_subdirectory(tools)
 add_subdirectory(examples)

@@ -5,6 +5,15 @@
 
 #include <string>
 
+#if defined _MSC_VER
+#include <direct.h>
+#define mkdir(path, mode) _mkdir(path)
+#elif defined __linux || defined __posix
+#include <sys/stat.h>
+#else
+#error Unknown platform.
+#endif
+
 namespace caffe { namespace db {
 
 void LMDB::Open(const string& source, Mode mode) {

@@ -4,7 +4,7 @@ caffe_protobuf_generate_cpp_py(${proto_gen_folder} proto_srcs proto_hdrs proto_p
 
 # include python files either to force generation
 add_library(proto STATIC ${proto_hdrs} ${proto_srcs} ${proto_python})
-set(Caffe_LINKER_LIBS proto ${Caffe_LINKER_LIBS}) # note, crucial to prepend!
+set(Caffe_LINKER_LIBS proto shlwapi ${GLOG_LIBRARY_RELEASE} ${GFLAGS_LIBRARY_RELEASE} ${Caffe_LINKER_LIBS} ) # note, crucial to prepend!
 caffe_default_properties(proto)
 
 # --[ Caffe library
@@ -17,7 +17,7 @@ if(HAVE_CUDA)
   list(APPEND srcs ${cuda_objs} ${cuda})
 endif()
 
-add_library(caffe ${srcs})
+add_library(caffe STATIC ${srcs})
 target_link_libraries(caffe proto ${Caffe_LINKER_LIBS})
 caffe_default_properties(caffe)
 set_target_properties(caffe PROPERTIES
@@ -26,7 +26,7 @@ set_target_properties(caffe PROPERTIES
     )
 
 # ---[ Tests
- add_subdirectory(test)
+add_subdirectory(test)
 
 # ---[ Install
 install(DIRECTORY ${Caffe_INCLUDE_DIR}/caffe DESTINATION include)
