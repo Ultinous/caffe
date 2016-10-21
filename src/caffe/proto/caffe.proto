@@ -1539,6 +1539,39 @@ message UltinousTransformationParameter {
   optional uint32 padRight = 23 [default = 0];
 
   optional uint32 uniformNoiseStrength = 24 [default = 0];
+
+  optional float minBlurSigma = 25 [default = 0];
+  optional float maxBlurSigma = 26 [default = 0];
+
+  optional uint32 cropSize = 27 [default = 0];
+}
+
+message ProposalParameter {
+  optional int32 feat_stride = 1 [default = 16 ];//
+  repeated int32 scales = 2;//Training scales
+
+  optional int32 pre_nms_topN = 3 [default = 6000 ];
+  optional int32 post_nms_topN = 4 [default = 300];
+  optional float nms_thresh = 5 [default = 0.7];
+  optional int32 min_size = 6 [default = 16];
+}
+
+// Message that stores parameters used by ROIPoolingLayer
+message ROIPoolingParameter {
+  // Pad, kernel size, and stride are all given as a single value for equal
+  // dimensions in height and width or as Y, X pairs.
+  optional uint32 pooled_h = 1 [default = 0]; // The pooled output height
+  optional uint32 pooled_w = 2 [default = 0]; // The pooled output width
+  // Multiplicative spatial scale factor to translate ROI coords from their
+  // input scale to the scale used when pooling
+  optional float spatial_scale = 3 [default = 1];
+}
+
+message SmoothL1LossParameter {
+  // SmoothL1Loss(x) =
+  //   0.5 * (sigma * x) ** 2    -- if x < 1.0 / sigma / sigma
+  //   |x| - 0.5 / sigma / sigma -- otherwise
+  optional float sigma = 1 [default = 1];
 }
 
 message AnchorTargetParameter {

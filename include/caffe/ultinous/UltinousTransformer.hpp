@@ -32,6 +32,9 @@ public:
     CHECK_LE(m_params.minocclusionradius(), m_params.maxocclusionradius())
       << "minOcclusionRadius must be less than maxOcclusionRadius!";
 
+    CHECK_LE(m_params.minblursigma(), m_params.maxblursigma())
+      << "minBlurSigma must be less then or equal to maxBlurSigma";
+
     m_uniformNoiseStrength = static_cast<int16_t>( m_params.uniformnoisestrength() );
 
     xorshf96_x=123456789;
@@ -42,6 +45,16 @@ public:
   void transform( cv::Mat& cv_img )
   {
     if( m_phase != TRAIN ) return;
+
+    uint32_t cropSize = m_params.cropsize();
+    if( cropSize > 0 )
+    {
+      CHECK( cropSize <= cv_img.rows && cropSize <= cv_img.cols );
+      uint32_t offX = rand() % (cv_img.cols-cropSize);
+      uint32_t offY = rand() % (cv_img.rows-cropSize);
+
+      cv_img = cv_img( cv::Rect(offX, offY, cropSize, cropSize ) ).clone();
+    }
 
     // Apply color transformation
     if( m_params.luminanceminscale() != 1.0f
@@ -63,17 +76,11 @@ public:
       CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
       CHECK( cv_img.isContinuous() ) << "OpenCV image matrix must be contiuously stored in memory!";
 
-      uint8_t * p = cv_img.data;
-      size_t N = cv_img.rows * cv_img.cols;
-
-      for( size_t i = 0; i < N; ++i)
-      {
-        ++p; // skip hue
-        *p = static_cast<uint8_t>( std::min(255.0f, float(*p)*lumCoef) );
-        ++p;
-        *p = static_cast<uint8_t>( std::min(255.0f, float(*p)*satCoef) );
-        ++p;
-      }
+      cv::Mat hls[3];
+      cv::split( cv_img, hls );
+      hls[1] *= lumCoef;
+      hls[2] *= satCoef;
+      cv::merge( hls, 3, cv_img );
 
       cv::cvtColor( cv_img, cv_img, CV_HLS2BGR );
     }
@@ -82,6 +89,17 @@ public:
     cv::Mat cv_affine;
     applyAffine( cv_img, cv_affine );
     cv_img = cv_affine;
+
+    // Gaussian Blur
+    if( m_params.maxblursigma() != 0 )
+    {
+      float sigma = m_params.minblursigma()
+        + (m_params.maxblursigma()-m_params.minblursigma())
+          *static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+      cv::Mat cv_dst;
+      GaussianBlur( cv_img, cv_dst, cv::Size( 0, 0 ), sigma, sigma );
+      cv_img = cv_dst;
+    }
 
     // Occlusion
     if( m_params.numocclusions() != 0 && m_params.maxocclusionradius() != 0 )
@@ -99,6 +117,7 @@ public:
         cv::circle( cv_img, cv::Point(cx,cy), r, cv::Scalar(0), -1 );
       }
     }
+
 
     // Uniform noise
     if( m_uniformNoiseStrength != 0 )
