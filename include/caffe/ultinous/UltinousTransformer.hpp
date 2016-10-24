@@ -46,6 +46,11 @@ public:
   {
     if( m_phase != TRAIN ) return;
 
+    // Apply affine transformation
+    cv::Mat cv_affine;
+    applyAffine( cv_img, cv_affine );
+    cv_img = cv_affine;
+
     uint32_t cropSize = m_params.cropsize();
     if( cropSize > 0 )
     {
@@ -55,7 +60,7 @@ public:
 
       cv_img = cv_img( cv::Rect(offX, offY, cropSize, cropSize ) ).clone();
     }
-
+    
     // Apply color transformation
     if( m_params.luminanceminscale() != 1.0f
       || m_params.luminancemaxscale() != 1.0f
@@ -84,11 +89,6 @@ public:
 
       cv::cvtColor( cv_img, cv_img, CV_HLS2BGR );
     }
-
-    // Apply affine transformation
-    cv::Mat cv_affine;
-    applyAffine( cv_img, cv_affine );
-    cv_img = cv_affine;
 
     // Gaussian Blur
     if( m_params.maxblursigma() != 0 )
