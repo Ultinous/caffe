@@ -36,7 +36,18 @@ void DropoutLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const int count = bottom[0]->count();
   if (this->phase_ == TRAIN) {
     // Create random numbers
-    caffe_rng_bernoulli(count, 1. - threshold_, mask);
+    uint32_t replicate = this->layer_param_.dropout_param().replicate();
+    if( replicate > 1 )
+    {
+      caffe_rng_bernoulli(count/replicate, 1. - threshold_, mask);
+      for( uint32_t i = 1; i < replicate; ++i )
+        caffe_copy(count/replicate, mask, mask+i*count/replicate);
+    }
+    else
+    {
+      caffe_rng_bernoulli(count, 1. - threshold_, mask);
+    }
+
     for (int i = 0; i < count; ++i) {
       top_data[i] = bottom_data[i] * mask[i] * scale_;
     }
