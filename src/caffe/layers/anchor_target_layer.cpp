@@ -220,7 +220,7 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   for( int i = 0; i < base_anchors_.size()*width*height; ++i )
     if( labels[i] == 1 ) fg_inds.push_back(i);
 
-  if( fg_inds.size() > num_fg )
+  if( RPN_BATCHSIZE > 0 && fg_inds.size() > num_fg )
   {
     std::random_shuffle( fg_inds.begin(), fg_inds.end() );
     std::for_each( fg_inds.begin()+num_fg, fg_inds.end(), [labels](size_t ix){labels[ix]=-1;} );
@@ -228,13 +228,16 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   else
     num_fg = fg_inds.size();
 
+  int num_bg = (RPN_BATCHSIZE>0)
+              ? (RPN_BATCHSIZE - num_fg)
+              : static_cast<int>( std::ceil(static_cast<float>(num_fg)*(1.0f-RPN_FG_FRACTION)/RPN_FG_FRACTION) );
+
   // subsample negative labels if we have too many,
   Dtype const * scores = bottom[0]->cpu_data();
-  int num_bg = 0;
   if ( anchorTargetParam_.hard_negative_mining() == 0.0f )
-    num_bg = randomNegativeMining( num_fg, scores, labels, width, height );
+    num_bg = randomNegativeMining( num_bg, scores, labels, width, height );
   else
-    num_bg = hardNegativeMining( num_fg, scores, labels, width, height );
+    num_bg = hardNegativeMining( num_bg, scores, labels, width, height );
 
   // At this point labels are ready :)
 
@@ -337,11 +340,12 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 }
 
 template <typename Dtype>
-uint32_t AnchorTargetLayer<Dtype>::hardNegativeMining( uint32_t num_fg, Dtype const * scores, Dtype * labels, uint32_t width, uint32_t height )
+uint32_t AnchorTargetLayer<Dtype>::hardNegativeMining( uint32_t num_bg, Dtype const * scores, Dtype * labels, uint32_t width, uint32_t height )
 {
-  int RPN_BATCHSIZE = anchorTargetParam_.batchsize();
-  int num_bg = RPN_BATCHSIZE - num_fg;
-  int num_bg_per_baseAnchor = 1 + num_bg / base_anchors_.size();
+  int num_bg_per_baseAnchor = static_cast<int>(
+          std::ceil(static_cast<float>(num_bg)
+          / base_anchors_.size() )
+        );
 
   float hnm = anchorTargetParam_.hard_negative_mining();
 
@@ -444,11 +448,8 @@ uint32_t AnchorTargetLayer<Dtype>::hardNegativeMining( uint32_t num_fg, Dtype co
 
 
 template <typename Dtype>
-uint32_t AnchorTargetLayer<Dtype>::randomNegativeMining( uint32_t num_fg, Dtype const * scores, Dtype * labels, uint32_t width, uint32_t height )
+uint32_t AnchorTargetLayer<Dtype>::randomNegativeMining( uint32_t num_bg, Dtype const * scores, Dtype * labels, uint32_t width, uint32_t height )
 {
-  int RPN_BATCHSIZE = anchorTargetParam_.batchsize();
-  int num_bg = RPN_BATCHSIZE - num_fg;
-
   std::vector<size_t> bg_inds; bg_inds.reserve( num_bg );
   for( int i = 0; i < base_anchors_.size()*width*height; ++i )
     if( labels[i] == 0 ) bg_inds.push_back(i);
