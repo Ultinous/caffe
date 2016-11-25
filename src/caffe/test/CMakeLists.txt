@@ -25,9 +25,11 @@ else()
   list(APPEND test_args --gtest_filter="-*GPU*")
 endif()
 
+find_package(GTest 1.7 REQUIRED)
+
 # ---[ Adding test target
 add_executable(${the_target} EXCLUDE_FROM_ALL ${test_srcs})
-target_link_libraries(${the_target} gtest ${Caffe_LINK})
+target_link_libraries(${the_target} GTest::GTest ${Caffe_LINK})
 caffe_default_properties(${the_target})
 caffe_set_runtime_directory(${the_target} "${PROJECT_BINARY_DIR}/test")
 
