@@ -51,14 +51,17 @@ public:
     applyAffine( cv_img, cv_affine );
     cv_img = cv_affine;
 
-    uint32_t cropSize = m_params.cropsize();
-    if( cropSize > 0 )
+    uint32_t cropHeight = m_params.cropheight();
+    uint32_t cropWidth = m_params.cropwidth();
+    if( cropHeight > 0 || cropWidth > 0 )
     {
-      CHECK( cropSize <= cv_img.rows && cropSize <= cv_img.cols );
-      uint32_t offX = rand() % (cv_img.cols-cropSize+1);
-      uint32_t offY = rand() % (cv_img.rows-cropSize+1);
+      CHECK( cropHeight > 0 && cropWidth > 0 );
+      CHECK( cropHeight <= cv_img.rows && cropWidth <= cv_img.cols );
 
-      cv_img = cv_img( cv::Rect(offX, offY, cropSize, cropSize ) ).clone();
+      uint32_t offX = rand() % (cv_img.cols-cropWidth+1);
+      uint32_t offY = rand() % (cv_img.rows-cropHeight+1);
+
+      cv_img = cv_img( cv::Rect(offX, offY, cropWidth, cropHeight ) ).clone();
     }
 
     // Apply color transformation
