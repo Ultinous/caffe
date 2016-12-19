@@ -1491,7 +1491,8 @@ message UltinousTransformationParameter {
   optional float minBlurSigma = 25 [default = 0];
   optional float maxBlurSigma = 26 [default = 0];
 
-  optional uint32 cropSize = 27 [default = 0];
+  optional uint32 cropHeight = 27 [default = 0];
+  optional uint32 cropWidth = 28 [default = 0];
 }
 
 message ProposalParameter {
