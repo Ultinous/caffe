@@ -52,7 +52,10 @@ public:
           , icm
         )
       );
-      m_prefetchSize = 1*m_batchSize;
+      randomTripletGenerator = RandomTripletGeneratorPtr(
+        new RandomTripletGenerator<Dtype>( m_basicModel )
+      );
+      m_prefetchSize = 3*m_batchSize;
     }
     else if( m_triplet_data_param.strategy()=="random" )
     {
@@ -102,7 +105,11 @@ private:
         m_prefetch.push_back( hardTripletPool->nextTriplet(m_iteration) );
     else if( m_triplet_data_param.strategy()=="oxford" )
       while(m_prefetch.size() < m_prefetchSize)
-        m_prefetch.push_back( oxfordTripletGenerator->nextTriplet( ) );
+        m_prefetch.push_back(
+         (((double) rand() / (RAND_MAX)) < m_triplet_data_param.oxford_triplet_param().randomratio())
+         ? oxfordTripletGenerator->nextTriplet( )
+         : randomTripletGenerator->nextTriplet( )
+       );
     else if( m_triplet_data_param.strategy()=="random" )
       while(m_prefetch.size() < m_prefetchSize)
         m_prefetch.push_back( randomTripletGenerator->nextTriplet() );
