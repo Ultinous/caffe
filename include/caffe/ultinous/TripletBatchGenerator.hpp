@@ -107,8 +107,8 @@ private:
       while(m_prefetch.size() < m_prefetchSize)
         m_prefetch.push_back(
          (((double) rand() / (RAND_MAX)) < m_triplet_data_param.oxford_triplet_param().randomratio())
-         ? oxfordTripletGenerator->nextTriplet( )
-         : randomTripletGenerator->nextTriplet( )
+         ? randomTripletGenerator->nextTriplet( )
+         : oxfordTripletGenerator->nextTriplet( )
        );
     else if( m_triplet_data_param.strategy()=="random" )
       while(m_prefetch.size() < m_prefetchSize)

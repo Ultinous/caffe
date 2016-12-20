@@ -192,7 +192,7 @@ private:
       HardNegativesVector::iterator hnIt = hnVec.begin();
       for( size_t j = 0; j < M; ++j )
       {
-        if( hnIt != hnVec.end() && double(rand())/RAND_MAX<m_storedNegativeRatio )
+        if( hnIt != hnVec.end() && (double(rand())/RAND_MAX)<m_storedNegativeRatio )
         {
           negative = *hnIt++;
         }
