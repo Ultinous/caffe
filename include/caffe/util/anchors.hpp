@@ -3,23 +3,33 @@
 
 #include <vector> 
 
-namespace caffe{
-typedef std::vector<double> Anchor;
+/* Anchor is an std::vector<Dtype> with x1,y1,x2,y1 cordinates. 
+ * It always holds 4 cord.
+ **/
 
-std::vector<Anchor> generate_anchors(
-                               const std::vector<int>& scales = std::vector<int>({8, 16, 32}), 
-                               const std::vector<double>& ratios = std::vector<double>({0.5, 1, 2}),
-                               //const std::vector<double>& ratios = std::vector<double>({1}),
+
+namespace caffe{
+/* 
+ * Generate  Anchor for every scale and ratio for reference window (0,0,@base_size-1,@base_size-1)
+ **/ 
+template <typename Dtype>
+std::vector< std::vector< Dtype > > generate_anchors(
+                               const std::vector<Dtype>& scales = std::vector<Dtype>({8, 16, 32}), 
+                               const std::vector<Dtype>& ratios = std::vector<Dtype>({0.5, 1, 2}),
                                const int& base_size = 16 );
 
-std::vector<Anchor> ratio_enum(const Anchor& anchor, const std::vector<double>& ratios);
+template <typename Dtype>
+std::vector< std::vector< Dtype > > ratio_enum(const std::vector< Dtype >& anchor, const std::vector<Dtype>& ratios);
 
-std::vector<Anchor> scale_enum(const Anchor& anchor, const std::vector<int>& ratios);
+template <typename Dtype>
+std::vector< std::vector< Dtype > > scale_enum(const std::vector< Dtype >& anchor, const std::vector<Dtype>& ratios);
 
-void whctrs(const Anchor& anchor, double& w, double& h, double& x_ctr, double& y_ctr);  
+template <typename Dtype>
+void whctrs(const std::vector< Dtype >& anchor, Dtype& w, Dtype& h, Dtype& x_ctr, Dtype& y_ctr);  
 
-std::vector<Anchor> mkanchors(const std::vector<double>& ws, const std::vector<double>& hs,
-                              const double&  x_ctr, const double& y_ctr);
+template <typename Dtype>
+std::vector< std::vector<Dtype> > mkanchors(const std::vector<Dtype>& ws, const std::vector<Dtype>& hs,
+                              const Dtype&  x_ctr, const Dtype& y_ctr);
 
 }//caffe
 

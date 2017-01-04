@@ -1,92 +1,119 @@
-#include "caffe/util/anchors.hpp"
-
 #include <math.h>
+
+#include "caffe/util/anchors.hpp"
 
 #include "glog/logging.h"
 
 
 
 namespace caffe{
-std::vector<Anchor> generate_anchors( const std::vector< int >& scales, const std::vector< double >& ratios, const int& base_size )
+
+template <typename Dtype>  
+std::vector< std::vector< Dtype > > generate_anchors( const std::vector< Dtype >& scales, const std::vector< Dtype >& ratios, const int& base_size )
 {
-  std::vector<Anchor> anchors;
-  Anchor base_anchor({0, 0, (double)(base_size-1), (double)(base_size-1)});
-  std::vector<Anchor> ratio_anchors = ratio_enum(base_anchor, ratios);
+  std::vector< std::vector< Dtype > > anchors;
+  std::vector< Dtype > base_anchor({0, 0, (Dtype)(base_size-1), (Dtype)(base_size-1)});
+  std::vector< std::vector< Dtype > > ratio_anchors = ratio_enum(base_anchor, ratios);
   
-  for(std::vector<Anchor>::const_iterator it=ratio_anchors.begin(); it!=ratio_anchors.end(); ++it)
+  for( typename std::vector< std::vector < Dtype > >::const_iterator it= ratio_anchors.begin(); it!=ratio_anchors.end(); ++it)
   {
-    std::vector<Anchor> scale_acnhors = scale_enum((*it),scales);
+    std::vector< std::vector< Dtype > > scale_acnhors = scale_enum((*it),scales);
     anchors.insert(anchors.end(), scale_acnhors.begin() ,scale_acnhors.end());
   }
   return anchors;
 }
 
-std::vector<Anchor> ratio_enum( const Anchor& anchor, const std::vector< double >& ratios )
+template std::vector< std::vector< float > > generate_anchors <float>( const std::vector< float >& scales, const std::vector< float >& ratios, const int& base_size );
+template std::vector< std::vector< double > > generate_anchors <double>( const std::vector< double >& scales, const std::vector< double >& ratios, const int& base_size );
+ 
+
+template <typename Dtype>
+std::vector< std::vector< Dtype > > ratio_enum( const std::vector< Dtype >& anchor, const std::vector< Dtype >& ratios )
 {
-  double w;
-  double h;
-  double x_ctr;
-  double y_ctr;
+  Dtype w;
+  Dtype h;
+  Dtype x_ctr;
+  Dtype y_ctr;
   
   whctrs(anchor,w,h,x_ctr,y_ctr);
-  double size = w * h;
-  std::vector<double> ws;
-  std::vector<double> hs;
+  Dtype size = w * h;
+  std::vector< Dtype > ws;
+  std::vector< Dtype > hs;
  
-  for(std::vector<double>::const_iterator it = ratios.begin(); it!= ratios.end(); ++it)
+  for( typename std::vector< Dtype >::const_iterator it = ratios.begin(); it!= ratios.end(); ++it)
   {  
-    double value = round( sqrt( size / (*it) ) );
+    Dtype value = round( sqrt( size / (*it) ) );
     ws.push_back( value );
     hs.push_back( round( value * (*it) ));
   }
   
   return mkanchors(ws, hs, x_ctr, y_ctr );
 }
+template std::vector< std::vector< float > > ratio_enum <float> ( const std::vector< float  >& anchor, const std::vector< float >& ratios );
+template std::vector< std::vector< double > > ratio_enum <double> ( const std::vector< double >& anchor, const std::vector< double >& ratios );
 
 
-std::vector<Anchor> scale_enum( const Anchor& anchor, const std::vector<int>& scales)
+
+
+template <typename Dtype>
+std::vector< std::vector< Dtype > > scale_enum( const std::vector< Dtype >& anchor, const std::vector<Dtype>& scales)
 {
-  double w;
-  double h;
-  double x_ctr;
-  double y_ctr;
+  Dtype w;
+  Dtype h;
+  Dtype x_ctr;
+  Dtype y_ctr;
   whctrs(anchor,w,h,x_ctr,y_ctr);
   
-  std::vector<double> ws;
-  std::vector<double> hs;
+  std::vector< Dtype > ws;
+  std::vector< Dtype > hs;
   
-  for(std::vector<int>::const_iterator it=scales.begin(); it!=scales.end(); ++it)
+  for(typename std::vector<Dtype>::const_iterator it=scales.begin(); it!=scales.end(); ++it)
   {
-    ws.push_back(w*(double)(*it));
-    hs.push_back(h*(double)(*it));
+    ws.push_back(w*(Dtype)(*it));
+    hs.push_back(h*(Dtype)(*it));
   }
   return mkanchors(ws, hs, x_ctr, y_ctr);
 }
+template std::vector< std::vector< float > > scale_enum<float>( const std::vector< float >& anchor, const std::vector<float>& scales);
+template std::vector< std::vector< double > > scale_enum<double>( const std::vector< double >& anchor, const std::vector<double>& scales);
 
 
-void whctrs( const Anchor& anchor, double& w, double& h, double& x_ctr, double& y_ctr )
+
+
+template <typename Dtype>
+void whctrs( const std::vector<Dtype>& anchor, Dtype& w, Dtype& h, Dtype& x_ctr, Dtype& y_ctr )
 {
-    w = anchor[2] - anchor[0] + 1;
-    h = anchor[3] - anchor[1] + 1;
-    x_ctr = anchor[0] + 0.5 * (w - 1);
-    y_ctr = anchor[1] + 0.5 * (h - 1);
+  w = anchor[2] - anchor[0] + 1;
+  h = anchor[3] - anchor[1] + 1;
+  x_ctr = anchor[0] + 0.5 * (w - 1);
+  y_ctr = anchor[1] + 0.5 * (h - 1);
 }
 
+template void whctrs<float>( const std::vector<float>& anchor, float& w, float& h, float& x_ctr, float& y_ctr );
+template void whctrs<double>( const std::vector<double>& anchor, double& w, double& h, double& x_ctr, double& y_ctr );
 
-std::vector<Anchor> mkanchors(const std::vector<double>& ws, const std::vector<double>& hs,
-                              const double&  x_ctr, const double& y_ctr)
+
+template <typename Dtype>
+std::vector< std::vector< Dtype > > mkanchors(const std::vector<Dtype>& ws, const std::vector<Dtype>& hs,
+                              const Dtype&  x_ctr, const Dtype& y_ctr)
 {
   //CHECK(ws.size() == hs.size());
-  std::vector<Anchor> anchors;
+  std::vector< std::vector< Dtype > > anchors;
   
   for(size_t i=0; i < ws.size(); ++i)
   {
-      anchors.push_back( Anchor( { x_ctr - 0.5 * (ws[i] - 1),
-                                   y_ctr - 0.5 * (hs[i] - 1),
-                                   x_ctr + 0.5 * (ws[i] - 1),
-                                   y_ctr + 0.5 * (hs[i] - 1) } ) );
+    anchors.push_back( std::vector< Dtype >( { x_ctr - (Dtype)0.5 * (ws[i] - (Dtype)0.1),
+                                               y_ctr - (Dtype)0.5 * (hs[i] - (Dtype)0.1),
+                                               x_ctr + (Dtype)0.5 * (ws[i] - (Dtype)0.1),
+                                               y_ctr + (Dtype)0.5 * (hs[i] - (Dtype)0.1) } ) );
   }
   return anchors;
 }
+
+template std::vector< std::vector< float > > mkanchors<float>(const std::vector<float>& ws, const std::vector<float>& hs,
+                              const float&  x_ctr, const float& y_ctr);
+template std::vector< std::vector< double > > mkanchors<double>(const std::vector<double>& ws, const std::vector<double>& hs,
+                              const double&  x_ctr, const double& y_ctr);
+
 
 } // caffe

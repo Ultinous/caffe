@@ -18,6 +18,7 @@ template <typename Dtype>
 class AnchorTargetLayer : public Layer<Dtype> {
 
 protected:
+  typedef std::vector <Dtype> Anchor;
   typedef std::vector< Anchor > Boxes;
   typedef float Overlap;
   typedef std::vector< std::vector<Overlap> > Overlaps;

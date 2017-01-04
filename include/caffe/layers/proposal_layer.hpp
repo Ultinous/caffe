@@ -38,8 +38,7 @@ protected:
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
   
   virtual inline std::vector<std::size_t> cpu_base_nms(
-  const std::vector<std::size_t>& index_vec
-);
+      const std::vector<std::size_t>& index_vec);
   
   inline void bbox_transform_inv();
   inline void clip_boxes(const double& img_w, const double& img_h);
@@ -56,10 +55,9 @@ protected:
   Blob<Dtype> m_proposals;
   
   Blob<int> m_iou;
-  
+  Blob<int> m_reduce;
   Blob<Dtype> m_base_anchors;
-  //vector<Anchor> m_img_anchors;
-  //std::vector<std::vector<Dtype>> m_proposals;
+
   Blob<Dtype> m_scores;
   Blob<int> m_indexes;
 };

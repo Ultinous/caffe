@@ -16,18 +16,18 @@ void ProposalLayer<Dtype>::LayerSetUp( const vector< Blob< Dtype >* > &bottom,
                                 const vector< Blob< Dtype >* > &top )
 {
   ProposalParameter proposal_param = this->layer_param_.proposal_param();
-  std::vector<std::vector <double> > base_anchors;
+  std::vector<std::vector <Dtype> > base_anchors;
   
   if(proposal_param.scales_size()!=0)
   {
-    std::vector<int> anchor_scales;
+    std::vector<Dtype> anchor_scales;
     for(size_t i=0; i<proposal_param.scales_size(); ++i)
       anchor_scales.push_back(proposal_param.scales(i));
     base_anchors = generate_anchors(anchor_scales);
   }
   else
   {
-    base_anchors = generate_anchors();
+    base_anchors = generate_anchors<Dtype>();
   }
   
   m_base_anchors.Reshape(std::vector<int>({(int)base_anchors.size(), (int)base_anchors[0].size()}));

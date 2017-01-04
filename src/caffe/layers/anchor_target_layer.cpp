@@ -16,18 +16,17 @@ void AnchorTargetLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   float hard_negative_mining = anchorTargetParam_.hard_negative_mining();
   CHECK( hard_negative_mining <=1 && hard_negative_mining>=0 );
 
-  std::vector<int> anchor_scales; // TODO: = layer_params.get('scales', (8, 16, 32))
+  std::vector<Dtype> anchor_scales; // TODO: = layer_params.get('scales', (8, 16, 32))
   for( auto s : anchorTargetParam_.scales() )
     anchor_scales.push_back( s );
 
-  std::vector<double> anchor_ratios;
+  std::vector<Dtype> anchor_ratios;
   for( auto r : anchorTargetParam_.ratios() )
     anchor_ratios.push_back( r );
-
-  base_anchors_ = generate_anchors(anchor_scales, anchor_ratios);
-
+  
   feat_stride_ = anchorTargetParam_.feat_stride();
   allowed_border_ = anchorTargetParam_.allowed_border();
+  base_anchors_ = generate_anchors(anchor_scales, anchor_ratios, feat_stride_);
 
   int height = bottom[0]->shape(2);
   int width = bottom[0]->shape(3);
