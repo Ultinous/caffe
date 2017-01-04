@@ -1491,6 +1491,9 @@ message ImageROIDataParameter {
   required uint32 smallerDimensionSize = 1;
   optional uint32 maxSize = 2 [default = 1000];
   optional bool mirror = 3 [default = false];
+  optional uint32 pad = 4 [default = 1];
+  optional float rnd_scale_min = 5;
+  optional float rnd_scale_max = 6;
 }
 
 message ProposalTargetParameter {

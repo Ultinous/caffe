@@ -17,6 +17,7 @@
 #include "caffe/util/io.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/rng.hpp"
+#include <iostream>
 
 namespace caffe {
 namespace ultinous {
@@ -169,6 +170,15 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   float scale = 1.0f;
 
   // resize
+  if(image_roi_data_param.has_rnd_scale_min() || image_roi_data_param.has_rnd_scale_max())
+  {
+    float scale_min = image_roi_data_param.has_rnd_scale_min() ? image_roi_data_param.rnd_scale_min() : 1;
+    float scale_max = image_roi_data_param.has_rnd_scale_max() ? image_roi_data_param.rnd_scale_max() : 1;
+    CHECK(scale_max - scale_min > 0);
+      if((rand()%2)==1)
+        scale = scale_min + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(scale_max-scale_max)));
+  }
+ 
   if( smallerDimensionSize > 0 )
   {
     float scale1 = static_cast<float>(smallerDimensionSize)
@@ -180,7 +190,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   {
     scale = static_cast<float>(maxSize) / static_cast<float>(std::max(cv_img.rows, cv_img.cols));
   }
-
+  
   if( scale != 1.0f)
   {
     cv::Mat cv_resized;
@@ -188,7 +198,16 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
     cv_img = cv_resized;
   }
-
+  
+  CHECK(image_roi_data_param.pad()>=1);
+  if(image_roi_data_param.pad()>1)
+  {
+    int pad_h = ( image_roi_data_param.pad() - ( cv_img.rows % image_roi_data_param.pad() ) ) % image_roi_data_param.pad();    
+    int pad_w = ( image_roi_data_param.pad() - ( cv_img.cols % image_roi_data_param.pad() ) ) % image_roi_data_param.pad();   
+    if( pad_h != 0 || pad_w != 0 )
+      cv::copyMakeBorder(cv_img, cv_img, 0, pad_h, 0, pad_w, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));   
+  }
+  
   bool mirror = image_roi_data_param.mirror() && ((rand()%2)==1);
 
   if( mirror )
