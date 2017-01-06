@@ -55,7 +55,7 @@ __global__ void BackwardKernel(const int n, const Dtype* xv, const Dtype* yv, Dt
     if( y >= 0.5 )
     {
       if( x < 0.7 )
-        out[index] = (0.7-x);
+        out[index] = (x-0.7);
     }
     if( y < 0.5 )
     {
