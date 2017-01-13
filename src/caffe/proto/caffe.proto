@@ -1532,5 +1532,5 @@ message AdversarialImageDataParamater {
   optional float diff_strength=2 [default=0.1];
   optional uint32 pool_size=3 [default=10000];
   optional float adversarial_ratio=4 [default=0.5];
-
+  optional float max_pixel_change=5 [default=20];
 }

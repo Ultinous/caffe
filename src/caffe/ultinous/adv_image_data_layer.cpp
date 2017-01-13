@@ -276,9 +276,11 @@ void AdvImageDataLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     dataLength /= spatialSize;
     dataLength = sqrt(dataLength);
 
+    Dtype maxChange = Dtype(std::abs(m_adv_params.max_pixel_change()));
+
     AdversarialImage im(spatialSize);
     for( size_t i = 0; i < spatialSize; ++i )
-      im[i] = data[i] + m_adv_params.diff_strength()*dataLength*diff[i] / diffLength;
+      im[i] = data[i] + std::max(-maxChange, std::min( maxChange, Dtype(m_adv_params.diff_strength()*dataLength*diff[i] / diffLength )) );
       //im[i] = data[i] + 10.0*((diff[i]>0)?1:((diff[i]<0)?-1:0));
       //im[i] = data[i] + 10.0*diff[i]/maxDiff;
 
