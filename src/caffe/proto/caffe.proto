@@ -411,6 +411,7 @@ message LayerParameter {
   optional TripletDataParameter triplet_data_param = 5002;
   optional FeatureRegistrationParameter feature_registration_param = 5003;
   optional UltinousTransformationParameter ultinous_transform_param = 5004;
+  optional AdversarialImageDataParamater adversarial_image_data_param = 5005;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1524,4 +1525,12 @@ message SmoothL1LossParameter {
   //   0.5 * (sigma * x) ** 2    -- if x < 1.0 / sigma / sigma
   //   |x| - 0.5 / sigma / sigma -- otherwise
   optional float sigma = 1 [default = 1];
+}
+
+message AdversarialImageDataParamater {
+  optional uint32 skip_iterations=1 [default=0];
+  optional float diff_strength=2 [default=0.1];
+  optional uint32 pool_size=3 [default=10000];
+  optional float adversarial_ratio=4 [default=0.5];
+
 }
