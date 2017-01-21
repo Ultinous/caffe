@@ -246,7 +246,7 @@ void AdvImageDataLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 
   for( size_t n = 0; n < num; n++ )
   {
-    int isAdversarial = top[1]->cpu_diff()[2*n + 1];
+    int isAdversarial = top[1]->cpu_data()[2*n + 1];
 
     if( 0!=isAdversarial ) continue;
 
@@ -254,7 +254,7 @@ void AdvImageDataLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       break;
 
 
-    int label = top[1]->cpu_diff()[2*n];
+    int label = top[1]->cpu_data()[2*n];
 
     Dtype const* data = top[0]->cpu_data() + n*spatialSize;
     Dtype const* diff = top[0]->cpu_diff() + n*spatialSize;
@@ -271,9 +271,9 @@ void AdvImageDataLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 
     if( maxDiff == 0 ) continue;
 
-    diffLength /= spatialSize;
+//    diffLength /= spatialSize;
     diffLength = sqrt(diffLength);
-    dataLength /= spatialSize;
+//    dataLength /= spatialSize;
     dataLength = sqrt(dataLength);
 
     Dtype maxChange = Dtype(std::abs(m_adv_params.max_pixel_change()));
