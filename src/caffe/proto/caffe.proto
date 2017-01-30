@@ -59,6 +59,7 @@ message FillerParameter {
     AVERAGE = 2;
   }
   optional VarianceNorm variance_norm = 8 [default = FAN_IN];
+  optional string file = 9;
 }
 
 message NetParameter {
@@ -412,6 +413,7 @@ message LayerParameter {
   optional FeatureRegistrationParameter feature_registration_param = 5003;
   optional UltinousTransformationParameter ultinous_transform_param = 5004;
   optional AdversarialImageDataParamater adversarial_image_data_param = 5005;
+  optional SpatialTransformerParameter st_param = 5006;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1533,4 +1535,26 @@ message AdversarialImageDataParamater {
   optional uint32 pool_size=3 [default=10000];
   optional float adversarial_ratio=4 [default=0.5];
   optional float max_pixel_change=5 [default=20];
+}
+
+message SpatialTransformerParameter {
+	// How to use the parameter passed by localisation network
+	optional string transform_type = 1 [default = "affine"];
+	// What is the sampling technique
+	optional string sampler_type = 2 [default = "bilinear"];
+	
+	// If not set,stay same with the input dimension H and W
+	optional int32 output_H = 3;
+	optional int32 output_W = 4;
+	
+	// If false, only compute dTheta, DO NOT compute dU
+	optional bool to_compute_dU = 5 [default = true];
+	
+	// The default value for some parameters
+	optional double theta_1_1 = 6; 
+	optional double theta_1_2 = 7;
+	optional double theta_1_3 = 8;
+	optional double theta_2_1 = 9;
+	optional double theta_2_2 = 10;
+	optional double theta_2_3 = 11;
 }
