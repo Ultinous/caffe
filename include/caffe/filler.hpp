@@ -272,6 +272,7 @@ class FileFiller : public Filler<Dtype> {
   virtual void Fill(Blob<Dtype>* blob) {
 	  CHECK(this->filler_param_.has_file());
 	  std::ifstream file(this->filler_param_.file().c_str());
+    CHECK(file.good()) << "Can not open file: " << this->filler_param_.file();
 	  Dtype* data = blob->mutable_cpu_data();
 	  int count = blob->count();
 	  Dtype temp;
