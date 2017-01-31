@@ -9,7 +9,7 @@
 
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
-#include "caffe/layers/power_file_layer.hpp"
+#include "caffe/ultinous/power_file_layer.hpp"
 #include "caffe/util/math_functions.hpp"
 
 namespace caffe {
