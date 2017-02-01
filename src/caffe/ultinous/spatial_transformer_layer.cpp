@@ -19,7 +19,11 @@ void SpatialTransformerLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bott
 
 	string prefix = "\t\tSpatial Transformer Layer:: LayerSetUp: \t";
 
-	if(this->layer_param_.st_param().transform_type() == "affine") {
+  m_saveImagesIters = this->layer_param_.st_param().saveimagesiters();
+  iterations_ = 0;
+
+
+  if(this->layer_param_.st_param().transform_type() == "affine") {
 		transform_type_ = "affine";
 	} else {
 		CHECK(false) << prefix << "Transformation type only supports affine now!" << std::endl;
