@@ -92,7 +92,7 @@ static void saveImage( Dtype const * data, std::string filename, int channels, i
     for( size_t x = 0; x < height; ++x )
       for( size_t y = 0; y < width; ++y )
       {
-        int value = data[c*height*width+x*width+y]*255;
+        int value = 128 + data[c*height*width+x*width+y];
         value = std::max(0, std::min(255, value ) );
         im.data[ channels*(x*width+y) + c ] = value;
       }

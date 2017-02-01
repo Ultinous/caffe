@@ -415,6 +415,7 @@ message LayerParameter {
   optional AdversarialImageDataParamater adversarial_image_data_param = 5005;
   optional SpatialTransformerParameter st_param = 5006;
   optional PowerFileParameter power_file_param = 5007;
+  optional AffineMatrixParameter affine_matrix_param = 5008;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1564,4 +1565,9 @@ message SpatialTransformerParameter {
 
 message PowerFileParameter {
 	optional string shift_file = 1;
+}
+
+message AffineMatrixParameter {
+    optional double base_sx = 1 [default = 1];
+    optional double base_sy = 2 [default = 1];
 }
