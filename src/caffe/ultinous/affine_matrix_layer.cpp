@@ -60,12 +60,14 @@ void AffineMatrixLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     Dtype sa = std::sin(al);
 
     Dtype *top_data = top[0]->mutable_cpu_data() + 6*n;
-    top_data[0] = sx * ca - hy * sy * sa;
-    top_data[1] = hx * sx * ca - sy * sa;
+    top_data[0] = sx*ca - hy*sy*sa;
+    top_data[1] = hx*sx*ca - sy*sa;
     top_data[2] = tx;
-    top_data[3] = sx * sa + hy * sy * ca;
-    top_data[4] = hx * sx * sa + sy * ca;
+    top_data[3] = sx*sa + hy*sy*ca;
+    top_data[4] = hx*sx*sa + sy*ca;
     top_data[5] = ty;
+
+
 //  std::cout << top_data[0] << " " << top_data[1] << " " << top_data[2] << " " << top_data[3] << " " << top_data[4] << " " << top_data[5] << std::endl;
 //  std::cout << std::endl;
   }
@@ -94,11 +96,12 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     Dtype *bottom_diff = bottom[0]->mutable_cpu_diff() + 7*n;
     Dtype const *top_diff = top[0]->cpu_diff() + 6*n;
 
+
     bottom_diff[0] = (top_diff[0]*ca) + (top_diff[1]*hx*ca) + (top_diff[3]*sa) + (top_diff[4]*hx*sa);  // sx
-    bottom_diff[1] = (top_diff[0]*hy*sa) + (top_diff[1]*sa) + (top_diff[3]*hy*ca) + (top_diff[4]*hx*ca);  // sy
+    bottom_diff[1] = (top_diff[0]*-hy*sa) + (top_diff[1]*-sa) + (top_diff[3]*hy*ca) + (top_diff[4]*sa*ca);  // sy
 
     bottom_diff[2] = (top_diff[1]*sx*ca) + (top_diff[4]*sx*sa);  // hx
-    bottom_diff[3] = (top_diff[0]*sy*sa) + (top_diff[3]*sy*ca);  // hy
+    bottom_diff[3] = (top_diff[0]*-sy*sa) + (top_diff[3]*sy*ca);  // hy
 
     bottom_diff[4] = top_diff[2]; // tx
     bottom_diff[5] = top_diff[5]; // ty
