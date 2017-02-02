@@ -98,7 +98,7 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 
 
     bottom_diff[0] = (top_diff[0]*ca) + (top_diff[1]*hx*ca) + (top_diff[3]*sa) + (top_diff[4]*hx*sa);  // sx
-    bottom_diff[1] = (top_diff[0]*-hy*sa) + (top_diff[1]*-sa) + (top_diff[3]*hy*ca) + (top_diff[4]*sa*ca);  // sy
+    bottom_diff[1] = (top_diff[0]*-hy*sa) + (top_diff[1]*-sa) + (top_diff[3]*hy*ca) + (top_diff[4]*ca);  // sy
 
     bottom_diff[2] = (top_diff[1]*sx*ca) + (top_diff[4]*sx*sa);  // hx
     bottom_diff[3] = (top_diff[0]*-sy*sa) + (top_diff[3]*sy*ca);  // hy
