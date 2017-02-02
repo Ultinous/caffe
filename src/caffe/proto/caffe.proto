@@ -1570,4 +1570,22 @@ message PowerFileParameter {
 message AffineMatrixParameter {
     optional double base_sx = 1 [default = 1];
     optional double base_sy = 2 [default = 1];
+
+    optional double min_sx = 3 [default = 0.4];
+    optional double max_sx = 4 [default = 2.5];
+    optional double min_sy = 5 [default = 0.4];
+    optional double max_sy = 6 [default = 2.5];
+
+    optional double min_hx = 7 [default = -1];
+    optional double max_hx = 8 [default = 1];
+    optional double min_hy = 9 [default = -1];
+    optional double max_hy = 10 [default = 1];
+
+    optional double min_tx = 11 [default = -0.8];
+    optional double max_tx = 12 [default = 0.8];
+    optional double min_ty = 13 [default = -0.8];
+    optional double max_ty = 14 [default = 0.8];
+
+    optional double min_alpha = 15 [default = -1.0472];
+    optional double max_alpha = 16 [default = 1.0472];
 }

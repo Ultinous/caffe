@@ -39,6 +39,11 @@ protected:
 private:
   Dtype m_base_sx;
   Dtype m_base_sy;
+
+  Dtype m_min_sx, m_max_sx, m_min_sy, m_max_sy;
+  Dtype m_min_hx, m_max_hx, m_min_hy, m_max_hy;
+  Dtype m_min_tx, m_max_tx, m_min_ty, m_max_ty;
+  Dtype m_min_alpha, m_max_alpha;
 };
 
 }  // namespace ultinous

@@ -24,6 +24,21 @@ void AffineMatrixLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   m_base_sx = this->layer_param_.affine_matrix_param().base_sx();
   m_base_sy = this->layer_param_.affine_matrix_param().base_sy();
 
+  m_min_sx =  this->layer_param_.affine_matrix_param().min_sx();
+  m_max_sx =  this->layer_param_.affine_matrix_param().max_sx();
+  m_min_sy =  this->layer_param_.affine_matrix_param().min_sy();
+  m_max_sy =  this->layer_param_.affine_matrix_param().max_sy();
+  m_min_hx =  this->layer_param_.affine_matrix_param().min_hx();
+  m_max_hx =  this->layer_param_.affine_matrix_param().max_hx();
+  m_min_hy =  this->layer_param_.affine_matrix_param().min_hy();
+  m_max_hy =  this->layer_param_.affine_matrix_param().max_hy();
+  m_min_tx =  this->layer_param_.affine_matrix_param().min_tx();
+  m_max_tx =  this->layer_param_.affine_matrix_param().max_tx();
+  m_min_ty =  this->layer_param_.affine_matrix_param().min_ty();
+  m_max_ty =  this->layer_param_.affine_matrix_param().max_ty();
+  m_min_alpha =  this->layer_param_.affine_matrix_param().min_alpha();
+  m_max_alpha =  this->layer_param_.affine_matrix_param().max_alpha();
+
 	vector<int> top_shape(2);
 	top_shape[0] = bottom[0]->num( );
 	top_shape[1] = 6;
@@ -86,8 +101,8 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     Dtype sy = m_base_sy + bottom_data[1]; // scale param
     Dtype hx = bottom_data[2]; // shear param
     Dtype hy = bottom_data[3]; // shear param
-    //Dtype tx = bottom_data[4]; // translate param
-    //Dtype ty = bottom_data[5]; // translate param
+    Dtype tx = bottom_data[4]; // translate param
+    Dtype ty = bottom_data[5]; // translate param
     Dtype al = bottom_data[6]; // alpha - rotatio angle
 
     Dtype ca = std::cos(al);
@@ -97,16 +112,54 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     Dtype const *top_diff = top[0]->cpu_diff() + 6*n;
 
 
-    bottom_diff[0] = (top_diff[0]*ca) + (top_diff[1]*hx*ca) + (top_diff[3]*sa) + (top_diff[4]*hx*sa);  // sx
-    bottom_diff[1] = (top_diff[0]*-hy*sa) + (top_diff[1]*-sa) + (top_diff[3]*hy*ca) + (top_diff[4]*ca);  // sy
+    if( sx < m_min_sx)
+      bottom_diff[0] = sx - m_min_sx;
+    else if( sx > m_max_sx)
+      bottom_diff[0] = sx - m_max_sx;
+    else
+      bottom_diff[0] = (top_diff[0]*ca) + (top_diff[1]*hx*ca) + (top_diff[3]*sa) + (top_diff[4]*hx*sa);  // sx
 
-    bottom_diff[2] = (top_diff[1]*sx*ca) + (top_diff[4]*sx*sa);  // hx
-    bottom_diff[3] = (top_diff[0]*-sy*sa) + (top_diff[3]*sy*ca);  // hy
+    if( sy < m_min_sy)
+      bottom_diff[1] = sy - m_min_sy;
+    else if( sy > m_max_sy)
+      bottom_diff[1] = sy - m_max_sy;
+    else
+      bottom_diff[1] = (top_diff[0]*-hy*sa) + (top_diff[1]*-sa) + (top_diff[3]*hy*ca) + (top_diff[4]*ca);  // sy
 
-    bottom_diff[4] = top_diff[2]; // tx
-    bottom_diff[5] = top_diff[5]; // ty
+    if( hx < m_min_hx)
+      bottom_diff[2] = hx - m_min_hx;
+    else if( hx > m_max_hx)
+      bottom_diff[2] = hx - m_max_hx;
+    else
+      bottom_diff[2] = (top_diff[1]*sx*ca) + (top_diff[4]*sx*sa);  // hx
 
-    bottom_diff[6] = top_diff[0]*(sx*-sa - hy*sy*ca)
+    if( hy < m_min_hy)
+      bottom_diff[3] = hy - m_min_hy;
+    else if( hy > m_max_hy)
+      bottom_diff[3] = hy - m_max_hy;
+    else
+      bottom_diff[3] = (top_diff[0]*-sy*sa) + (top_diff[3]*sy*ca);  // hy
+
+    if( tx < m_min_tx)
+      bottom_diff[4] = tx - m_min_tx;
+    else if( tx > m_max_tx)
+      bottom_diff[4] = tx - m_max_tx;
+    else
+      bottom_diff[4] = top_diff[2]; // tx
+
+    if( ty < m_min_ty)
+      bottom_diff[5] = ty - m_min_ty;
+    else if( ty > m_max_ty)
+      bottom_diff[5] = ty - m_max_ty;
+    else
+      bottom_diff[5] = top_diff[5]; // ty
+
+    if( al < m_min_alpha)
+      bottom_diff[6] = al - m_min_alpha;
+    else if( al > m_max_alpha)
+      bottom_diff[6] = al - m_max_alpha;
+    else
+      bottom_diff[6] = top_diff[0]*(sx*-sa - hy*sy*ca)
                     + top_diff[1]*(hx*sx*-sa - sy*ca)
                     + top_diff[3]*(sx*ca + hy*sy*-sa)
                     + top_diff[4]*(hx*sx*ca + sy*-sa);
