@@ -94,6 +94,8 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
     const vector<Blob<Dtype>*>& bottom) {
 
+  if( !propagate_down[0] ) return;
+
   for( int n = 0; n < bottom[0]->num(); ++n )
   {
     Dtype const *bottom_data = bottom[0]->cpu_data() + 7*n;
