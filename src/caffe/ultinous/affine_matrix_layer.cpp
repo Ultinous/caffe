@@ -39,6 +39,8 @@ void AffineMatrixLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   m_min_alpha =  this->layer_param_.affine_matrix_param().min_alpha();
   m_max_alpha =  this->layer_param_.affine_matrix_param().max_alpha();
 
+  m_max_diff = this->layer_param_.affine_matrix_param().max_diff();
+
 	vector<int> top_shape(2);
 	top_shape[0] = bottom[0]->num( );
 	top_shape[1] = 6;
@@ -165,6 +167,10 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
                     + top_diff[1]*(hx*sx*-sa - sy*ca)
                     + top_diff[3]*(sx*ca + hy*sy*-sa)
                     + top_diff[4]*(hx*sx*ca + sy*-sa);
+
+    for( int i = 0; i < 7; i++ )
+      bottom_diff[i] = std::max(-m_max_diff, std::min(m_max_diff, bottom_diff[i] ) );
+
   }
 }
 

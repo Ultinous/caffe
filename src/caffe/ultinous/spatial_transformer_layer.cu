@@ -8,6 +8,7 @@
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
+#include <boost/filesystem.hpp>
 
 namespace caffe {
 
@@ -92,7 +93,7 @@ static void saveImage( Dtype const * data, std::string filename, int channels, i
     for( size_t x = 0; x < height; ++x )
       for( size_t y = 0; y < width; ++y )
       {
-        int value = 128 + data[c*height*width+x*width+y];
+        int value = data[c*height*width+x*width+y]*255;
         value = std::max(0, std::min(255, value ) );
         im.data[ channels*(x*width+y) + c ] = value;
       }
@@ -150,6 +151,8 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
 
   if( this->phase_==TRAIN && m_saveImagesIters > 0 && (++iterations_) % m_saveImagesIters == 0 )
   {
+    boost::filesystem::path dir("images");
+    boost::filesystem::create_directory(dir);
     for( int n = 0; n < N; ++n )
     {
       {
@@ -162,7 +165,7 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
         std::stringstream ss; ss << "images/" << std::setfill('0') << std::setw(9) << 0/*iterations_*/ <<"_" << std::setfill('0') << std::setw(3) << n << "_V.png";
         std::string filename(ss.str());
         Dtype const * data = top[0]->cpu_data() + n*C*W*H;
-        saveImage( data, filename, C, H, W);
+        saveImage( data, filename, C, output_H_, output_W_);
       }
     }
   }

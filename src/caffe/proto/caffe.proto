@@ -1588,4 +1588,6 @@ message AffineMatrixParameter {
 
     optional double min_alpha = 15 [default = -1.0472];
     optional double max_alpha = 16 [default = 1.0472];
+
+    optional double max_diff = 17 [default = 0.1];
 }

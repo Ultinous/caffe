@@ -44,6 +44,8 @@ private:
   Dtype m_min_hx, m_max_hx, m_min_hy, m_max_hy;
   Dtype m_min_tx, m_max_tx, m_min_ty, m_max_ty;
   Dtype m_min_alpha, m_max_alpha;
+
+  Dtype m_max_diff;
 };
 
 }  // namespace ultinous
