@@ -164,7 +164,7 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
       {
         std::stringstream ss; ss << "images/" << std::setfill('0') << std::setw(9) << 0/*iterations_*/ <<"_" << std::setfill('0') << std::setw(3) << n << "_V.png";
         std::string filename(ss.str());
-        Dtype const * data = top[0]->cpu_data() + n*C*W*H;
+        Dtype const * data = top[0]->cpu_data() + n*C*output_W_*output_H_;
         saveImage( data, filename, C, output_H_, output_W_);
       }
     }
