@@ -41,11 +41,11 @@ void AffineMatrixLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
   m_max_diff = this->layer_param_.affine_matrix_param().max_diff();
 
-  m_normalize_angle = this->layer_param_.affine_matrix_param().normalize_angle();
+  m_normalize_angle = (this->phase_ == TRAIN) && (this->layer_param_.affine_matrix_param().normalize_angle());
   m_moving_average_angle = 0;
   m_moving_average_hx = 0;
   m_moving_average_hy = 0;
-  m_moving_average_fraction = 0.9995;
+  m_moving_average_fraction = 0.9999;
   m_normalization_coef = 0.01;
 
 m_iter = 0;
@@ -84,14 +84,14 @@ void AffineMatrixLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       m_moving_average_hy = m_moving_average_fraction*m_moving_average_hy
                                + (1-m_moving_average_fraction)*hy;
     }
-  }
-
-/*    if( ((++m_iter)%100)==0 )
+    if( ((++m_iter)%100)==0 )
 	std::cout << "Angle normalizaton: " << m_normalize_angle
 	  << " " << m_moving_average_angle
 	  << " " << m_moving_average_hx
 	  << " " << m_moving_average_hy
-	  << std::endl;*/
+	  << std::endl;
+  }
+
 
 
   for( int n = 0; n < bottom[0]->num(); ++n )
