@@ -49,8 +49,12 @@ private:
 
 	bool m_normalize_angle;
 	Dtype m_moving_average_angle;
+	Dtype m_moving_average_hx;
+	Dtype m_moving_average_hy;
 	Dtype m_moving_average_fraction;
 	Dtype m_normalization_coef;
+
+    int m_iter;
 };
 
 }  // namespace ultinous

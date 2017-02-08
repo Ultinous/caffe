@@ -43,8 +43,12 @@ void AffineMatrixLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
   m_normalize_angle = this->layer_param_.affine_matrix_param().normalize_angle();
   m_moving_average_angle = 0;
+  m_moving_average_hx = 0;
+  m_moving_average_hy = 0;
   m_moving_average_fraction = 0.9995;
-  m_normalization_coef = 0.2;
+  m_normalization_coef = 0.01;
+
+m_iter = 0;
 
 	vector<int> top_shape(2);
 	top_shape[0] = bottom[0]->num( );
@@ -68,12 +72,26 @@ void AffineMatrixLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   if( m_normalize_angle ) {
     for (int n = 0; n < bottom[0]->num(); ++n) {
       Dtype const *bottom_data = bottom[0]->cpu_data() + 7 * n;
+
+      Dtype hx = bottom_data[2]; // shear param
+      Dtype hy = bottom_data[3]; // shear param
       Dtype al = bottom_data[6]; // alpha - rotatio angle;
+
       m_moving_average_angle = m_moving_average_fraction*m_moving_average_angle
                                + (1-m_moving_average_fraction)*al;
+      m_moving_average_hx = m_moving_average_fraction*m_moving_average_hx
+                               + (1-m_moving_average_fraction)*hx;
+      m_moving_average_hy = m_moving_average_fraction*m_moving_average_hy
+                               + (1-m_moving_average_fraction)*hy;
     }
   }
 
+/*    if( ((++m_iter)%100)==0 )
+	std::cout << "Angle normalizaton: " << m_normalize_angle
+	  << " " << m_moving_average_angle
+	  << " " << m_moving_average_hx
+	  << " " << m_moving_average_hy
+	  << std::endl;*/
 
 
   for( int n = 0; n < bottom[0]->num(); ++n )
@@ -81,8 +99,8 @@ void AffineMatrixLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     Dtype const *bottom_data = bottom[0]->cpu_data() + 7*n;
     Dtype sx = m_base_sx + bottom_data[0]; // scale param
     Dtype sy = m_base_sy + bottom_data[1]; // scale param
-    Dtype hx = bottom_data[2]; // shear param
-    Dtype hy = bottom_data[3]; // shear param
+    Dtype hx = bottom_data[2]-m_moving_average_hx; // shear param
+    Dtype hy = bottom_data[3]-m_moving_average_hy; // shear param
     Dtype tx = bottom_data[4]; // translate param
     Dtype ty = bottom_data[5]; // translate param
     Dtype al = bottom_data[6] - m_moving_average_angle; // alpha - rotatio angle;
@@ -119,8 +137,8 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     Dtype const *bottom_data = bottom[0]->cpu_data() + 7*n;
     Dtype sx = m_base_sx + bottom_data[0]; // scale param
     Dtype sy = m_base_sy + bottom_data[1]; // scale param
-    Dtype hx = bottom_data[2]; // shear param
-    Dtype hy = bottom_data[3]; // shear param
+    Dtype hx = bottom_data[2]-m_moving_average_hx; // shear param
+    Dtype hy = bottom_data[3]-m_moving_average_hy; // shear param
     Dtype tx = bottom_data[4]; // translate param
     Dtype ty = bottom_data[5]; // translate param
     Dtype al = bottom_data[6]-m_moving_average_angle; // alpha - rotatio angle
@@ -152,14 +170,14 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     else if( hx > m_max_hx)
       bottom_diff[2] = hx - m_max_hx;
     else
-      bottom_diff[2] = (top_diff[1]*sx*ca) + (top_diff[4]*sx*sa);  // hx
+      bottom_diff[2] = m_normalization_coef*m_moving_average_hx + (top_diff[1]*sx*ca) + (top_diff[4]*sx*sa);  // hx
 
     if( hy < m_min_hy)
       bottom_diff[3] = hy - m_min_hy;
     else if( hy > m_max_hy)
       bottom_diff[3] = hy - m_max_hy;
     else
-      bottom_diff[3] = (top_diff[0]*-sy*sa) + (top_diff[3]*sy*ca);  // hy
+      bottom_diff[3] = m_normalization_coef*m_moving_average_hy + (top_diff[0]*-sy*sa) + (top_diff[3]*sy*ca);  // hy
 
     if( tx < m_min_tx)
       bottom_diff[4] = tx - m_min_tx;
