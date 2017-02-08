@@ -417,6 +417,7 @@ message LayerParameter {
   optional PowerFileParameter power_file_param = 5007;
   optional AffineMatrixParameter affine_matrix_param = 5008;
   optional ImwriteParameter imwrite_param = 5009;
+  optional DataAugmentParameter data_augment_param = 5010;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1599,4 +1600,11 @@ message ImwriteParameter {
 
     required double intensity_shift = 5 [default = 0];
     required double intensity_mult = 6 [default = 1];
+}
+
+
+message DataAugmentParameter {
+   optional uint32 num_occlusions = 1 [default = 0];
+   optional double min_occlusion_radius = 2 [default = 0];
+   optional double max_occlusion_radius = 3 [default = 0];
 }
