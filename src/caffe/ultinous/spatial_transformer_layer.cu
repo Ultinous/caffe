@@ -6,10 +6,6 @@
 #include "caffe/ultinous/spatial_transformer_layer.hpp"
 #include "caffe/util/benchmark.hpp"
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/opencv.hpp>
-#include <boost/filesystem.hpp>
-
 namespace caffe {
 
 template <typename Dtype>
@@ -85,24 +81,6 @@ __global__ void SpatialTransformerForwardGPU(const int nthreads, int N, int C,
 }
 
 template <typename Dtype>
-static void saveImage( Dtype const * data, std::string filename, int channels, int height, int width )
-{
-
-  cv::Mat im( height, width, (channels==3?CV_8UC3:CV_8UC1), cv::Scalar(0) );
-  for( size_t c = 0; c < channels; ++c )
-    for( size_t x = 0; x < height; ++x )
-      for( size_t y = 0; y < width; ++y )
-      {
-        int value = data[c*height*width+x*width+y]*255;
-        value = std::max(0, std::min(255, value ) );
-        im.data[ channels*(x*width+y) + c ] = value;
-      }
-
-  cv::imwrite( filename, im );
-}
-
-
-template <typename Dtype>
 void SpatialTransformerLayer<Dtype>::Forward_gpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
 
@@ -148,28 +126,6 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
 
 	SpatialTransformerForwardGPU<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
 	      CAFFE_CUDA_NUM_THREADS>>>(nthreads, N, C, output_H_, output_W_, H, W, input_grid_data, U, V);
-
-  if( this->phase_==TRAIN && m_saveImagesIters > 0 && (++iterations_) % m_saveImagesIters == 0 )
-  {
-    boost::filesystem::path dir("images");
-    boost::filesystem::create_directory(dir);
-    for( int n = 0; n < N; ++n )
-    {
-      {
-        std::stringstream ss; ss << "images/" << std::setfill('0') << std::setw(9) << 0/*iterations_*/ <<"_" << std::setfill('0') << std::setw(3) << n << "_U.png";
-        std::string filename(ss.str());
-        Dtype const * data = bottom[0]->cpu_data() + n*C*H*W;
-        saveImage( data, filename, C, H, W);
-      }
-      {
-        std::stringstream ss; ss << "images/" << std::setfill('0') << std::setw(9) << 0/*iterations_*/ <<"_" << std::setfill('0') << std::setw(3) << n << "_V.png";
-        std::string filename(ss.str());
-        Dtype const * data = top[0]->cpu_data() + n*C*output_W_*output_H_;
-        saveImage( data, filename, C, output_H_, output_W_);
-      }
-    }
-  }
-      
 }
 
 template <typename Dtype>

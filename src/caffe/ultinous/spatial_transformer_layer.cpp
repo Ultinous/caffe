@@ -19,10 +19,6 @@ void SpatialTransformerLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bott
 
 	string prefix = "\t\tSpatial Transformer Layer:: LayerSetUp: \t";
 
-  m_saveImagesIters = this->layer_param_.st_param().saveimagesiters();
-  iterations_ = 0;
-
-
   if(this->layer_param_.st_param().transform_type() == "affine") {
 		transform_type_ = "affine";
 	} else {

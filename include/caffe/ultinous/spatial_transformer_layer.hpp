@@ -76,10 +76,6 @@ private:
 
 	Blob<Dtype> output_grid;	// standard output coordinate system, [0, 1) by [0, 1).
 	Blob<Dtype> input_grid;	// corresponding coordinate on input image after projection for each output pixel.
-
-	int m_saveImagesIters;
-	int iterations_ = 0;
-
 };
 
 }  // namespace caffe

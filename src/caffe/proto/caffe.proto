@@ -416,6 +416,7 @@ message LayerParameter {
   optional SpatialTransformerParameter st_param = 5006;
   optional PowerFileParameter power_file_param = 5007;
   optional AffineMatrixParameter affine_matrix_param = 5008;
+  optional ImwriteParameter imwrite_param = 5009;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1559,8 +1560,6 @@ message SpatialTransformerParameter {
 	optional double theta_2_1 = 9;
 	optional double theta_2_2 = 10;
 	optional double theta_2_3 = 11;
-
-	optional int32 saveImagesIters = 12 [default = 0];
 }
 
 message PowerFileParameter {
@@ -1590,4 +1589,14 @@ message AffineMatrixParameter {
     optional double max_alpha = 16 [default = 1.0472];
 
     optional double max_diff = 17 [default = 0.1];
+}
+
+message ImwriteParameter {
+    required string output_path = 1;
+    optional string postfix = 2 [default=""];
+    optional string extension = 3 [default="png"];
+    required int32 iterations = 4 [default = 1000];
+
+    required double intensity_shift = 5 [default = 0];
+    required double intensity_mult = 6 [default = 1];
 }
