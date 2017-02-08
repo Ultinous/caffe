@@ -41,6 +41,11 @@ void AffineMatrixLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
   m_max_diff = this->layer_param_.affine_matrix_param().max_diff();
 
+  m_normalize_angle = this->layer_param_.affine_matrix_param().normalize_angle();
+  m_moving_average_angle = 0;
+  m_moving_average_fraction = 0.9995;
+  m_normalization_coef = 0.2;
+
 	vector<int> top_shape(2);
 	top_shape[0] = bottom[0]->num( );
 	top_shape[1] = 6;
@@ -116,6 +121,7 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     Dtype const *top_diff = top[0]->cpu_diff() + 6*n;
 
 
+
     if( sx < m_min_sx)
       bottom_diff[0] = sx - m_min_sx;
     else if( sx > m_max_sx)
@@ -158,12 +164,22 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     else
       bottom_diff[5] = top_diff[5]; // ty
 
+    Dtype normalization_angle_diff = 0;
+    if( m_normalize_angle )
+    {
+      m_moving_average_angle = m_moving_average_fraction*m_moving_average_angle
+                      + (1-m_moving_average_fraction)*al;
+
+      normalization_angle_diff = m_normalization_coef*m_moving_average_angle;
+    }
+
     if( al < m_min_alpha)
       bottom_diff[6] = al - m_min_alpha;
     else if( al > m_max_alpha)
       bottom_diff[6] = al - m_max_alpha;
     else
-      bottom_diff[6] = top_diff[0]*(sx*-sa - hy*sy*ca)
+      bottom_diff[6] = normalization_angle_diff
+                    + top_diff[0]*(sx*-sa - hy*sy*ca)
                     + top_diff[1]*(hx*sx*-sa - sy*ca)
                     + top_diff[3]*(sx*ca + hy*sy*-sa)
                     + top_diff[4]*(hx*sx*ca + sy*-sa);

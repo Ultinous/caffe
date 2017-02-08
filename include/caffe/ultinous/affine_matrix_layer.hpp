@@ -46,6 +46,11 @@ private:
   Dtype m_min_alpha, m_max_alpha;
 
   Dtype m_max_diff;
+
+	bool m_normalize_angle;
+	Dtype m_moving_average_angle;
+	Dtype m_moving_average_fraction;
+	Dtype m_normalization_coef;
 };
 
 }  // namespace ultinous

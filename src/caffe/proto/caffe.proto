@@ -1590,6 +1590,8 @@ message AffineMatrixParameter {
     optional double max_alpha = 16 [default = 1.0472];
 
     optional double max_diff = 17 [default = 0.1];
+
+    optional bool normalize_angle = 18 [default = true];
 }
 
 message ImwriteParameter {
