@@ -65,6 +65,17 @@ template <typename Dtype>
 void AffineMatrixLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
 
+  if( m_normalize_angle ) {
+    for (int n = 0; n < bottom[0]->num(); ++n) {
+      Dtype const *bottom_data = bottom[0]->cpu_data() + 7 * n;
+      Dtype al = bottom_data[6]; // alpha - rotatio angle;
+      m_moving_average_angle = m_moving_average_fraction*m_moving_average_angle
+                               + (1-m_moving_average_fraction)*al;
+    }
+  }
+
+
+
   for( int n = 0; n < bottom[0]->num(); ++n )
   {
     Dtype const *bottom_data = bottom[0]->cpu_data() + 7*n;
@@ -74,7 +85,7 @@ void AffineMatrixLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     Dtype hy = bottom_data[3]; // shear param
     Dtype tx = bottom_data[4]; // translate param
     Dtype ty = bottom_data[5]; // translate param
-    Dtype al = bottom_data[6]; // alpha - rotatio angle;
+    Dtype al = bottom_data[6] - m_moving_average_angle; // alpha - rotatio angle;
 
 //    std::cout << sx << " " << sy << " " << hx << " " << hy << " " << tx << " " << ty << " " << al << std::endl;
 
@@ -112,7 +123,7 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     Dtype hy = bottom_data[3]; // shear param
     Dtype tx = bottom_data[4]; // translate param
     Dtype ty = bottom_data[5]; // translate param
-    Dtype al = bottom_data[6]; // alpha - rotatio angle
+    Dtype al = bottom_data[6]-m_moving_average_angle; // alpha - rotatio angle
 
     Dtype ca = std::cos(al);
     Dtype sa = std::sin(al);
@@ -164,21 +175,12 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     else
       bottom_diff[5] = top_diff[5]; // ty
 
-    Dtype normalization_angle_diff = 0;
-    if( m_normalize_angle )
-    {
-      m_moving_average_angle = m_moving_average_fraction*m_moving_average_angle
-                      + (1-m_moving_average_fraction)*al;
-
-      normalization_angle_diff = m_normalization_coef*m_moving_average_angle;
-    }
-
     if( al < m_min_alpha)
       bottom_diff[6] = al - m_min_alpha;
     else if( al > m_max_alpha)
       bottom_diff[6] = al - m_max_alpha;
     else
-      bottom_diff[6] = normalization_angle_diff
+      bottom_diff[6] = m_normalization_coef*m_moving_average_angle
                     + top_diff[0]*(sx*-sa - hy*sy*ca)
                     + top_diff[1]*(hx*sx*-sa - sy*ca)
                     + top_diff[3]*(sx*ca + hy*sy*-sa)
