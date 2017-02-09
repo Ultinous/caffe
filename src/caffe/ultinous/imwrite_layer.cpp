@@ -26,12 +26,20 @@ template <typename Dtype>
 void ImwriteLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top)
 {
+  std::string output_path = this->layer_param_.imwrite_param().output_path();
+
+  if( this->phase_ == TEST ) {
+    output_path = this->layer_param_.imwrite_param().test_output_path();
+    if( output_path.empty() )
+      return;
+  }
+
   int frequency = this->layer_param_.imwrite_param().iterations();
   ++m_iterations;
   if( 0!=frequency && 0!=(m_iterations%frequency) )
     return;
 
-  std::string output_path = this->layer_param_.imwrite_param().output_path();
+
   boost::filesystem::path dir(output_path);
   boost::filesystem::create_directories(dir);
 
