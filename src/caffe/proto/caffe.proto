@@ -1596,13 +1596,14 @@ message AffineMatrixParameter {
 
 message ImwriteParameter {
     required string output_path = 1;
-    optional string test_output_path = 2 [default=""];
-    optional string postfix = 3 [default=""];
-    optional string extension = 4 [default="png"];
-    required int32 iterations = 5 [default = 1000];
+    optional string postfix = 2 [default=""];
+    optional string extension = 3 [default="png"];
+    required int32 iterations = 4 [default = 1000];
 
-    required double intensity_shift = 6 [default = 0];
-    required double intensity_mult = 7 [default = 1];
+    required double intensity_shift = 5 [default = 0];
+    required double intensity_mult = 6 [default = 1];
+
+    optional string test_output_path = 7 [default=""];
 }
 
 
