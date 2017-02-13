@@ -12,29 +12,41 @@
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 
-namespace caffe {
-namespace ultinous {
+namespace caffe
+{
+namespace ultinous
+{
 
-template <typename Dtype>
-class AffineMatrixLayer : public Layer<Dtype> {
+template<typename Dtype>
+class AffineMatrixLayer : public Layer<Dtype>
+{
 
 public:
-	explicit AffineMatrixLayer(const LayerParameter& param)
-      : Layer<Dtype>(param) {}
-	virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-	virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
+  explicit AffineMatrixLayer(const LayerParameter &param)
+  : Layer<Dtype>(param)
+  {}
 
-	virtual inline const char* type() const { return "AffineMatrix"; }
-	virtual inline int ExactNumBottomBlobs() const { return 1; }
-	virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual void LayerSetUp(const vector<Blob<Dtype> *> &bottom,
+                          const vector<Blob<Dtype> *> &top);
+
+  virtual void Reshape(const vector<Blob<Dtype> *> &bottom,
+                       const vector<Blob<Dtype> *> &top);
+
+  virtual inline const char *type() const
+  { return "AffineMatrix"; }
+
+  virtual inline int ExactNumBottomBlobs() const
+  { return 1; }
+
+  virtual inline int ExactNumTopBlobs() const
+  { return 1; }
 
 protected:
-	virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-	virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  virtual void Forward_cpu(const vector<Blob<Dtype> *> &bottom,
+                           const vector<Blob<Dtype> *> &top);
+
+  virtual void Backward_cpu(const vector<Blob<Dtype> *> &top,
+                            const vector<bool> &propagate_down, const vector<Blob<Dtype> *> &bottom);
 
 private:
   Dtype m_base_sx;
@@ -47,10 +59,11 @@ private:
 
   Dtype m_max_diff;
 
-	bool m_normalize_params;
-	Dtype m_moving_average_fraction;
+  bool m_normalize_params;
+  Dtype m_moving_average_fraction;
+  Dtype m_boundary_violation_step;
 
-    int m_iter;
+  int m_iter;
 };
 
 }  // namespace ultinous
