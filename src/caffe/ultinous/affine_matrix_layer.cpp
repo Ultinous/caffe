@@ -41,19 +41,30 @@ void AffineMatrixLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
   m_max_diff = this->layer_param_.affine_matrix_param().max_diff();
 
-  m_normalize_angle = (this->phase_ == TRAIN) && (this->layer_param_.affine_matrix_param().normalize_angle());
-  m_moving_average_angle = 0;
-  m_moving_average_hx = 0;
-  m_moving_average_hy = 0;
+  m_normalize_params = (this->phase_ == TRAIN) && (this->layer_param_.affine_matrix_param().normalize_params());
+  m_iter = 0;
   m_moving_average_fraction = 0.9999;
-  m_normalization_coef = 0.01;
 
-m_iter = 0;
+  if (this->blobs_.size() > 0) {
+    Dtype const * saved_averages = this->blobs_[0]->cpu_data();
+    LOG(INFO) << "Skipping parameter initialization";
+    std::cout << "Saved averages:";
+    for( int c = 0; c < 7; ++c )
+      std::cout  << " " << saved_averages[c];
+    std::cout << std::endl;
+  } else {
+    this->blobs_.resize(1);
+    vector<int> sz;
+    sz.push_back(bottom[0]->channels());
+    this->blobs_[0].reset(new Blob<Dtype>(sz));
+    caffe_set(this->blobs_[0]->count(), Dtype(0),
+	      this->blobs_[0]->mutable_cpu_data());
+  }
 
-	vector<int> top_shape(2);
-	top_shape[0] = bottom[0]->num( );
-	top_shape[1] = 6;
-	top[0]->Reshape(top_shape);
+  std::vector<int> top_shape(2);
+  top_shape[0] = bottom[0]->num( );
+  top_shape[1] = 6;
+  top[0]->Reshape(top_shape);
 }
 
 template <typename Dtype>
@@ -69,43 +80,70 @@ template <typename Dtype>
 void AffineMatrixLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
 
-  if( m_normalize_angle ) {
-    for (int n = 0; n < bottom[0]->num(); ++n) {
-      Dtype const *bottom_data = bottom[0]->cpu_data() + 7 * n;
+  ++m_iter;
 
-      Dtype hx = bottom_data[2]; // shear param
-      Dtype hy = bottom_data[3]; // shear param
-      Dtype al = bottom_data[6]; // alpha - rotatio angle;
+  std::vector<Dtype> batch_averages(7, 0);
+  Dtype const * averages = batch_averages.data();
 
-      m_moving_average_angle = m_moving_average_fraction*m_moving_average_angle
-                               + (1-m_moving_average_fraction)*al;
-      m_moving_average_hx = m_moving_average_fraction*m_moving_average_hx
-                               + (1-m_moving_average_fraction)*hx;
-      m_moving_average_hy = m_moving_average_fraction*m_moving_average_hy
-                               + (1-m_moving_average_fraction)*hy;
+  if( m_normalize_params ) {
+
+    if( this->phase_ == TRAIN )
+    {
+      // Update running averages
+      Dtype * saved_averages = this->blobs_[0]->mutable_cpu_data();
+      for (int n = 0; n < bottom[0]->num(); ++n)
+      {
+	Dtype const *bottom_data = bottom[0]->cpu_data() + 7 * n;
+
+	for( int c = 0; c < 7; ++c )
+	  saved_averages[c] = m_moving_average_fraction*saved_averages[c]
+			    + (1.0-m_moving_average_fraction) * bottom_data[c];
+      }
+
+      if( (m_iter%100)==0 )
+      {
+	  std::cout << "Moving averages:";
+	  for( int c = 0; c < 7; ++c )
+	    std::cout  << " " << saved_averages[c];
+	  std::cout << std::endl;
+      }
+
+      // Compute batch averages
+      for (int n = 0; n < bottom[0]->num(); ++n)
+      {
+	Dtype const *bottom_data = bottom[0]->cpu_data() + 7*n;
+
+	for( int c = 0; c < 7; ++c )
+	  batch_averages[c] += bottom_data[c];
+      }
+      for( int c = 0; c < 7; ++c )
+	batch_averages[c] /= bottom[0]->num();
+
+      if( (m_iter%100)==0 )
+      {
+	  std::cout << "Batch averages: ";
+	  for( int c = 0; c < 7; ++c )
+	    std::cout  << " " << batch_averages[c];
+	  std::cout << std::endl;
+      }
     }
-    if( ((++m_iter)%100)==0 )
-	std::cout << "Angle normalizaton: " << m_normalize_angle
-	  << " " << m_moving_average_angle
-	  << " " << m_moving_average_hx
-	  << " " << m_moving_average_hy
-	  << std::endl;
+    else
+    {
+      averages = this->blobs_[0]->cpu_data();
+    }
   }
-
-
 
   for( int n = 0; n < bottom[0]->num(); ++n )
   {
     Dtype const *bottom_data = bottom[0]->cpu_data() + 7*n;
+
     Dtype sx = m_base_sx + bottom_data[0]; // scale param
     Dtype sy = m_base_sy + bottom_data[1]; // scale param
-    Dtype hx = bottom_data[2]-m_moving_average_hx; // shear param
-    Dtype hy = bottom_data[3]-m_moving_average_hy; // shear param
-    Dtype tx = bottom_data[4]; // translate param
-    Dtype ty = bottom_data[5]; // translate param
-    Dtype al = bottom_data[6] - m_moving_average_angle; // alpha - rotatio angle;
-
-//    std::cout << sx << " " << sy << " " << hx << " " << hy << " " << tx << " " << ty << " " << al << std::endl;
+    Dtype hx = bottom_data[2]-averages[2]; // shear param
+    Dtype hy = bottom_data[3]-averages[3]; // shear param
+    Dtype tx = bottom_data[4]-averages[4];             // translate param
+    Dtype ty = bottom_data[5]-averages[5]; // translate param
+    Dtype al = bottom_data[6]-averages[6]; // alpha - rotatio angle;
 
     Dtype ca = std::cos(al);
     Dtype sa = std::sin(al);
@@ -117,10 +155,6 @@ void AffineMatrixLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     top_data[3] = sx*sa + hy*sy*ca;
     top_data[4] = hx*sx*sa + sy*ca;
     top_data[5] = ty;
-
-
-//  std::cout << top_data[0] << " " << top_data[1] << " " << top_data[2] << " " << top_data[3] << " " << top_data[4] << " " << top_data[5] << std::endl;
-//  std::cout << std::endl;
   }
 
 }
@@ -132,16 +166,39 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 
   if( !propagate_down[0] ) return;
 
+  std::vector<Dtype> batch_averages(7, 0);
+  Dtype const * averages = batch_averages.data();
+
+  if( m_normalize_params ) {
+    if( this->phase_ == TRAIN )
+    {
+      for (int n = 0; n < bottom[0]->num(); ++n)
+      {
+	Dtype const *bottom_data = bottom[0]->cpu_data() + 7*n;
+
+	for( int c = 0; c < 7; ++c )
+	  batch_averages[c] += bottom_data[c];
+      }
+      for( int c = 0; c < 7; ++c )
+	batch_averages[c] /= bottom[0]->channels();
+    }
+    else
+    {
+      averages = this->blobs_[0]->cpu_data();
+    }
+  }
+
   for( int n = 0; n < bottom[0]->num(); ++n )
   {
     Dtype const *bottom_data = bottom[0]->cpu_data() + 7*n;
+
     Dtype sx = m_base_sx + bottom_data[0]; // scale param
     Dtype sy = m_base_sy + bottom_data[1]; // scale param
-    Dtype hx = bottom_data[2]-m_moving_average_hx; // shear param
-    Dtype hy = bottom_data[3]-m_moving_average_hy; // shear param
-    Dtype tx = bottom_data[4]; // translate param
-    Dtype ty = bottom_data[5]; // translate param
-    Dtype al = bottom_data[6]-m_moving_average_angle; // alpha - rotatio angle
+    Dtype hx = bottom_data[2]-averages[2]; // shear param
+    Dtype hy = bottom_data[3]-averages[3]; // shear param
+    Dtype tx = bottom_data[4]-averages[4]; // translate param
+    Dtype ty = bottom_data[5]-averages[5]; // translate param
+    Dtype al = bottom_data[6]-averages[6]; // alpha - rotatio angle;
 
     Dtype ca = std::cos(al);
     Dtype sa = std::sin(al);
@@ -149,63 +206,66 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     Dtype *bottom_diff = bottom[0]->mutable_cpu_diff() + 7*n;
     Dtype const *top_diff = top[0]->cpu_diff() + 6*n;
 
-
-
     if( sx < m_min_sx)
-      bottom_diff[0] = sx - m_min_sx;
+      bottom_diff[0] = (sx - m_min_sx)*0.1;
     else if( sx > m_max_sx)
-      bottom_diff[0] = sx - m_max_sx;
+      bottom_diff[0] = (sx - m_max_sx)*0.1;
     else
       bottom_diff[0] = (top_diff[0]*ca) + (top_diff[1]*hx*ca) + (top_diff[3]*sa) + (top_diff[4]*hx*sa);  // sx
 
     if( sy < m_min_sy)
-      bottom_diff[1] = sy - m_min_sy;
+      bottom_diff[1] = (sy - m_min_sy)*0.1;
     else if( sy > m_max_sy)
-      bottom_diff[1] = sy - m_max_sy;
+      bottom_diff[1] = (sy - m_max_sy)*0.1;
     else
       bottom_diff[1] = (top_diff[0]*-hy*sa) + (top_diff[1]*-sa) + (top_diff[3]*hy*ca) + (top_diff[4]*ca);  // sy
 
     if( hx < m_min_hx)
-      bottom_diff[2] = hx - m_min_hx;
+      bottom_diff[2] = (hx - m_min_hx)*0.1;
     else if( hx > m_max_hx)
-      bottom_diff[2] = hx - m_max_hx;
+      bottom_diff[2] = (hx - m_max_hx)*0.1;
     else
-      bottom_diff[2] = m_normalization_coef*m_moving_average_hx + (top_diff[1]*sx*ca) + (top_diff[4]*sx*sa);  // hx
+      bottom_diff[2] = (top_diff[1]*sx*ca) + (top_diff[4]*sx*sa);  // hx
 
     if( hy < m_min_hy)
-      bottom_diff[3] = hy - m_min_hy;
+      bottom_diff[3] = (hy - m_min_hy)*0.1;
     else if( hy > m_max_hy)
-      bottom_diff[3] = hy - m_max_hy;
+      bottom_diff[3] = (hy - m_max_hy)*0.1;
     else
-      bottom_diff[3] = m_normalization_coef*m_moving_average_hy + (top_diff[0]*-sy*sa) + (top_diff[3]*sy*ca);  // hy
+      bottom_diff[3] = (top_diff[0]*-sy*sa) + (top_diff[3]*sy*ca);  // hy
 
     if( tx < m_min_tx)
-      bottom_diff[4] = tx - m_min_tx;
+      bottom_diff[4] = (tx - m_min_tx)*0.1;
     else if( tx > m_max_tx)
-      bottom_diff[4] = tx - m_max_tx;
+      bottom_diff[4] = (tx - m_max_tx)*0.1;
     else
       bottom_diff[4] = top_diff[2]; // tx
 
     if( ty < m_min_ty)
-      bottom_diff[5] = ty - m_min_ty;
+      bottom_diff[5] = (ty - m_min_ty)*0.1;
     else if( ty > m_max_ty)
-      bottom_diff[5] = ty - m_max_ty;
+      bottom_diff[5] = (ty - m_max_ty)*0.1;
     else
       bottom_diff[5] = top_diff[5]; // ty
 
     if( al < m_min_alpha)
-      bottom_diff[6] = al - m_min_alpha;
+      bottom_diff[6] = (al - m_min_alpha)*0.1;
     else if( al > m_max_alpha)
-      bottom_diff[6] = al - m_max_alpha;
+      bottom_diff[6] = (al - m_max_alpha)*0.1;
     else
-      bottom_diff[6] = m_normalization_coef*m_moving_average_angle
-                    + top_diff[0]*(sx*-sa - hy*sy*ca)
+      bottom_diff[6] = top_diff[0]*(sx*-sa - hy*sy*ca)
                     + top_diff[1]*(hx*sx*-sa - sy*ca)
                     + top_diff[3]*(sx*ca + hy*sy*-sa)
                     + top_diff[4]*(hx*sx*ca + sy*-sa);
 
-    for( int i = 0; i < 7; i++ )
+//    for( int i = 0; i < 7; i++ )
+//	bottom_diff[i]*=0.96875;
+
+  for( int i = 0; i < 7; i++ )
       bottom_diff[i] = std::max(-m_max_diff, std::min(m_max_diff, bottom_diff[i] ) );
+
+  for( int i = 0; i < 7; i++ )
+      bottom_diff[i] /= bottom[0]->num();
 
   }
 }
