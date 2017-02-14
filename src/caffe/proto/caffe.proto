@@ -1592,6 +1592,7 @@ message AffineMatrixParameter {
     optional double max_diff = 17 [default = 0.0];
 
     optional bool normalize_params = 18 [default = true];
+    optional bool bias = 19 [default = true];
 }
 
 message ImwriteParameter {

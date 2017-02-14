@@ -42,6 +42,8 @@ void AffineMatrixLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype> *> &bottom,
   m_min_alpha = this->layer_param_.affine_matrix_param().min_alpha();
   m_max_alpha = this->layer_param_.affine_matrix_param().max_alpha();
 
+  m_bias = this->layer_param_.affine_matrix_param().bias();
+
   m_max_diff = this->layer_param_.affine_matrix_param().max_diff();
   m_normalize_params = this->layer_param_.affine_matrix_param().normalize_params();
   m_moving_average_fraction = 0.9999;
@@ -53,12 +55,21 @@ void AffineMatrixLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype> *> &bottom,
     LOG(INFO) << "Skipping parameter initialization";
   } else
   {
-    this->blobs_.resize(1);
-    vector<int> sz;
-    sz.push_back(bottom[0]->channels());
-    this->blobs_[0].reset(new Blob<Dtype>(sz));
-    caffe_set(this->blobs_[0]->count(), Dtype(0),
-              this->blobs_[0]->mutable_cpu_data());
+    if( m_normalize_params || m_bias )
+    {
+      int blobNum = (m_bias && m_normalize_params)?2:1;
+
+      this->blobs_.resize(blobNum);
+      vector<int> sz;
+      sz.push_back(bottom[0]->channels());
+
+      for( int i = 0; i < blobNum; ++i )
+      {
+	this->blobs_[i].reset(new Blob<Dtype>(sz));
+	caffe_set(this->blobs_[i]->count(), Dtype(0),
+		  this->blobs_[i]->mutable_cpu_data());
+      }
+    }
   }
 
   std::vector<int> top_shape(2);
@@ -135,6 +146,15 @@ void AffineMatrixLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
   }
 
 
+  if(this->phase_ == TRAIN && (m_iter % 100) == 0)
+  {
+    Dtype const * bias = this->blobs_[m_normalize_params?1:0]->cpu_data();
+    std::cout << "Bias:";
+    for (int c = 0; c < 7; ++c)
+      std::cout << " " << bias[c];
+    std::cout << std::endl;
+  }
+
   for (int n = 0; n < bottom[0]->num(); ++n)
   {
     Dtype const *bottom_data = bottom[0]->cpu_data() + 7 * n;
@@ -146,6 +166,18 @@ void AffineMatrixLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
     Dtype tx = bottom_data[4] - averages[4];             // translate param
     Dtype ty = bottom_data[5] - averages[5]; // translate param
     Dtype al = bottom_data[6] - averages[6]; // alpha - rotatio angle;
+
+    if( m_bias )
+    {
+      Dtype const * bias = this->blobs_[m_normalize_params?1:0]->cpu_data();
+      sx += bias[0];
+      sy += bias[1];
+      hx += bias[2];
+      hy += bias[3];
+      tx += bias[4];
+      ty += bias[5];
+      al += bias[6];
+    }
 
     Dtype ca = std::cos(al);
     Dtype sa = std::sin(al);
@@ -202,6 +234,18 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top,
     Dtype tx = bottom_data[4] - averages[4]; // translate param
     Dtype ty = bottom_data[5] - averages[5]; // translate param
     Dtype al = bottom_data[6] - averages[6]; // alpha - rotatio angle;
+
+    if( m_bias )
+    {
+      Dtype const * bias = this->blobs_[m_normalize_params?1:0]->cpu_data();
+      sx += bias[0];
+      sy += bias[1];
+      hx += bias[2];
+      hy += bias[3];
+      tx += bias[4];
+      ty += bias[5];
+      al += bias[6];
+    }
 
     Dtype ca = std::cos(al);
     Dtype sa = std::sin(al);
@@ -266,6 +310,17 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top,
     if( m_max_diff != 0 )
       for (int i = 0; i < 7; i++)
         bottom_diff[i] = std::max(-m_max_diff, std::min(m_max_diff, bottom_diff[i]));
+
+    // Bias - only on specific params
+    if( m_bias )
+    {
+      Dtype * bias_diff = this->blobs_[m_normalize_params?1:0]->mutable_cpu_diff();
+      bias_diff[0] += bottom_diff[0]; // sx
+      bias_diff[1] += bottom_diff[1]; // sy
+      bias_diff[4] += bottom_diff[4]; // tx
+//      bias_diff[5] += bottom_diff[5]; // ty
+    }
+
 
   }
 }

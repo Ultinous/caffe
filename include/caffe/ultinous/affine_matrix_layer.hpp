@@ -60,6 +60,8 @@ private:
   Dtype m_max_diff;
 
   bool m_normalize_params;
+  bool m_bias;
+
   Dtype m_moving_average_fraction;
   Dtype m_boundary_violation_step;
 

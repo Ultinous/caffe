@@ -47,7 +47,7 @@ public:
     if( m_phase != TRAIN ) return;
 
     // Apply affine transformation
-    cv::Mat cv_affine;
+    cv::Mat cv_affine = cv_img.clone();
     applyAffine( cv_img, cv_affine );
     cv_img = cv_affine;
 
@@ -244,7 +244,7 @@ private:
               + affine.at<float>(1,1)*(-centery)
               + centery + ty;
 
-    cv::warpAffine( src, dst, affine, src.size(), CV_INTER_CUBIC );
+    cv::warpAffine( src, dst, affine, src.size(), cv::INTER_CUBIC, cv::BORDER_TRANSPARENT);
   }
 
   uint32_t xorshf96(void) {          //period 2^96-1
