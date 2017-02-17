@@ -102,10 +102,10 @@ std::vector< std::vector< Dtype > > mkanchors(const std::vector<Dtype>& ws, cons
   
   for(size_t i=0; i < ws.size(); ++i)
   {
-    anchors.push_back( std::vector< Dtype >( { x_ctr - (Dtype)0.5 * (ws[i] - (Dtype)0.1),
-                                               y_ctr - (Dtype)0.5 * (hs[i] - (Dtype)0.1),
-                                               x_ctr + (Dtype)0.5 * (ws[i] - (Dtype)0.1),
-                                               y_ctr + (Dtype)0.5 * (hs[i] - (Dtype)0.1) } ) );
+    anchors.push_back( std::vector< Dtype >( { x_ctr - (Dtype)0.5 * (ws[i] - (Dtype)1),
+                                               y_ctr - (Dtype)0.5 * (hs[i] - (Dtype)1),
+                                               x_ctr + (Dtype)0.5 * (ws[i] - (Dtype)1),
+                                               y_ctr + (Dtype)0.5 * (hs[i] - (Dtype)1) } ) );
   }
   return anchors;
 }
