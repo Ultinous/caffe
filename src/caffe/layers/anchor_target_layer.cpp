@@ -10,19 +10,20 @@ template <typename Dtype>
 void AnchorTargetLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
 
-  CHECK( anchorTargetParam_.scales().size() > 0 );
-  CHECK( anchorTargetParam_.ratios().size() > 0 );
-
   float hard_negative_mining = anchorTargetParam_.hard_negative_mining();
   CHECK( hard_negative_mining <=1 && hard_negative_mining>=0 );
 
   std::vector<Dtype> anchor_scales; // TODO: = layer_params.get('scales', (8, 16, 32))
   for( auto s : anchorTargetParam_.scales() )
     anchor_scales.push_back( s );
-
+  if(!anchor_scales.size())
+    anchor_scales = std::vector<Dtype>({8,16,32});
+  
   std::vector<Dtype> anchor_ratios;
   for( auto r : anchorTargetParam_.ratios() )
     anchor_ratios.push_back( r );
+  if(!anchor_ratios.size())
+    anchor_ratios = std::vector<Dtype>({0.5,1.0,2.0});
   
   feat_stride_ = anchorTargetParam_.feat_stride();
   allowed_border_ = anchorTargetParam_.allowed_border();
@@ -161,10 +162,12 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   float RPN_FG_FRACTION = anchorTargetParam_.fg_fraction();
   int RPN_BATCHSIZE = anchorTargetParam_.batchsize();
 
-  CHECK( anchorTargetParam_.bbox_inside_weights().size() == 4 );
+  CHECK( anchorTargetParam_.bbox_inside_weights().size() == 4 || anchorTargetParam_.bbox_inside_weights().size() == 0 );
   std::vector<Dtype> RPN_BBOX_INSIDE_WEIGHTS;
   for( auto w : anchorTargetParam_.bbox_inside_weights() )
     RPN_BBOX_INSIDE_WEIGHTS.push_back( w );
+  if(anchorTargetParam_.bbox_inside_weights().size() == 0)
+    RPN_BBOX_INSIDE_WEIGHTS = std::vector<Dtype>(4,1.0);
 
   Dtype RPN_POSITIVE_WEIGHT = anchorTargetParam_.positive_weight();
 
