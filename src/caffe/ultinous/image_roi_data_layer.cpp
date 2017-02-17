@@ -88,6 +88,16 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
 
   cv::Mat cv_img = ReadImageToCVMat(root_folder + samples[0].image_file,
                                     new_height, new_width, is_color);
+
+  CHECK(this->layer_param_.image_roi_data_param().pad()>=1);
+  if(this->layer_param_.image_roi_data_param().pad()>1)
+  {
+    int pad_h = ( this->layer_param_.image_roi_data_param().pad() - ( cv_img.rows % this->layer_param_.image_roi_data_param().pad() ) ) % this->layer_param_.image_roi_data_param().pad();
+    int pad_w = ( this->layer_param_.image_roi_data_param().pad() - ( cv_img.cols % this->layer_param_.image_roi_data_param().pad() ) ) % this->layer_param_.image_roi_data_param().pad();
+    if( pad_h != 0 || pad_w != 0 )
+      cv::copyMakeBorder(cv_img, cv_img, 0, pad_h, 0, pad_w, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));
+  }
+
   CHECK(cv_img.data) << "Could not load " << samples[0].image_file;
   vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
   this->transformed_data_.Reshape(top_shape);
