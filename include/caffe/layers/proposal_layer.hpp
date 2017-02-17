@@ -36,28 +36,24 @@ protected:
   
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
-  
-  virtual inline std::vector<std::size_t> cpu_base_nms(
-      const std::vector<std::size_t>& index_vec);
-  
-  inline void bbox_transform_inv();
-  inline void clip_boxes(const double& img_w, const double& img_h);
+
 protected:
   int m_feat_stride;
   int m_num_anchors;
   
-  std::size_t m_pre_nms_topN;  
-  std::size_t m_post_nms_topN; 
-  Dtype m_nms_thresh;    
-  Dtype m_min_size;      
-  
-  Blob<Dtype> m_anchors;
-  Blob<Dtype> m_proposals;
-  
-  Blob<int> m_iou;
-  Blob<int> m_reduce;
-  Blob<Dtype> m_base_anchors;
+  int m_pre_nms_topN;
+  int m_post_nms_topN;
+  Dtype m_nms_thresh;
 
+  bool m_rem_outhanging;
+  Dtype m_cut_threshold;
+
+  Dtype m_min_size;
+  Dtype m_max_size;
+
+
+  Blob<Dtype> m_proposals;
+  Blob<Dtype> m_base_anchors;
   Blob<Dtype> m_scores;
   Blob<int> m_indexes;
 };

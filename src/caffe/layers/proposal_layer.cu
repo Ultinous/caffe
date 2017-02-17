@@ -1,298 +1,205 @@
 #include <thrust/sort.h>
+#include <thrust/count.h>
 #include <thrust/device_ptr.h>
+#include <stdio.h>
 
 #include "caffe/layers/proposal_layer.hpp"
-#include <stdio.h>
-namespace caffe
-{ 
+#include "caffe/util/nms.hpp"
 
-  
-template<typename T, typename Dtype>
-struct TLess : public thrust::binary_function<T,T,bool>
+
+namespace caffe
 {
-  __host__ __device__ bool operator()(const T &a, const T &b) const {
-     return m_values[a]>=m_values[b];
+
+template<typename  Dtype>
+struct TGreaterC
+{
+  __device__ bool operator()(const Dtype &a) const {
+    return a > c;
+  }
+  Dtype c;
+};
+
+template<typename T, typename Dtype>
+struct TGreater : public thrust::binary_function<T,T,bool>
+{
+  __device__ bool operator()(const T &a, const T &b) const {
+    return m_values[a]>=m_values[b];
   }
   thrust::device_ptr<Dtype> m_values;
-};   
-  
-  
-__device__ int bottom_offset(const int n, const int c,  const int h, const int w,
-                                   const int channels, const int height, const int width)
+};
+
+__device__
+inline int bottom_offset(const int n, const int c,  const int h, const int w,
+                             const int channels, const int height, const int width)
 {
   return ((n * channels + c) * height + h) * width + w;
 }
 
 template <typename Dtype>
-__host__ __device__ Dtype IOU(const Dtype x1_i, const Dtype y1_i, const Dtype x2_i, const Dtype y2_i, 
-                     const Dtype x1_j, const Dtype y1_j, const Dtype x2_j, const Dtype y2_j )
+__global__ void proposal_kernel (const int n_threads, const int feat_stride, const int base_anchor_num, const int blob_h, const int blob_w,
+                                 const Dtype img_width, const Dtype img_height, const Dtype min_height, const Dtype max_height,
+                                 const Dtype* base_anchors, const Dtype* bottom_0, const Dtype* bottom_1,
+                                 int* indexes, Dtype* proposals, Dtype* scores )
 {
-    Dtype area_j = (x2_j-x1_j+1) * (y2_j-y1_j+1);
-
-    Dtype area_i = (x2_i-x1_i+1) * (y2_i-y1_i+1);
-
-    Dtype  x1_inter = max(x1_j, x1_i);
-    Dtype  y1_inter = max(y1_j, y1_i);
-    Dtype  x2_inter = min(x2_j, x2_i);
-    Dtype  y2_inter = min(y2_j, y2_i);
-    Dtype inter = max(0.0, x2_inter - x1_inter + 1) * max(0.0, y2_inter - y1_inter + 1);
-    
-    return inter / (area_i + area_j - inter);
-}
-
-template <typename Dtype>
-__global__ void create_full_anchors(const int nthreads,
-                                    const Dtype* base_anchors, const int num_anchors, const int width, const int feat_stride,
-                                    Dtype* anchors)
-{
-  CUDA_KERNEL_LOOP(index, nthreads)
+  CUDA_KERNEL_LOOP(index, n_threads)
   {
-    int j = index%num_anchors;
-    int i = index/num_anchors;
-    
-    anchors[index*4] = base_anchors[j*4+0]+(i%width)*feat_stride;
-    anchors[index*4+1] = base_anchors[j*4+1]+(i/width)*feat_stride;
-    anchors[index*4+2] = base_anchors[j*4+2]+(i%width)*feat_stride;
-    anchors[index*4+3] = base_anchors[j*4+3]+(i/width)*feat_stride;
-  }
-}
+    int ba_ind = index % base_anchor_num;
+    int w_ind = (index / base_anchor_num) % blob_w;
+    int h_ind = (index / base_anchor_num) / blob_w;
 
-template <typename Dtype>
-__global__ void create_full_proposals(const int nthreads, 
-                                      const Dtype* const bottom_data_1 ,const int channels_1, const int height_1, const int width_1 ,
-                                      const Dtype* const bottom_data_0, const int channels_0, const int height_0, const int width_0 ,
-                                      Dtype* proposals, const Dtype* anchors, Dtype* scores, int* indexes,
-                                      const Dtype* const im_info, const int num_anchors , const int min_size)
-{
-  CUDA_KERNEL_LOOP(index, nthreads)
-  {
-    Dtype img_w = im_info[1];
-    Dtype img_h = im_info[0];
-    Dtype minimal_size = ((Dtype)min_size) * im_info[2];
-    
-    int ch_0 = index % (channels_0-num_anchors) ;
-    int w_0 = (index / (channels_0-num_anchors)) % width_0;
-    int h_0 = (index / (channels_0-num_anchors)) / width_0;
-    
-    int ch_1 = index % (channels_1/4);
-    int w_1 = (index / (channels_1/4)) % width_1;
-    int h_1 = (index / (channels_1/4)) / width_1;
+    Dtype prop_x1 = base_anchors[ba_ind*4+0] + w_ind * feat_stride;
+    Dtype prop_y1 = base_anchors[ba_ind*4+1] + h_ind * feat_stride;
+    Dtype prop_x2 = base_anchors[ba_ind*4+2] + w_ind * feat_stride;
+    Dtype prop_y2 = base_anchors[ba_ind*4+3] + h_ind * feat_stride;
 
-    
-    Dtype width = anchors[index*4+2] - anchors[index*4] + (Dtype)1;
-    Dtype height = anchors[index*4+3] - anchors[index*4+1] + (Dtype)1;
-    Dtype ctr_x = anchors[index*4] + (Dtype)0.5 * width;
-    Dtype ctr_y = anchors[index*4+1] + (Dtype)0.5 * height;
-            
-    Dtype pred_ctr_x = bottom_data_1[bottom_offset(0,ch_1*4, h_1, w_1, channels_1, height_1, width_1)] * width + ctr_x;
-    Dtype pred_ctr_y = bottom_data_1[bottom_offset(0,ch_1*4+1, h_1, w_1, channels_1, height_1, width_1)]* height + ctr_y;
-    Dtype pred_w = exp( bottom_data_1[bottom_offset(0,ch_1*4+2, h_1, w_1, channels_1, height_1, width_1)] ) * width;
-    Dtype pred_h = exp( bottom_data_1[bottom_offset(0,ch_1*4+3, h_1, w_1, channels_1, height_1, width_1)] ) * height;
-    
-    proposals[index*4] = max(min(pred_ctr_x - (Dtype)0.5 * pred_w, img_w-(Dtype)1),(Dtype)0.0); 
-    proposals[index*4+1] = max(min(pred_ctr_y - (Dtype)0.5 * pred_h, img_h-(Dtype)1),(Dtype)0.0); 
-    proposals[index*4+2] = max(min(pred_ctr_x + (Dtype)0.5 * pred_w,img_w-(Dtype)1),(Dtype)0.0);
-    proposals[index*4+3] = max(min( pred_ctr_y + (Dtype)0.5 * pred_h,img_h-(Dtype)1),(Dtype)0.0);
-    
+    Dtype prop_w = prop_x2 - prop_x1 + (Dtype)1;
+    Dtype prop_h = prop_y2 - prop_y1 + (Dtype)1;
+    Dtype prop_ctr_x = prop_x1 + (Dtype)0.5 * prop_w;
+    Dtype prop_ctr_y = prop_y1 + (Dtype)0.5 * prop_h;
+
+    Dtype pred_ctr_x = bottom_1[bottom_offset(0,ba_ind*4, h_ind, w_ind, base_anchor_num*4, blob_h, blob_w)] * prop_w + prop_ctr_x;
+    Dtype pred_ctr_y = bottom_1[bottom_offset(0,ba_ind*4+1, h_ind, w_ind, base_anchor_num*4, blob_h, blob_w)]* prop_h + prop_ctr_y;
+    Dtype pred_w = exp( bottom_1[bottom_offset(0,ba_ind*4+2, h_ind, w_ind, base_anchor_num*4, blob_h, blob_w)] ) * prop_w;
+    Dtype pred_h = exp( bottom_1[bottom_offset(0,ba_ind*4+3, h_ind, w_ind, base_anchor_num*4, blob_h, blob_w)] ) * prop_h;
+
+    bool is_pred_in_range = min_height < pred_h && pred_h <= max_height;
+
+    proposals[index*4] = pred_ctr_x - (Dtype)0.5 * pred_w;
+    proposals[index*4+1] = pred_ctr_y - (Dtype)0.5 * pred_h;
+    proposals[index*4+2] = pred_ctr_x + (Dtype)0.5 * pred_w;
+    proposals[index*4+3] = pred_ctr_y + (Dtype)0.5 * pred_h;
+
+    bool is_pred_on_picture = proposals[index*4+2]<img_width && proposals[index*4]>0 && proposals[index*4+3]<img_height && proposals[index*4+1]>0;
+
     indexes[index] = index;
-    scores[index] = 
-      (proposals[index*4+2]-proposals[index*4]+(Dtype)1)>=minimal_size && (proposals[index*4+3]-proposals[index*4+1]+(Dtype)1)>=minimal_size ?
-    bottom_data_0[bottom_offset(0,ch_0+num_anchors, h_0, w_0, channels_0, height_0, width_0 )] : -1;
-    
+    scores[index] = is_pred_in_range && is_pred_on_picture ?
+                    bottom_0[bottom_offset(0,base_anchor_num+ ba_ind, h_ind, w_ind, base_anchor_num*2, blob_h, blob_w )] : (Dtype) 0;
   }
+
 }
 
-// template <typename Dtype>
-// __global__ void nms_map_kernel(const int indexes_count, const int* indexes, const Dtype* proposals,const Dtype* scores, const Dtype threshold, int* map)
-// {
-//  
-//   int i = (blockIdx.x * blockDim.x) + threadIdx.x;
-//   int j = (blockIdx.y * blockDim.y) + threadIdx.y;
-//   
-// 
-//   if ( i < indexes_count && j < indexes_count){
-//       int i_ind = indexes[i];
-//       int j_ind = indexes[j];
-//       //map[i*indexes_count + j]=false;
-//       if(scores[i_ind]<scores[j_ind])
-//       {
-//         
-//         Dtype iou = IOU<Dtype>(proposals[i_ind*4],proposals[i_ind*4+1],proposals[i_ind*4+2],proposals[i_ind*4+3],
-//                                proposals[j_ind*4],proposals[j_ind*4+1],proposals[j_ind*4+2],proposals[j_ind*4+3]);
-//         if(iou>=threshold)
-//         {
-//           map[i*indexes_count + j]= 1;
-//         }
-//       }
-//   }
-// }
-// 
-// template <typename Dtype>
-// __global__ void nms_reduce_kernel(const int indexes_count, const int* indexes, const int* map, int* reduction, Dtype* scores)
-// {
-//   int i = blockIdx.x;
-//   int j = i * indexes_count + threadIdx.x;
-//   int n = blockDim.x;
-//   
-//   reduction[i] =__syncthreads_or(map[ j < ( (i+1) * indexes_count ) ? j : ( (i+1) * indexes_count - 1 )]);
-//   
-//   for(int t = 1; t <= indexes_count / n + 1; ++t )
-//   {
-//     j = j + n;
-//     reduction[i] = __syncthreads_or(reduction[i] || map[j < ( (i+1) * indexes_count ) ? j : ( (i+1) * indexes_count - 1 )]);
-//   }
-//   __syncthreads();
-//   if(threadIdx.x==0)
-//   {
-//     scores[indexes[i]]= reduction[i] ? -1.0 : scores[indexes[i]]; 
-//   }
-// }
-
 template <typename Dtype>
-__global__ void nms_reduce_kernel_imp(const int indexes_count, const int* indexes, const Dtype* proposals, Dtype* scores, int* reduction, const Dtype threshold)
+__global__ void rawcopy_proposals_kernel(const int n_threads, const int* indexes, const Dtype* proposals, Dtype* top_0 )
 {
-  int i = blockIdx.x;
-  int j = threadIdx.x;
-  int n = blockDim.x;
-  
-  int i_ind = indexes[i];
-  int j_ind = indexes[j <  indexes_count ? j : indexes_count-1];
-
-  reduction[i]=__syncthreads_or( scores[i_ind]<scores[j_ind] && 
-                                 IOU<Dtype>(proposals[i_ind*4],proposals[i_ind*4+1],proposals[i_ind*4+2],proposals[i_ind*4+3],
-                                 proposals[j_ind*4],proposals[j_ind*4+1],proposals[j_ind*4+2],proposals[j_ind*4+3]) >= threshold );
-  
-  for(int t=1; t<=indexes_count/n+2; ++t )
-  {
-    j= j+ n;
-    j_ind = indexes[j < indexes_count ? j : indexes_count-1];
-     
-    reduction[i]=__syncthreads_or(reduction[i] || (scores[i_ind]<scores[j_ind] && 
-                                 IOU<Dtype>(proposals[i_ind*4],proposals[i_ind*4+1],proposals[i_ind*4+2],proposals[i_ind*4+3],
-                                 proposals[j_ind*4],proposals[j_ind*4+1],proposals[j_ind*4+2],proposals[j_ind*4+3]) >= threshold));
-  }
-  __syncthreads();
-  if(threadIdx.x==0)
-  {
-    scores[indexes[i]]= reduction[i] ? -1.0 : scores[indexes[i]]; 
-  }
-}
-
-
-template <typename Dtype>
-__global__ void data_to_top(const int nthreads, const int* indexes, const Dtype* proposals, Dtype* top_data)
-{
-  CUDA_KERNEL_LOOP(index, nthreads)
+  CUDA_KERNEL_LOOP(index, n_threads)
   {
     int ind = indexes[index];
-    top_data[index*5]=0;
-    top_data[index*5+1] = proposals[ind*4];
-    top_data[index*5+2] = proposals[ind*4+1];
-    top_data[index*5+3] = proposals[ind*4+2];
-    top_data[index*5+4] = proposals[ind*4+3];
+    top_0[index*5] = 0;
+    top_0[index*5+1] = proposals[ind*4];
+    top_0[index*5+2] = proposals[ind*4+1];
+    top_0[index*5+3] = proposals[ind*4+2];
+    top_0[index*5+4] = proposals[ind*4+3];
+
   }
 }
 
 template <typename Dtype>
-void nms_cpu_ref(const int indexes_count, const int* indexes, Dtype* scores, Dtype* proposals ,const Dtype threshold)
+__global__ void rawcopy_kernel(const int n_threads, const int* indexes, const Dtype* proposals , const Dtype* scores, Dtype* top_0, Dtype* top_1 )
 {
-  std::vector<bool> supressed(indexes_count, false);
-  for(int i=0; i<indexes_count; ++i)
+  CUDA_KERNEL_LOOP(index, n_threads)
   {
-      if(supressed[i]) continue;
-      for(int j = i+1; j<indexes_count; ++j)
-      {
-          if(supressed[j])continue;
-          int i_ind=indexes[i];
-          int j_ind=indexes[j];
-          
-          
-          Dtype overlap = IOU<Dtype>(proposals[i_ind*4],proposals[i_ind*4+1],proposals[i_ind*4+2],proposals[i_ind*4+3],
-                              proposals[j_ind*4],proposals[j_ind*4+1],proposals[j_ind*4+2],proposals[j_ind*4+3]);
-          supressed[j]= overlap>=threshold;
-      }
+    int ind = indexes[index];
+    top_0[index*5] = 0;
+    top_0[index*5+1] = proposals[ind*4];
+    top_0[index*5+2] = proposals[ind*4+1];
+    top_0[index*5+3] = proposals[ind*4+2];
+    top_0[index*5+4] = proposals[ind*4+3];
+    top_1[index] = scores[ind];
   }
-  for(int i=0; i<indexes_count; ++i)
-  {
-    scores[indexes[i]]= supressed[i] ? -1.0 : scores[indexes[i]];
-  }
-  
 }
-  
+
+
 template <typename Dtype>
 void ProposalLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top)
 {
-  if(bottom.size()==4)
-  {
-    m_pre_nms_topN = bottom[3]->cpu_data()[bottom[3]->offset(0,0)];
-    m_post_nms_topN = bottom[3]->cpu_data()[bottom[3]->offset(0,1)];
-    m_nms_thresh =bottom[3]->cpu_data()[bottom[3]->offset(0,2)];
-    m_min_size = bottom[3]->cpu_data()[bottom[3]->offset(0,3)];
-  }
-  
-  int count = m_anchors.count()/4;
-  
-  create_full_anchors<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
-    m_base_anchors.gpu_data(), m_num_anchors, bottom[0]->shape(3), m_feat_stride,
-    m_anchors.mutable_gpu_data());
 
-  const Dtype* bottom_1 = bottom[1]->gpu_data();
+  if(bottom.size() == 4)
+  {
+    m_cut_threshold = bottom[3]->cpu_data()[0];
+    m_min_size = bottom[3]->cpu_data()[1];
+    m_max_size = bottom[3]->cpu_data()[2];
+  }
+
+  int count = m_proposals.count()/4; //contains the number of proposals
+
   const Dtype* bottom_0 = bottom[0]->gpu_data();
-  
-  Dtype* proposals = m_proposals.mutable_gpu_data(); 
+  const Dtype* bottom_1 = bottom[1]->gpu_data();
+  const Dtype* base_anchors =  m_base_anchors.gpu_data();
+
+  const Dtype img_width =  bottom[2]->cpu_data()[1];
+  const Dtype img_height =  bottom[2]->cpu_data()[0];
+
+
+  Dtype* proposals = m_proposals.mutable_gpu_data();
   Dtype* scores = m_scores.mutable_gpu_data();
-  Dtype* anchors = m_anchors.mutable_gpu_data();
   int* indexes = m_indexes.mutable_gpu_data();
-  int* ioumat = m_iou.mutable_gpu_data();
-  
-  
-  create_full_proposals<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
-    bottom_1, bottom[1]->shape(1), bottom[1]->shape(2), bottom[1]->shape(3),
-    bottom_0, bottom[0]->shape(1), bottom[0]->shape(2), bottom[0]->shape(3),
-    proposals, anchors, scores, indexes,
-    bottom[2]->gpu_data(), m_num_anchors, m_min_size);
+
+  //Create all proposal in a kernel
+  proposal_kernel<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
+  m_feat_stride, m_base_anchors.shape(0), bottom[0]->shape(2),bottom[0]->shape(3),
+  img_width, img_height, m_min_size, m_max_size,
+  base_anchors, bottom_0, bottom_1, indexes, proposals, scores );
   CUDA_POST_KERNEL_CHECK;
 
-  
-  {
-    thrust::device_ptr<Dtype> t_scores(scores);
-    thrust::device_ptr<int> t_indexes(indexes);
-    TLess<int,Dtype> less;
-    less.m_values=t_scores;
-
-    thrust::stable_sort(t_indexes,t_indexes+count,less); 
-  }
-  
-  
-  int pre_nms_topN = std::min<int>(m_pre_nms_topN, count);
-    
-  
-//  nms_cpu_ref<Dtype>(pre_nms_topN, m_indexes.cpu_data(), m_scores.mutable_cpu_data(), m_proposals.mutable_cpu_data(), m_nms_thresh);
-
-   
-    nms_reduce_kernel_imp<Dtype><<<pre_nms_topN,CAFFE_CUDA_NUM_THREADS>>>(pre_nms_topN,indexes,proposals, scores, m_reduce.mutable_gpu_data(), m_nms_thresh);
-  
+  //Sort only indexes by the scores
   {
     thrust::device_ptr<Dtype> t_scores(m_scores.mutable_gpu_data());
     thrust::device_ptr<int> t_indexes(m_indexes.mutable_gpu_data());
-    TLess<int,Dtype> less;
-    less.m_values=t_scores;
+    TGreater<int,Dtype> greater;
+    greater.m_values=t_scores;
+    thrust::stable_sort(t_indexes,t_indexes+count,greater);
 
-    thrust::stable_sort(t_indexes,t_indexes+pre_nms_topN,less); 
+    if(m_cut_threshold > 0)
+    {
+      TGreaterC<Dtype> greaterc;
+      greaterc.c = m_cut_threshold;
+      int temp = thrust::count_if(t_scores, t_scores + count, greaterc);
+      count = std::min(count, temp);
+    }
+  }
+  //If cut pre nms cut parameter is exists then  cut
+  if(m_pre_nms_topN > 0)
+    count = std::min(count, m_pre_nms_topN);
+
+  count  = nms_gpu<Dtype>(count, indexes, scores, proposals, m_nms_thresh);
+
+  if (m_post_nms_topN > 0)
+    count = std::min(count,m_post_nms_topN);
+
+  std::vector<int> shape(2,0);
+  shape[0]=count;
+  shape[1]=5;
+  top[0]->Reshape(shape);
+  if(top.size()==2)
+  {
+    shape[1]=1;
+    top[1]->Reshape(shape);
   }
 
-  data_to_top<Dtype><<<CAFFE_GET_BLOCKS(m_post_nms_topN), CAFFE_CUDA_NUM_THREADS>>>(m_post_nms_topN, indexes, proposals, top[0]->mutable_gpu_data() );
-  CUDA_POST_KERNEL_CHECK;
-
+  if(count!=0)
+  {
+    if(top.size()==1)
+    {
+      rawcopy_proposals_kernel<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
+            indexes, proposals, top[0]->mutable_gpu_data());
+    }
+    else
+    {
+      rawcopy_kernel<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
+            indexes, proposals, scores, top[0]->mutable_gpu_data(), top[1]->mutable_gpu_data());
+    }
+    CUDA_POST_KERNEL_CHECK;
+  }
 }
-
 
 template <typename Dtype>
 void ProposalLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom)
+const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom)
 {
-   return;
+
+/*This layer not making backward computation*/
+return;
 }
 
 INSTANTIATE_LAYER_GPU_FUNCS(ProposalLayer);
