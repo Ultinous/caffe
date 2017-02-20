@@ -418,6 +418,7 @@ message LayerParameter {
   optional AffineMatrixParameter affine_matrix_param = 5008;
   optional ImwriteParameter imwrite_param = 5009;
   optional DataAugmentParameter data_augment_param = 5010;
+  optional ProjectiveTransformerParameter proj_trans_param = 5011;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1612,4 +1613,10 @@ message DataAugmentParameter {
    optional uint32 num_occlusions = 1 [default = 0];
    optional double min_occlusion_radius = 2 [default = 0];
    optional double max_occlusion_radius = 3 [default = 0];
+}
+
+message ProjectiveTransformerParameter {
+	// If not set,stay same with the input dimension H and W
+	optional int32 output_H = 3;
+	optional int32 output_W = 4;
 }
