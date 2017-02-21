@@ -32,7 +32,7 @@ void ProjectiveTransformerLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& b
 
 
 	// check the validation for the parameter theta
-	CHECK(bottom[1]->count(1)  == 8) << "Theta dimension does not match" << std::endl;
+	CHECK(bottom[1]->count(1)  == 9) << "Theta dimension does not match" << std::endl;
 	CHECK(bottom[1]->shape(0) == bottom[0]->shape(0)) << "The first dimension of theta and bottom[0] should be the same" << std::endl;
 
 	// initialize the matrix for output grid
@@ -82,7 +82,7 @@ void ProjectiveTransformerLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bott
 	vector<int> dTheta_tmp_shape(4);
 
 	dTheta_tmp_shape[0] = N;
-	dTheta_tmp_shape[1] = 8;
+	dTheta_tmp_shape[1] = 9;
 	dTheta_tmp_shape[2] = 1;
 	dTheta_tmp_shape[3] = output_H_ * output_W_ * C;
 

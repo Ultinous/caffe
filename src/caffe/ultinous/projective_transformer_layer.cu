@@ -88,7 +88,6 @@ void ProjectiveTransformerLayer<Dtype>::Forward_gpu(
 	const Dtype* theta = bottom[1]->gpu_data();
 	const Dtype* output_grid_data = output_grid.gpu_data();
 
-	Dtype* full_theta_data = full_theta.mutable_gpu_data();
 	Dtype* input_grid_data = input_grid.mutable_gpu_data();
 	Dtype* V = top[0]->mutable_gpu_data();
 
@@ -97,19 +96,13 @@ void ProjectiveTransformerLayer<Dtype>::Forward_gpu(
 	caffe_gpu_set(top[0]->count(), (Dtype)0, V);
 
 
-// compute full_theta
-  caffe_gpu_set(full_theta.count(), (Dtype)1., full_theta_data);
-	const int num_threads = N;
-	for(int i=0; i<8; ++i) {
-    copy_values<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(num_threads,
-      8, i, theta, 9, i, full_theta_data);
-	}
+
 
 
 // compute out input_grid_data
 	for(int i = 0; i < N; ++i) {
 		caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans, output_H_ * output_W_, 3, 3, (Dtype)1.,
-				output_grid_data, full_theta_data + 9 * i, (Dtype)0.,
+				output_grid_data, theta + 9 * i, (Dtype)0.,
 				input_grid_data + (output_H_ * output_W_ * 3) * i);
 	}
 
@@ -134,9 +127,9 @@ __global__ void ProjectiveTransformerBackwardGPU_dTheta(const int nthreads, int 
 		const int j = (index / (output_W_ * output_H_)) % C;
 		const int i = index / (output_W_ * output_H_ * C);
 
-    Dtype t11=theta[8*i], t12=theta[8*i+1], t13=theta[8*i+2];
-    Dtype t21=theta[8*i+3], t22=theta[8*i+4], t23=theta[8*i+5];
-    Dtype t31=theta[8*i+6], t32=theta[8*i+7];
+    Dtype t11=theta[9*i], t12=theta[9*i+1], t13=theta[9*i+2];
+    Dtype t21=theta[9*i+3], t22=theta[9*i+4], t23=theta[9*i+5];
+    Dtype t31=theta[9*i+6], t32=theta[9*i+7], t33=theta[9*i+8];
 
 		const Dtype* coordinates = input_grid_data + (output_H_ * output_W_ * 3) * i;
 
@@ -195,21 +188,24 @@ __global__ void ProjectiveTransformerBackwardGPU_dTheta(const int nthreads, int 
 
     Dtype nomX = t11*outX + t12*outY + t13;
     Dtype nomY = t21*outX + t22*outY + t23;
-    Dtype denom = t31*outX + t32*outY + 1;
+    Dtype denom = t31*outX + t32*outY + t33;
     Dtype denom2 = denom*denom;
 
-		dTheta_tmp_diff[(8 * i) * (output_H_ * output_W_ * C) + idx] += delta_dpx * outX/denom;
-		dTheta_tmp_diff[(8 * i + 1) * (output_H_ * output_W_ * C) + idx] += delta_dpx * outY/denom;
-		dTheta_tmp_diff[(8 * i + 2) * (output_H_ * output_W_ * C) + idx] += delta_dpx/denom;
-		dTheta_tmp_diff[(8 * i + 3) * (output_H_ * output_W_ * C) + idx] += delta_dpy * outX/denom;
-		dTheta_tmp_diff[(8 * i + 4) * (output_H_ * output_W_ * C) + idx] += delta_dpy * outY/denom;
-    dTheta_tmp_diff[(8 * i + 5) * (output_H_ * output_W_ * C) + idx] += delta_dpy/denom;
+		dTheta_tmp_diff[(9 * i) * (output_H_ * output_W_ * C) + idx] += delta_dpx * outX/denom;
+		dTheta_tmp_diff[(9 * i + 1) * (output_H_ * output_W_ * C) + idx] += delta_dpx * outY/denom;
+		dTheta_tmp_diff[(9 * i + 2) * (output_H_ * output_W_ * C) + idx] += delta_dpx/denom;
+		dTheta_tmp_diff[(9 * i + 3) * (output_H_ * output_W_ * C) + idx] += delta_dpy * outX/denom;
+		dTheta_tmp_diff[(9 * i + 4) * (output_H_ * output_W_ * C) + idx] += delta_dpy * outY/denom;
+    dTheta_tmp_diff[(9 * i + 5) * (output_H_ * output_W_ * C) + idx] += delta_dpy/denom;
 
-    dTheta_tmp_diff[(8 * i + 6) * (output_H_ * output_W_ * C) + idx] += delta_dpx * ( nomX*(-1)*(1.0/denom2)*outX );
-    dTheta_tmp_diff[(8 * i + 6) * (output_H_ * output_W_ * C) + idx] += delta_dpy * ( nomY*(-1)*(1.0/denom2)*outX );
+    dTheta_tmp_diff[(9 * i + 6) * (output_H_ * output_W_ * C) + idx] += delta_dpx * ( nomX*(-1)*(1.0/denom2)*outX );
+    dTheta_tmp_diff[(9 * i + 6) * (output_H_ * output_W_ * C) + idx] += delta_dpy * ( nomY*(-1)*(1.0/denom2)*outX );
 
-    dTheta_tmp_diff[(8 * i + 7) * (output_H_ * output_W_ * C) + idx] += delta_dpx * ( nomX*(-1)*(1.0/denom2)*outY );
-    dTheta_tmp_diff[(8 * i + 7) * (output_H_ * output_W_ * C) + idx] += delta_dpy * ( nomY*(-1)*(1.0/denom2)*outY );
+		dTheta_tmp_diff[(9 * i + 7) * (output_H_ * output_W_ * C) + idx] += delta_dpx * ( nomX*(-1)*(1.0/denom2)*outY );
+		dTheta_tmp_diff[(9 * i + 7) * (output_H_ * output_W_ * C) + idx] += delta_dpy * ( nomY*(-1)*(1.0/denom2)*outY );
+
+		dTheta_tmp_diff[(9 * i + 8) * (output_H_ * output_W_ * C) + idx] += delta_dpx * ( nomX*(-1)*(1.0/denom2) );
+		dTheta_tmp_diff[(9 * i + 8) * (output_H_ * output_W_ * C) + idx] += delta_dpy * ( nomY*(-1)*(1.0/denom2) );
 	}
 }
 
@@ -243,7 +239,7 @@ void ProjectiveTransformerLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>&
 	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, bottom[1]->count(), 1, output_H_ * output_W_ * C,
 			(Dtype)1., dTheta_tmp_diff, all_ones_2_data, (Dtype)0., dTheta);
 
-	/*const Dtype* db_dFull_theta = full_theta.cpu_diff();
+	/*const Dtype* db_dfull_theta = full_theta.cpu_diff();
 	for(int i=0; i<full_theta.count(); ++i) {
 		std::cout << db_dFull_theta[i] << " ";
 	}
