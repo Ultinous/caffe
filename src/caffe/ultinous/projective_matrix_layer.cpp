@@ -26,6 +26,7 @@ void ProjectiveMatrixLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype> *> &botto
 
   m_base_scale = this->layer_param_.proj_matrix_param().base_scale();
   m_base_f = this->layer_param_.proj_matrix_param().base_f();
+  m_base_tz = this->layer_param_.proj_matrix_param().base_tz();
 
   m_min_scale = this->layer_param_.proj_matrix_param().min_scale();
   m_max_scale = this->layer_param_.proj_matrix_param().max_scale();
@@ -107,7 +108,7 @@ void ProjectiveMatrixLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bott
     Dtype gamma = bottom_data[4];
     Dtype U = bottom_data[5];
     Dtype V = bottom_data[6];
-    Dtype W = bottom_data[7];
+    Dtype W = m_base_tz + bottom_data[7];
 
 /**
   Original matrix:
@@ -146,9 +147,9 @@ void ProjectiveMatrixLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bott
     top_data[4] = (cos(gamma)*cos(alpha)+sin(gamma)*sin(beta)*sin(alpha))*S*f;
     top_data[5] = V*f;
 
-    top_data[6] = sin(beta)*S;
-    top_data[7] = -cos(beta)*sin(alpha)*S;
-    top_data[8] = f-W;
+    top_data[6] = -sin(beta)*S;
+    top_data[7] = cos(beta)*sin(alpha)*S;
+    top_data[8] = W+f;
   }
 
 }
@@ -173,7 +174,7 @@ void ProjectiveMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top
     Dtype gamma = bottom_data[4];
     Dtype U = bottom_data[5];
     Dtype V = bottom_data[6];
-    Dtype W = bottom_data[7];
+    Dtype W = m_base_tz + bottom_data[7];
 
 
     if (m_bias)
@@ -202,8 +203,8 @@ void ProjectiveMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top
                        +top_diff[1] * ( (-sin(gamma)*cos(alpha)+cos(gamma)*sin(beta)*sin(alpha))*f)
                        +top_diff[3] * ( sin(gamma)*cos(beta)*f )
                        +top_diff[4] * (  (cos(gamma)*cos(alpha)+sin(gamma)*sin(beta)*sin(alpha))*f )
-                       +top_diff[6] * ( sin(beta) )
-                       +top_diff[7] * ( -cos(beta)*sin(alpha) );
+                       +top_diff[6] * ( -sin(beta) )
+                       +top_diff[7] * ( cos(beta)*sin(alpha) );
 
 
 
@@ -228,7 +229,7 @@ void ProjectiveMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top
     else
       bottom_diff[2] = top_diff[1] * ( (-sin(gamma)*-sin(alpha)+cos(gamma)*sin(beta)*cos(alpha))*S*f )
                       + top_diff[4] * ((cos(gamma)*-sin(alpha)+sin(gamma)*sin(beta)*cos(alpha))*S*f)
-                      + top_diff[7] * (-cos(beta)*cos(alpha)*S);
+                      + top_diff[7] * (cos(beta)*cos(alpha)*S);
 
 
     if (beta < m_min_beta)
@@ -240,8 +241,8 @@ void ProjectiveMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top
                   + top_diff[1] * ( (-sin(gamma)*cos(alpha)+cos(gamma)*cos(beta)*sin(alpha))*S*f)
               + top_diff[3] * (sin(gamma)*-sin(beta)*S*f)
             + top_diff[4] * ( (cos(gamma)*cos(alpha)+sin(gamma)*cos(beta)*sin(alpha))*S*f)
-            + top_diff[6] * (cos(beta)*S)
-            + top_diff[7] * (sin(beta)*sin(alpha)*S);
+            + top_diff[6] * (-cos(beta)*S)
+            + top_diff[7] * (-sin(beta)*sin(alpha)*S);
 
     if (gamma < m_min_gamma)
       bottom_diff[4] = (gamma - m_min_gamma) * m_boundary_violation_step;
@@ -272,7 +273,7 @@ void ProjectiveMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top
     else if (W > m_max_tz)
       bottom_diff[7] = (W - m_max_tz) * m_boundary_violation_step;
     else
-      bottom_diff[7] = top_diff[8] * (-1);
+      bottom_diff[7] = top_diff[8] * (1);
 
 
 
@@ -286,9 +287,9 @@ void ProjectiveMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top
     {
       Dtype *bias_diff = this->blobs_[0]->mutable_cpu_diff();
       bias_diff[0] += bottom_diff[0]; // scale
-      bias_diff[1] += bottom_diff[1]; // f
+      //bias_diff[1] += bottom_diff[1]; // f
       bias_diff[5] += bottom_diff[5]; // // U
-      bias_diff[7] += bottom_diff[7]; // // W
+      //bias_diff[7] += bottom_diff[7]; // // W
     }
 
 

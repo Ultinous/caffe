@@ -1625,29 +1625,30 @@ message ProjectiveTransformerParameter {
 message ProjectiveMatrixParameter {
     optional double base_scale = 1 [default = 1];
     optional double base_f = 2 [default = 1];
+    optional double base_tz = 3 [default = 1];
 
-    optional double min_scale = 3 [default = 0.4];
-    optional double max_scale = 4 [default = 2.5];
+    optional double min_scale = 4 [default = 0.4];
+    optional double max_scale = 5 [default = 2.5];
 
-    optional double min_alpha = 5 [default = -1.5708];
-    optional double max_alpha = 6 [default = 1.5708];
-    optional double min_beta = 7 [default = -1.5708];
-    optional double max_beta = 8 [default = 1.5708];
-    optional double min_gamma = 9 [default = -1.0472];
-    optional double max_gamma = 10 [default = 1.0472];
+    optional double min_alpha = 6 [default = -1.5708];
+    optional double max_alpha = 7 [default = 1.5708];
+    optional double min_beta = 8 [default = -1.5708];
+    optional double max_beta = 9 [default = 1.5708];
+    optional double min_gamma = 10 [default = -1.0472];
+    optional double max_gamma = 11 [default = 1.0472];
 
-    optional double min_f = 11 [default = 0.2];
-    optional double max_f = 12 [default = 3.0];
+    optional double min_f = 12 [default = 0.2];
+    optional double max_f = 13 [default = 3.0];
 
-    optional double min_tx = 13 [default = -0.8];
-    optional double max_tx = 14 [default = 0.8];
-    optional double min_ty = 15 [default = -0.8];
-    optional double max_ty = 16 [default = 0.8];
-    optional double min_tz = 17 [default = -2.0];
-    optional double max_tz = 18 [default = 2.0];
+    optional double min_tx = 14 [default = -0.8];
+    optional double max_tx = 15 [default = 0.8];
+    optional double min_ty = 16 [default = -0.8];
+    optional double max_ty = 17 [default = 0.8];
+    optional double min_tz = 18 [default = -2.0];
+    optional double max_tz = 19 [default = 2.0];
 
 
-    optional double max_diff = 19 [default = 0.0];
+    optional double max_diff = 20 [default = 0.0];
 
-    optional bool bias = 20 [default = true];
+    optional bool bias = 21 [default = true];
 }

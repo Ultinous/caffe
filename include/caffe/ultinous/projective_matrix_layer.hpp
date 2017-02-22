@@ -51,6 +51,7 @@ protected:
 private:
   Dtype m_base_scale;
   Dtype m_base_f;
+  Dtype m_base_tz;
 
   Dtype m_min_scale, m_max_scale, m_min_f, m_max_f;
   Dtype m_min_alpha, m_max_alpha, m_min_beta;
