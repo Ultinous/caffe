@@ -1620,6 +1620,7 @@ message ProjectiveTransformerParameter {
 	// If not set,stay same with the input dimension H and W
 	optional int32 output_H = 3;
 	optional int32 output_W = 4;
+	optional bool grid = 5 [default=false];
 }
 
 message ProjectiveMatrixParameter {

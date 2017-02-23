@@ -20,7 +20,7 @@ __global__ void copy_values(const int nthreads, int size_src, int k,
 template <typename Dtype>
 __global__ void ProjectiveTransformerForwardGPU(const int nthreads, int N, int C,
 		int output_H_, int output_W_, int H, int W,
-		const Dtype* input_grid_data, const Dtype* U, Dtype* V) {
+		const Dtype* input_grid_data, const Dtype* U, Dtype* V, bool grid) {
 	
 	CUDA_KERNEL_LOOP(index, nthreads) {
 
@@ -73,6 +73,9 @@ __global__ void ProjectiveTransformerForwardGPU(const int nthreads, int N, int C
 	  		w = (1 - (m - x)) * (1 - (n - y));
 	  		V[V_offset] += w * pic[m * W + n];
 	  	}
+	  	
+	  	if( grid && ( ((int(round(px*64))%7)==0) || ((int(round(py*64))%7)==0) ) )
+		  V[V_offset] = (Dtype)0.;
   }
 }
 
@@ -109,7 +112,7 @@ void ProjectiveTransformerLayer<Dtype>::Forward_gpu(
 	const int nthreads = N * C * output_H_ * output_W_;
 
 	ProjectiveTransformerForwardGPU<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-	      CAFFE_CUDA_NUM_THREADS>>>(nthreads, N, C, output_H_, output_W_, H, W, input_grid_data, U, V);
+	      CAFFE_CUDA_NUM_THREADS>>>(nthreads, N, C, output_H_, output_W_, H, W, input_grid_data, U, V, this->layer_param_.proj_trans_param().grid());
 }
 
 
