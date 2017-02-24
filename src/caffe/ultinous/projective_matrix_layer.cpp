@@ -292,7 +292,7 @@ void ProjectiveMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top
 
 
     if (m_max_diff != 0)
-      for (int i = 0; i < 8; i++)
+      for (int i = 0; i < 9; i++)
         bottom_diff[i] = std::max(-m_max_diff, std::min(m_max_diff, bottom_diff[i]));
 
     // Bias - only on specific params
