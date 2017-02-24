@@ -195,7 +195,7 @@ void ProjectiveMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top
       W += bias[8];
     }
 
-    Dtype *bottom_diff = bottom[0]->mutable_cpu_diff() + 8 * n;
+    Dtype *bottom_diff = bottom[0]->mutable_cpu_diff() + 9 * n;
     Dtype const *top_diff = top[0]->cpu_diff() + 9 * n;
 
 
