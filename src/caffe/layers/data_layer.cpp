@@ -16,7 +16,6 @@ template <typename Dtype>
 DataLayer<Dtype>::DataLayer(const LayerParameter& param)
   : BasePrefetchingDataLayer<Dtype>(param),
     reader_(param)
-   , m_unTransformer(this->layer_param_.ultinous_transform_param(), this->phase_)
     {
 }
 
@@ -114,7 +113,6 @@ void DataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       memcpy( cvImg.data, &(vec_data[0]), vec_data.size() );
     }
 
-    m_unTransformer.transform( cvImg );
     CVMatToDatum( cvImg, &datum );
 
 
