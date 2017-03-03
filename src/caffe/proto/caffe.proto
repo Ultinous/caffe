@@ -420,6 +420,7 @@ message LayerParameter {
   optional DataAugmentParameter data_augment_param = 5010;
   optional ProjectiveTransformerParameter proj_trans_param = 5011;
   optional ProjectiveMatrixParameter proj_matrix_param = 5012;
+  optional CenterLossParameter center_loss_param = 5013;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1652,4 +1653,13 @@ message ProjectiveMatrixParameter {
     optional double max_diff = 20 [default = 0.0];
 
     optional bool bias = 21 [default = true];
+}
+
+message CenterLossParameter {
+  optional uint32 num_output = 1; // The number of outputs for the layer
+  optional FillerParameter center_filler = 2; // The filler for the centers
+  // The first axis to be lumped into a single inner product computation;
+  // all preceding axes are retained in the output.
+  // May be negative to index from the end (e.g., -1 for the last axis).
+  optional int32 axis = 3 [default = 1];
 }
