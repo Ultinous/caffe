@@ -99,6 +99,9 @@ void ProjectiveTransformerLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bott
 	full_theta_shape[1] = 9;
 	full_theta.Reshape(full_theta_shape);
 
+	vector<int> shape_input(3);
+	shape_input[0] = bottom[1]->shape(0); shape_input[1] = output_H_ * output_W_; shape_input[2] = 3;
+	input_grid.Reshape(shape_input);
 }
 
 

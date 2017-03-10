@@ -173,6 +173,10 @@ void SpatialTransformerLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
 	full_theta.Reshape(full_theta_shape);
 
 	if(global_debug) std::cout<<prefix<<"Finished."<<std::endl;
+
+	vector<int> shape_input(3);
+	shape_input[0] = bottom[1]->shape(0); shape_input[1] = output_H_ * output_W_; shape_input[2] = 2;
+	input_grid.Reshape(shape_input);
 }
 
 template <typename Dtype>
