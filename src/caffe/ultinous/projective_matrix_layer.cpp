@@ -46,7 +46,8 @@ void ProjectiveMatrixLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype> *> &botto
   m_min_tz = this->layer_param_.proj_matrix_param().min_tz();
   m_max_tz = this->layer_param_.proj_matrix_param().max_tz();
 
-  m_bias = this->layer_param_.proj_matrix_param().bias();
+  m_bias_scale = this->layer_param_.proj_matrix_param().bias_scale();
+  m_bias_U = this->layer_param_.proj_matrix_param().bias_u();
 
   m_max_diff = this->layer_param_.proj_matrix_param().max_diff();
   m_boundary_violation_step = 0.1;
@@ -126,18 +127,15 @@ void ProjectiveMatrixLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bott
     Dtype V = bottom_data[7];
     Dtype W = m_base_tz + bottom_data[8];
 
-    if (m_bias)
+    Dtype const *bias = this->blobs_[0]->cpu_data();
+    if (m_bias_scale)
     {
-      Dtype const *bias = this->blobs_[0]->cpu_data();
       Sx += bias[0];
       Sy += bias[1];
-      f += bias[2];
-      alpha += bias[3];
-      beta += bias[4];
-      gamma += bias[5];
+    }
+    if (m_bias_U)
+    {
       U += bias[6];
-      V += bias[7];
-      W += bias[8];
     }
 
 
@@ -181,18 +179,15 @@ void ProjectiveMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top
     Dtype V = bottom_data[7];
     Dtype W = m_base_tz + bottom_data[8];
 
-    if (m_bias)
+    Dtype const *bias = this->blobs_[0]->cpu_data();
+    if (m_bias_scale)
     {
-      Dtype const *bias = this->blobs_[0]->cpu_data();
       Sx += bias[0];
       Sy += bias[1];
-      f += bias[2];
-      alpha += bias[3];
-      beta += bias[4];
-      gamma += bias[5];
+    }
+    if (m_bias_U)
+    {
       U += bias[6];
-      V += bias[7];
-      W += bias[8];
     }
 
     Dtype *bottom_diff = bottom[0]->mutable_cpu_diff() + 9 * n;
@@ -296,14 +291,15 @@ void ProjectiveMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top
         bottom_diff[i] = std::max(-m_max_diff, std::min(m_max_diff, bottom_diff[i]));
 
     // Bias - only on specific params
-    if (m_bias)
+    Dtype *bias_diff = this->blobs_[0]->mutable_cpu_diff();
+    if (m_bias_scale)
     {
-      Dtype *bias_diff = this->blobs_[0]->mutable_cpu_diff();
       bias_diff[0] += bottom_diff[0]; // scaleX
       bias_diff[1] += bottom_diff[1]; // scaleY
-      //bias_diff[1] += bottom_diff[1]; // f
+    }
+    if (m_bias_U)
+    {
       bias_diff[6] += bottom_diff[6]; // // U
-      //bias_diff[7] += bottom_diff[7]; // // W
     }
 
 

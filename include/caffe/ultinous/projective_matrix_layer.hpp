@@ -60,7 +60,7 @@ private:
 
   Dtype m_max_diff;
 
-  bool m_bias;
+  bool m_bias_scale, m_bias_U;
 
   Dtype m_boundary_violation_step;
 

@@ -1652,7 +1652,8 @@ message ProjectiveMatrixParameter {
 
     optional double max_diff = 20 [default = 0.0];
 
-    optional bool bias = 21 [default = true];
+    optional bool bias_scale = 21 [default = true];
+    optional bool bias_U = 22 [default = true];
 }
 
 message CenterLossParameter {
