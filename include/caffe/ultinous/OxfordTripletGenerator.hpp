@@ -35,6 +35,8 @@ public:
     , m_storedNegativeRatio( otp.storednegativeratio() )
     , m_storedNegativeLives( otp.storednegativelives() )
     , m_logCycle( otp.logcycle() )
+    , m_classUniform( otp.classuniform() )
+    , m_nextClass( 0 )
   {
     reset( );
     LOG(INFO) << "OxfordTripletGenerator - total number of positive pairs: " << m_totalRemainingPairs << std::endl;
@@ -122,6 +124,7 @@ public:
 
 private:
   void prefetch( )
+
   {
     refreshTotalAvgExaminedNegatives( );
     size_t negativesToExamine = std::min( m_maxExaminedNegatives, (size_t)(3.0 * m_totalAvgExaminedNegatives) );
@@ -338,31 +341,51 @@ private:
 
   void nextPositivePair( ClassIndex &clIndex, ImageIndex &anchor, ImageIndex &positive )
   {
-    if( m_totalRemainingPairs == 0 )
-      reset( );
+    static uint64_t _counter = 0;
+    ++_counter;
 
-    BasicModel const &shuffledModel = m_modelShuffler.shuffledModel();
-
-    // compute classIndex
-    uint64_t R = myRandom( m_totalRemainingPairs );
-    vector<size_t>::iterator it = m_remainingPairsInClasses.begin();
-    while( R >= *it )
-      R -= *it++;
-    clIndex = it - m_remainingPairsInClasses.begin();
-
-    ImageClassificationModel::ImageIndexes const &images = shuffledModel[clIndex].images;
-
-    --m_remainingPairsInClasses[clIndex];
-    --m_totalRemainingPairs;
-
-    if( (m_totalRemainingPairs % m_logCycle) == 0 )
+    if ((_counter % m_logCycle) == 0)
       LOG(INFO) << "Current settings: m_totAvgExNeg: " << m_totalAvgExaminedNegatives;
 
-    size_t pairIndex = m_remainingPairsInClasses[clIndex];
+    if( m_classUniform )
+    {
+      BasicModel const &shuffledModel = m_modelShuffler.shuffledModel();
 
+      clIndex = m_nextClass;
+      m_nextClass = (1+m_nextClass) % shuffledModel.size();
+
+      if( 0 == m_remainingPairsInClasses[clIndex] )
+      {
+        ImageClassificationModel::ImageIndexes const &images = shuffledModel[clIndex].images;
+
+        m_remainingPairsInClasses[clIndex] = images.size() * (images.size()-1);
+      }
+
+      --m_remainingPairsInClasses[clIndex];
+    }
+    else
+    {
+      if (m_totalRemainingPairs == 0)
+        reset();
+
+      // compute classIndex
+      uint64_t R = myRandom(m_totalRemainingPairs);
+      vector<size_t>::iterator it = m_remainingPairsInClasses.begin();
+      while (R >= *it)
+        R -= *it++;
+      clIndex = it - m_remainingPairsInClasses.begin();
+
+      --m_remainingPairsInClasses[clIndex];
+      --m_totalRemainingPairs;
+    }
+
+    BasicModel const &shuffledModel = m_modelShuffler.shuffledModel();
+    ImageClassificationModel::ImageIndexes const &images = shuffledModel[clIndex].images;
+
+    size_t pairIndex = m_remainingPairsInClasses[clIndex];
     anchor = pairIndex % images.size();
-    positive = (anchor + images.size()/2 + pairIndex/images.size()) % (images.size()-1);
-    if( positive >= anchor )
+    positive = (anchor + images.size() / 2 + pairIndex / images.size()) % (images.size() - 1);
+    if (positive >= anchor)
       ++positive;
 
     anchor = images[anchor];
@@ -472,6 +495,8 @@ private:
   std::vector<ImageIndex> m_shuffledImages;
 
   size_t m_logCycle;
+  bool m_classUniform;
+  ClassIndex m_nextClass; // used only if m_classUniform==true
 
   /* Random generator variables */
   uint32_t xorshf96_x, xorshf96_y, xorshf96_z;
