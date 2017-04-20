@@ -58,10 +58,10 @@ void CenterLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
     const vector<Blob<Dtype>*>& bottom) {
   int nthreads = N_;
-  caffe_gpu_set(N_ * K_, (Dtype)0., variation_sum_.mutable_cpu_data());
+  caffe_gpu_set(N_ * K_, (Dtype)0., variation_sum_.mutable_gpu_data());
   Compute_center_diff_gpu<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
       CAFFE_CUDA_NUM_THREADS>>>(nthreads, M_, K_, bottom[1]->gpu_data(), distance_.gpu_data(),
-                                variation_sum_.mutable_cpu_data(), this->blobs_[0]->mutable_gpu_diff());
+                                variation_sum_.mutable_gpu_data(), this->blobs_[0]->mutable_gpu_diff());
 
   if (propagate_down[0]) {
     caffe_gpu_scale(M_ * K_, top[0]->cpu_diff()[0] / M_,
