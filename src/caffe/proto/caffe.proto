@@ -59,6 +59,7 @@ message FillerParameter {
     AVERAGE = 2;
   }
   optional VarianceNorm variance_norm = 8 [default = FAN_IN];
+  optional string file = 9;
 }
 
 message NetParameter {
@@ -414,6 +415,14 @@ message LayerParameter {
   optional TripletDataParameter triplet_data_param = 5002;
   optional FeatureRegistrationParameter feature_registration_param = 5003;
   optional UltinousTransformationParameter ultinous_transform_param = 5004;
+  optional AdversarialImageDataParamater adversarial_image_data_param = 5005;
+  optional SpatialTransformerParameter st_param = 5006;
+  optional PowerFileParameter power_file_param = 5007;
+  optional AffineMatrixParameter affine_matrix_param = 5008;
+  optional ImwriteParameter imwrite_param = 5009;
+  optional DataAugmentParameter data_augment_param = 5010;
+  optional ProjectiveTransformerParameter proj_trans_param = 5011;
+  optional ProjectiveMatrixParameter proj_matrix_param = 5012;
 }
 
 // Message that stores parameters used to apply transformation
@@ -671,6 +680,7 @@ message DataParameter {
 
 message DropoutParameter {
   optional float dropout_ratio = 1 [default = 0.5]; // dropout ratio
+  optional uint32 replicate = 7000 [default = 0];
 }
 
 // DummyDataLayer fills any number of arbitrarily shaped blobs with random
@@ -1450,6 +1460,9 @@ message OxfordTripletParameter {
   optional uint32 sampledNegatives = 6 [default = 16];
   optional bool tooHardTriplets = 7 [default = true];
   optional uint32 logCycle=8 [default=640000];
+  optional float randomRatio=9 [default=0];
+  optional float storedNegativeRatio=10 [default=0];
+  optional uint32 storedNegativeLives=11 [default=1];
 }
 
 
@@ -1549,7 +1562,8 @@ message UltinousTransformationParameter {
   optional float minBlurSigma = 25 [default = 0];
   optional float maxBlurSigma = 26 [default = 0];
 
-  optional uint32 cropSize = 27 [default = 0];
+  optional uint32 cropHeight = 27 [default = 0];
+  optional uint32 cropWidth = 28 [default = 0];
 }
 
 message AnchorTargetParameter {
@@ -1565,4 +1579,123 @@ message AnchorTargetParameter {
   repeated float bbox_inside_weights = 10;
   optional float positive_weight = 11 [default = -1.0];
   optional float hard_negative_mining = 12 [default = 0.0]; // 0->random, 1->totally sorted
+}
+
+message AdversarialImageDataParamater {
+  optional uint32 skip_iterations=1 [default=0];
+  optional float diff_strength=2 [default=0.1];
+  optional uint32 pool_size=3 [default=10000];
+  optional float adversarial_ratio=4 [default=0.5];
+  optional float max_pixel_change=5 [default=20];
+}
+
+message SpatialTransformerParameter {
+	// How to use the parameter passed by localisation network
+	optional string transform_type = 1 [default = "affine"];
+	// What is the sampling technique
+	optional string sampler_type = 2 [default = "bilinear"];
+
+	// If not set,stay same with the input dimension H and W
+	optional int32 output_H = 3;
+	optional int32 output_W = 4;
+
+	// If false, only compute dTheta, DO NOT compute dU
+	optional bool to_compute_dU = 5 [default = true];
+
+	// The default value for some parameters
+	optional double theta_1_1 = 6;
+	optional double theta_1_2 = 7;
+	optional double theta_1_3 = 8;
+	optional double theta_2_1 = 9;
+	optional double theta_2_2 = 10;
+	optional double theta_2_3 = 11;
+}
+
+message PowerFileParameter {
+	optional string shift_file = 1;
+}
+
+message AffineMatrixParameter {
+    optional double base_sx = 1 [default = 1];
+    optional double base_sy = 2 [default = 1];
+
+    optional double min_sx = 3 [default = 0.4];
+    optional double max_sx = 4 [default = 2.5];
+    optional double min_sy = 5 [default = 0.4];
+    optional double max_sy = 6 [default = 2.5];
+
+    optional double min_hx = 7 [default = -1];
+    optional double max_hx = 8 [default = 1];
+    optional double min_hy = 9 [default = -1];
+    optional double max_hy = 10 [default = 1];
+
+    optional double min_tx = 11 [default = -0.8];
+    optional double max_tx = 12 [default = 0.8];
+    optional double min_ty = 13 [default = -0.8];
+    optional double max_ty = 14 [default = 0.8];
+
+    optional double min_alpha = 15 [default = -1.0472];
+    optional double max_alpha = 16 [default = 1.0472];
+
+    optional double max_diff = 17 [default = 0.0];
+
+    optional bool normalize_params = 18 [default = true];
+    optional bool bias = 19 [default = true];
+}
+
+message ImwriteParameter {
+    required string output_path = 1;
+    optional string postfix = 2 [default=""];
+    optional string extension = 3 [default="png"];
+    required int32 iterations = 4 [default = 1000];
+
+    required double intensity_shift = 5 [default = 0];
+    required double intensity_mult = 6 [default = 1];
+
+    optional string test_output_path = 7 [default=""];
+}
+
+
+message DataAugmentParameter {
+   optional uint32 num_occlusions = 1 [default = 0];
+   optional double min_occlusion_radius = 2 [default = 0];
+   optional double max_occlusion_radius = 3 [default = 0];
+}
+
+message ProjectiveTransformerParameter {
+	// If not set,stay same with the input dimension H and W
+	optional int32 output_H = 3;
+	optional int32 output_W = 4;
+	optional bool grid = 5 [default=false];
+}
+
+message ProjectiveMatrixParameter {
+    optional double base_scale = 1 [default = 1];
+    optional double base_f = 2 [default = 1];
+    optional double base_tz = 3 [default = 1];
+
+    optional double min_scale = 4 [default = 0.4];
+    optional double max_scale = 5 [default = 2.5];
+
+    optional double min_alpha = 6 [default = -1.5708];
+    optional double max_alpha = 7 [default = 1.5708];
+    optional double min_beta = 8 [default = -1.5708];
+    optional double max_beta = 9 [default = 1.5708];
+    optional double min_gamma = 10 [default = -1.0472];
+    optional double max_gamma = 11 [default = 1.0472];
+
+    optional double min_f = 12 [default = 0.2];
+    optional double max_f = 13 [default = 3.0];
+
+    optional double min_tx = 14 [default = -0.8];
+    optional double max_tx = 15 [default = 0.8];
+    optional double min_ty = 16 [default = -0.8];
+    optional double max_ty = 17 [default = 0.8];
+    optional double min_tz = 18 [default = -2.0];
+    optional double max_tz = 19 [default = 2.0];
+
+
+    optional double max_diff = 20 [default = 0.0];
+
+    optional bool bias = 21 [default = true];
 }

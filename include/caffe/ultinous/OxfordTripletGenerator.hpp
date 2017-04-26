@@ -32,6 +32,8 @@ public:
     , m_tooHardTriplets(otp.toohardtriplets())
     , m_numImagesInModel( icm.getImageNum() )
     , m_maxExaminedNegatives( 10000 )
+    , m_storedNegativeRatio( otp.storednegativeratio() )
+    , m_storedNegativeLives( otp.storednegativelives() )
     , m_logCycle( otp.logcycle() )
   {
     reset( );
@@ -190,9 +192,7 @@ private:
       HardNegativesVector::iterator hnIt = hnVec.begin();
       for( size_t j = 0; j < M; ++j )
       {
-        if( hnIt != hnVec.end()
-          && (j%2==1)
-        )
+        if( hnIt != hnVec.end() && (double(rand())/RAND_MAX)<m_storedNegativeRatio )
         {
           negative = *hnIt++;
         }
@@ -260,7 +260,7 @@ private:
         avgExaminedNegatives = ((avgExaminedNegatives*999.0)+examinedNegatives)/1000.0;
 
         if( hnMap.find(newTriplet[2]) == hnMap.end() ) // New negative
-          hnMap[newTriplet[2]] = avgExaminedNegatives;
+          hnMap[newTriplet[2]] = m_storedNegativeLives;
       }
 
       for( HardNegativesMap::iterator it = hnMap.begin( ); it != hnMap.end(); /*NOP*/ )
@@ -333,6 +333,7 @@ private:
       m_totalRemainingPairs += pairsInClass;
       m_remainingPairsInClasses.push_back( pairsInClass );
     }
+    shuffle( m_shuffledImages.begin(), m_shuffledImages.end() );
   }
 
   void nextPositivePair( ClassIndex &clIndex, ImageIndex &anchor, ImageIndex &positive )
@@ -463,6 +464,8 @@ private:
 
 
   size_t m_maxExaminedNegatives;
+  float m_storedNegativeRatio;
+  NegativeLives m_storedNegativeLives;
   AvgExaminedNegatives m_avgExaminedNegatives;
   float m_totalAvgExaminedNegatives;
 

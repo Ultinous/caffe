@@ -35,7 +35,6 @@ class DataLayer : public BasePrefetchingDataLayer<Dtype> {
   virtual void load_batch(Batch<Dtype>* batch);
 
   DataReader reader_;
-  ultinous::UltinousTransformer m_unTransformer;
 };
 
 }  // namespace caffe

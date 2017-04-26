@@ -23,7 +23,19 @@ void DropoutLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   if (this->phase_ == TRAIN) {
     unsigned int* mask =
         static_cast<unsigned int*>(rand_vec_.mutable_gpu_data());
-    caffe_gpu_rng_uniform(count, mask);
+
+    uint32_t replicate = this->layer_param_.dropout_param().replicate();
+    if( replicate > 1 )
+    {
+      caffe_gpu_rng_uniform(count/replicate, mask);
+      for( uint32_t i = 1; i < replicate; ++i )
+        caffe_copy(count/replicate, mask, mask+i*count/replicate);
+    }
+    else
+    {
+      caffe_gpu_rng_uniform(count, mask);
+    }
+
     // set thresholds
     // NOLINT_NEXT_LINE(whitespace/operators)
     DropoutForward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
