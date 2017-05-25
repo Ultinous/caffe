@@ -3,12 +3,13 @@
 #include <thrust/device_ptr.h>
 #include <stdio.h>
 
-#include "caffe/layers/proposal_layer.hpp"
+#include "caffe/ultinous/proposal_layer.hpp"
 #include "caffe/util/nms.hpp"
 
 
 namespace caffe
 {
+namespace ultinous {
 
 template<typename  Dtype>
 struct TGreaterC
@@ -203,4 +204,7 @@ return;
 }
 
 INSTANTIATE_LAYER_GPU_FUNCS(ProposalLayer);
+
 }
+}
+
