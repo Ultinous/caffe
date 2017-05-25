@@ -33,7 +33,13 @@ void ImageROIDataLayer<Dtype>::Forward_gpu(
   // Copy bbox.
   caffe_copy(batch->bboxes_.count(), batch->bboxes_.gpu_data(),
       top[2]->mutable_gpu_data());
-  
+
+  for(int i = 0; i<m_labels_blobs_num-1; ++i)
+  {
+    top[3+i]->ReshapeLike(batch->labels_[i]);
+    caffe_copy(batch->labels_[i].count(), batch->labels_[i].gpu_data(),
+      top[3+i]->mutable_gpu_data());
+  }
   //std::cout << "---- batch->bboxes_.count()" << batch->bboxes_.count() << std::endl;
 
   // Ensure the copy is synchronous wrt the host, so that the next batch isn't

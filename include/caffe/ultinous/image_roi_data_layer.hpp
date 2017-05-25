@@ -21,11 +21,14 @@ public:
   class Batch {
     public:
     Blob<Dtype> data_, info_, bboxes_;
+    std::vector< Blob<Dtype> > labels_;
   };
 
   struct BBox
   {
-    int x1, y1, x2, y2, cls;
+    int x1, y1, x2, y2;
+    std::vector<int> classes;
+
   };
   typedef std::vector<BBox> BBoxes;
 
@@ -64,10 +67,6 @@ public:
   {
     return 0;
   }
-  virtual inline int ExactNumTopBlobs() const
-  {
-    return 3;   // data, im_info, gt_boxes
-  }
 
  protected:
   virtual void InternalThreadEntry();
@@ -85,6 +84,7 @@ protected:
   shared_ptr<Caffe::RNG> prefetch_rng_;
   Samples samples;
   int sample_id_;
+  int m_labels_blobs_num;
 
   UltinousTransformer m_unTransformer;
 };

@@ -47,6 +47,12 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   std::ifstream infile(source.c_str());
   CHECK(infile.good()) << "Can not open source file";
 
+  m_labels_blobs_num = static_cast<int>(top.size()-2);
+  for (int i = 0; i < this->PREFETCH_COUNT; ++i)
+  {
+    this->prefetch_[i].labels_ = std::vector<Blob<Dtype> >(static_cast<std::size_t>(m_labels_blobs_num - 1));
+  }
+
   std::string line;
   while (std::getline(infile, line))
   {
@@ -55,9 +61,15 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
 
     iss >> sample.image_file;
     BBox bbox;
-    while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2 >> bbox.cls )
+    bbox.classes = std::vector<int>(static_cast<std::size_t>(m_labels_blobs_num),0);
+    while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2)
+    {
+      for(int i = 0; i<m_labels_blobs_num;++i )
+      {
+        iss >> bbox.classes[i];
+      }
       sample.bboxes.push_back(bbox);
-
+    }
     if( !sample.bboxes.empty() )
       samples.push_back( sample );
   }
@@ -128,6 +140,22 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   {
     this->prefetch_[i].bboxes_.Reshape(bboxes_shape);
   }
+
+
+  for(int i = 0; i< m_labels_blobs_num-1; ++i )
+  {
+    vector<int> labels_shape(2);
+    labels_shape[0] = 1;
+    labels_shape[1] = 1;
+    top[3+i]->Reshape(labels_shape);
+    for (int j = 0; j < this->PREFETCH_COUNT; ++j)
+    {
+
+      this->prefetch_[j].labels_[i].Reshape(labels_shape);
+    }
+  }
+
+
 }
 
 template <typename Dtype>
@@ -248,11 +276,17 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   prefetch_info[1] = static_cast<Dtype>(cv_img.cols);
   prefetch_info[2] = static_cast<Dtype>(scale);
 
-  // bboxes
+  // bboxes and labels
   vector<int> bboxes_shape(2);
   bboxes_shape[0] = samples[sample_id_].bboxes.size();
   bboxes_shape[1] = 5;
   batch->bboxes_.Reshape(bboxes_shape);
+
+  for(int label_id = 0; label_id < m_labels_blobs_num-1; ++label_id)
+  {
+    bboxes_shape[1]=1;
+    batch->labels_[label_id].Reshape(bboxes_shape);
+  }
 
   Dtype* prefetch_bboxes = batch->bboxes_.mutable_cpu_data();
 
@@ -263,7 +297,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     Dtype y1 = static_cast<Dtype>(bbox.y1) * scale;
     Dtype x2 = static_cast<Dtype>(bbox.x2) * scale;
     Dtype y2 = static_cast<Dtype>(bbox.y2) * scale;
-    Dtype cls = static_cast<Dtype>(bbox.cls);
+    Dtype cls = static_cast<Dtype>(bbox.classes.front());
 
     if( mirror )
     {
@@ -279,6 +313,11 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     prefetch_bboxes[ 5*bboxIx + 2 ] = x2;
     prefetch_bboxes[ 5*bboxIx + 3 ] = y2;
     prefetch_bboxes[ 5*bboxIx + 4 ] = cls;
+
+    for( int label_id = 1; label_id < bbox.classes.size(); ++label_id )
+    {
+      batch->labels_[label_id-1].mutable_cpu_data()[bboxIx] = static_cast<Dtype>(bbox.classes[label_id]);
+    }
   }
 
   // go to the next iter
@@ -399,6 +438,14 @@ void ImageROIDataLayer<Dtype>::Forward_cpu(
   // Copy bbox.
   caffe_copy(batch->bboxes_.count(), batch->bboxes_.cpu_data(),
       top[2]->mutable_cpu_data());
+
+
+  for(int i = 0; i<m_labels_blobs_num-1; ++i)
+  {
+    top[3+i]->ReshapeLike(batch->labels_[i]);
+    caffe_copy(batch->labels_[i].count(), batch->labels_[i].cpu_data(),
+               top[3+i]->mutable_cpu_data());
+  }
   //std::cout << "---- batch->bboxes_.count()" << batch->bboxes_.count() << std::endl;
 
   //std::cout << "--- INFO: ";
