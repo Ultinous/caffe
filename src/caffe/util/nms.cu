@@ -4,6 +4,7 @@
 #include <thrust/remove.h>
 
 #include "caffe/util/nms.hpp"
+#include "caffe/util/gpu_util.cuh"
 
 namespace caffe {
 
@@ -14,22 +15,6 @@ struct thrust_is_zero
   bool operator()(const int x) const {
     return ( !x ); }
 };
-
-template<typename Dtype>
-__device__ inline Dtype dev_IoU(Dtype const * const a, Dtype const * const b)
-{
-  Dtype area_a = (a[2]-a[0]+1) * (a[3]-a[1]+1);
-  Dtype area_b = (b[2]-b[0]+1) * (b[3]-b[1]+1);
-
-  Dtype inter_x1 = max(a[0], b[0]);
-  Dtype inter_y1 = max(a[1], b[1]);
-  Dtype inter_x2 = min(a[2], b[2]);
-  Dtype inter_y2 = min(a[3], b[3]);
-  Dtype inter = max((Dtype)0, inter_x2 - inter_x1 + 1) * max((Dtype)0, inter_y2 - inter_y1 + 1);
-
-  return inter / (area_a + area_b - inter);
-}
-
 
 template<typename Dtype>
 __global__ void nms_kernel(const int boxes_num, const int* indexes,

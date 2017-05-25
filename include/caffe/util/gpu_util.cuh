@@ -30,6 +30,25 @@ double caffe_gpu_atomic_add(const double val, double* address) {
   return __longlong_as_double(old);
 }
 
+
+
+//Ulti code
+template<typename Dtype>
+inline __device__
+Dtype dev_IoU(Dtype const * const a, Dtype const * const b)
+{
+Dtype area_a = (a[2]-a[0]+1) * (a[3]-a[1]+1);
+Dtype area_b = (b[2]-b[0]+1) * (b[3]-b[1]+1);
+
+Dtype inter_x1 = max(a[0], b[0]);
+Dtype inter_y1 = max(a[1], b[1]);
+Dtype inter_x2 = min(a[2], b[2]);
+Dtype inter_y2 = min(a[3], b[3]);
+Dtype inter = max((Dtype)0, inter_x2 - inter_x1 + 1) * max((Dtype)0, inter_y2 - inter_y1 + 1);
+
+return inter / (area_a + area_b - inter);
+}
+
 }  // namespace caffe
 
 #endif  // CAFFE_UTIL_GPU_UTIL_H_
