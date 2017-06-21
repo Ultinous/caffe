@@ -6,6 +6,7 @@
 #include <caffe/ultinous/FeatureMap.hpp>
 #include <caffe/ultinous/AbstractTripletGenerator.hpp>
 #include <caffe/ultinous/FeatureCollectorTripletGenerator.hpp>
+#include "caffe/proto/caffe.pb.h"
 
 namespace caffe {
 namespace ultinous {
