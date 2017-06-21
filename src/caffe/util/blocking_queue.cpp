@@ -6,6 +6,7 @@
 #include "caffe/parallel.hpp"
 #include "caffe/util/blocking_queue.hpp"
 #include "caffe/ultinous/image_roi_data_layer.hpp"
+#include "caffe/ultinous/three_image_roi_data_layer.hpp"
 
 namespace caffe {
 
@@ -96,5 +97,8 @@ template class BlockingQueue<P2PSync<double>*>;
 
 template class BlockingQueue<caffe::ultinous::ImageROIDataLayer<float>::Batch*>;
 template class BlockingQueue<caffe::ultinous::ImageROIDataLayer<double>::Batch*>;
+
+template class BlockingQueue<caffe::ultinous::ThreeImageROIDataLayer<float>::BatchWithBoxes*>;
+template class BlockingQueue<caffe::ultinous::ThreeImageROIDataLayer<double>::BatchWithBoxes*>;
 
 }  // namespace caffe
