@@ -66,12 +66,15 @@ void LCNLayer<Dtype>::Forward_gpu(
   int C = bottom[0]->shape(1);
   int H = bottom[0]->shape(2);
   int W = bottom[0]->shape(3);
+  int imageSize = C*H*W;
   int channelSize = H*W;
 
-  caffe_gpu_memcpy( bottom[0]->count()*sizeof(Dtype), bottom[0]->gpu_data(), m_grayscale.mutable_gpu_data() );
-  for( int i = 1; i < C; ++i )
-    caffe_gpu_axpy( bottom[0]->count(), Dtype(1.0), bottom[0]->gpu_data()+i*channelSize, m_grayscale.mutable_gpu_data() );
-
+  for( int i = 0; i < N; ++i)
+  {
+    caffe_gpu_memcpy( channelSize*sizeof(Dtype), bottom[0]->gpu_data()+i*imageSize, m_grayscale.mutable_gpu_data()+i*channelSize );
+    for( int c = 1; c < C; ++c )
+      caffe_gpu_axpy( channelSize, Dtype(1.0), bottom[0]->gpu_data()+i*imageSize+c*channelSize, m_grayscale.mutable_gpu_data()+i*channelSize );
+  }
 
   int nthreads = N*H*W;
 	LCNForwardGPU<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
