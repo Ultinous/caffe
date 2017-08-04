@@ -157,7 +157,7 @@ void DemographyDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
     trans_time += timer.MicroSeconds();
 
-    int labelOffset = batch->data_.offset(item_id);  // item_id * m_intervalLength
+    int labelOffset = batch->label_.offset(item_id);  // item_id * m_intervalLength
 
     //std::cout << age;
 
