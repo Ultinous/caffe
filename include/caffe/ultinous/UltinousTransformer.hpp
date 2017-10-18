@@ -117,7 +117,7 @@ public:
         size_t cx = r + std::rand() % (cv_img.rows - 2*r);
         size_t cy = r + std::rand() % (cv_img.cols - 2*r);
 
-        cv::circle( cv_img, cv::Point(cx,cy), r, cv::Scalar(0), -1 );
+        cv::circle( cv_img, cv::Point(cx,cy), r, cv::Scalar(127), -1 );
       }
     }
 
