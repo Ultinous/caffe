@@ -1,4 +1,4 @@
-#include "caffe/jnemeth/feat_reg_loss_layer.hpp"
+#include "caffe/ultinous/feat_reg_loss_layer.hpp"
 
 namespace caffe {
 namespace ultinous {
