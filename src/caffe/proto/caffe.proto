@@ -425,6 +425,7 @@ message LayerParameter {
   optional ProjectiveTransformerParameter proj_trans_param = 5011;
   optional ProjectiveMatrixParameter proj_matrix_param = 5012;
   optional CenterLossParameter center_loss_param = 5013;
+  optional FocalLossParameter focal_loss_param = 5014;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1704,7 +1705,6 @@ message ProjectiveMatrixParameter {
     optional bool bias_U = 22 [default = true];
 }
 
-
 message CenterLossParameter {
   optional uint32 num_output = 1; // The number of outputs for the layer
   optional FillerParameter center_filler = 2; // The filler for the centers
@@ -1720,4 +1720,16 @@ message CascadeTargetParameter {
   optional float fg_treshold = 4 [default = 0.5];
   optional float bg_treshold_hi = 5 [default = 0.5];
   optional float bg_treshold_lo = 6 [default = 0.1];
+}
+
+message FocalLossParameter {
+  enum Type {
+    ORIGIN = 0; // FL(p_t)  = -(1 - p_t) ^ gama * log(p_t), where p_t = p if y == 1 else 1 - p, whre p = sigmoid(x)
+    LINEAR = 1; // FL*(p_t) = -log(p_t) / gama, where p_t = sigmoid(gama * x_t + beta), where x_t = x * y, y is the ground truth label {-1, 1}
+  }
+  optional Type type   = 1 [default = ORIGIN];
+  optional float gamma = 2 [default = 2];
+  // cross-categories weights to solve the imbalance problem
+  optional float alpha = 3 [default = 0.25];
+  optional float beta  = 4 [default = 1.0];
 }
