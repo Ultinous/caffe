@@ -47,14 +47,13 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   // Init Classification Model
   read( sourceFile, m_imageClassificationModel );
 
-  tripletBatchGenerator = TripletBatchGeneratorPtr(
-    new TripletBatchGenerator<Dtype>(
-      batch_size
+  tripletBatchGenerator = boost::make_shared<TripletBatchGenerator<Dtype>>(
+      boost::numeric_cast<size_t>(batch_size)
       , m_imageClassificationModel
-      , this->layer_param_.triplet_data_param() )
+      , this->layer_param_.triplet_data_param()
   );
 
-  if( this->layer_param_.triplet_data_param().inputfeatures().size() > 0 )
+  if(!this->layer_param_.triplet_data_param().inputfeatures().empty())
   {
     std::cout << "TripletDataLayer: Loading input features!" << std::endl;
     const string& inputFeaturesFile = this->layer_param_.triplet_data_param().inputfeatures();
@@ -113,7 +112,7 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   }
 
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
-    this->prefetch_[i].data_.Reshape(m_top_shape);
+    this->prefetch_[i]->data_.Reshape(m_top_shape);
   }
   top[0]->Reshape(m_top_shape);
 
@@ -130,7 +129,7 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
   top[1]->Reshape(m_label_shape);
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
-    this->prefetch_[i].label_.Reshape(m_label_shape);
+    this->prefetch_[i]->label_.Reshape(m_label_shape);
   }
 
 }
@@ -138,7 +137,7 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
 // This function is called on prefetch thread
 template <typename Dtype>
 void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
-  const bool inputFeatures = this->layer_param_.triplet_data_param().inputfeatures().size() > 0;
+  const bool inputFeatures = !this->layer_param_.triplet_data_param().inputfeatures().empty();
 
   CHECK(batch->data_.count());
   CHECK(inputFeatures || this->transformed_data_.count());
@@ -148,7 +147,7 @@ void TripletDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   const int new_height = image_data_param.new_height();
   const int new_width = image_data_param.new_width();
   const bool is_color = image_data_param.is_color();
-  string root_folder = image_data_param.root_folder();
+  string const &root_folder = image_data_param.root_folder();
 
   // Reshape according to the first image of each batch
   // on single input batches allows for inputs of varying dimension.
