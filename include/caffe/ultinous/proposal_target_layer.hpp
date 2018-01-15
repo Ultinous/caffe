@@ -25,7 +25,7 @@ public:
   virtual void Reshape(const vector<Blob<Dtype> *> &bottom,
                        const vector<Blob<Dtype> *> &top);
 
-  virtual inline const char *type() const { return "ProposalTargetLayer"; }
+  virtual inline const char *type() const { return "ProposalTarget"; }
 
 protected:
   virtual void Forward_cpu(const vector<Blob<Dtype> *> &bottom,
