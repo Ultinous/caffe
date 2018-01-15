@@ -69,6 +69,12 @@ class BasePrefetchingDataLayer :
   virtual void InternalThreadEntry();
   virtual void load_batch(Batch<Dtype>* batch) = 0;
 
+#if __cplusplus >= 201402L
+  static constexpr int PREFETCH_COUNT = 16;
+#else
+  static const int PREFETCH_COUNT = 16;
+#endif
+
   vector<shared_ptr<Batch<Dtype> > > prefetch_;
   BlockingQueue<Batch<Dtype>*> prefetch_free_;
   BlockingQueue<Batch<Dtype>*> prefetch_full_;

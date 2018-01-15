@@ -30,16 +30,16 @@ class TripletDataLayer : public BasePrefetchingDataLayer<Dtype> {
       , m_unTransformer(this->layer_param_.ultinous_transform_param(), this->phase_)
   { }
 
-  virtual ~TripletDataLayer();
-  virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
+  ~TripletDataLayer() override;
+  void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top) override;
 
-  virtual inline const char* type() const { return "TripletData"; }
-  virtual inline int ExactNumBottomBlobs() const { return 0; }
-  virtual inline int ExactNumTopBlobs() const { return 2; }
+  inline const char* type() const override { return "TripletData"; }
+  inline int ExactNumBottomBlobs() const override { return 0; }
+  inline int ExactNumTopBlobs() const override { return 2; }
 
 protected:
-  virtual void load_batch(Batch<Dtype>* batch);
+  void load_batch(Batch<Dtype>* batch) override;
 
 private:
   ImageClassificationModel m_imageClassificationModel;

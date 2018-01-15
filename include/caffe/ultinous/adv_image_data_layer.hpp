@@ -5,6 +5,8 @@
 #include <utility>
 #include <vector>
 
+#include <caffe/proto/caffe.pb.h>
+
 #include "caffe/blob.hpp"
 #include "caffe/data_transformer.hpp"
 #include "caffe/internal_thread.hpp"
@@ -31,23 +33,22 @@ class AdvImageDataLayer : public BasePrefetchingDataLayer<Dtype> {
       , m_unTransformer(this->layer_param_.ultinous_transform_param(), this->phase_)
       , m_adv_params( param.adversarial_image_data_param() )
   { }
-  virtual ~AdvImageDataLayer();
-  virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
+  ~AdvImageDataLayer() override;
+  void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) override;
 
-  virtual inline const char* type() const { return "AdvImageData"; }
-  virtual inline int ExactNumBottomBlobs() const { return 0; }
-  virtual inline int ExactNumTopBlobs() const { return 2; }
+  inline const char* type() const override { return "AdvImageData"; }
+  inline int ExactNumBottomBlobs() const override { return 0; }
+  inline int ExactNumTopBlobs() const override { return 2; }
 
-  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+  void Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) override;
-  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+  void Backward_gpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) override;
 
  protected:
   shared_ptr<Caffe::RNG> prefetch_rng_;
   virtual void ShuffleImages();
-  virtual void load_batch(Batch<Dtype>* batch);
+  void load_batch(Batch<Dtype>* batch) override;
 
   vector<std::pair<std::string, int> > lines_;
   int lines_id_;
