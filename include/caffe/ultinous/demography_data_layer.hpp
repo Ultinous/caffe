@@ -26,6 +26,16 @@ namespace ultinous {
 template <typename Dtype>
 class DemographyDataLayer : public BasePrefetchingDataLayer<Dtype> {
  public:
+/*  struct FilenameWithGender
+  {
+    FileNameWithAge( std::string filename, int gender )
+     : m_filename(filename), m_gender(gender)
+    { }
+    std::string m_filename;
+    int m_gender;
+  };*/
+
+ public:
   explicit DemographyDataLayer(const LayerParameter& param)
       : BasePrefetchingDataLayer<Dtype>(param)
       , m_unTransformer(this->layer_param_.ultinous_transform_param(), this->phase_)
@@ -43,7 +53,7 @@ class DemographyDataLayer : public BasePrefetchingDataLayer<Dtype> {
 
   virtual void load_batch(Batch<Dtype>* batch);
 
-  std::map< int, std::vector<std::string> > m_files;
+  std::map< int, std::map< int, std::vector<std::string> > > m_files; //age -> gender -> filename
   int m_maxAge;
   int m_intervalLength;
   int m_additionalIntervals;

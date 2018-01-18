@@ -43,17 +43,17 @@ void DemographyDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   LOG(INFO) << "Opening file " << source;
   std::ifstream infile(source.c_str());
   string imageName;
-  int age;
-  while(infile >> imageName >> age)
+  int age, gender;
+  while(infile >> imageName >> age >> gender)
   {
     if( age >= m_maxAge ) age = m_maxAge;
-    m_files[age].push_back(imageName);
+    m_files[age][gender].push_back( imageName );
   }
   CHECK(!m_files.empty()) << "File is empty";
 
   // Read an image, and use it to initialize the top blob.
-  cv::Mat cv_img = ReadImageToCVMat(root_folder + m_files.begin()->second[0], new_height, new_width, is_color);
-  CHECK(cv_img.data) << "Could not load " << m_files.begin()->second[0];
+  cv::Mat cv_img = ReadImageToCVMat(root_folder + imageName, new_height, new_width, is_color);
+  CHECK(cv_img.data) << "Could not load " << imageName;
 
   // Use data_transformer to infer the expected blob shape from a cv_image.
   vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
@@ -76,7 +76,7 @@ void DemographyDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   // label
   vector<int> label_shape;
   label_shape.push_back(batch_size);
-  label_shape.push_back( m_numIntervals );
+  label_shape.push_back( m_numIntervals + 1 ); // age+gender
 
   top[1]->Reshape(label_shape);
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
@@ -114,13 +114,14 @@ void DemographyDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     timer.Start();
 
     int age = rand() % m_maxAge;
-    if( m_files[age].empty() )
+    int gender = rand() % 2;
+    if( m_files[age][gender].empty() )
     {
       int age1 = age-1;
-      while( age1 > 0 && m_files[age1].empty() ) --age1;
+      while( age1 > 0 && m_files[age1][gender].empty() ) --age1;
 
       int age2 = age+1;
-      while( age2 < m_maxAge && m_files[age2].empty() ) ++age2;
+      while( age2 < m_maxAge && m_files[age2][gender].empty() ) ++age2;
 
       CHECK( age1 >= 0 || age2 < m_maxAge );
 
@@ -139,8 +140,8 @@ void DemographyDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       }
     }
 
-    size_t imageIx = rand() % m_files[age].size();
-    std::string imageFile = m_files[age][imageIx];
+    size_t imageIx = rand() % m_files[age][gender].size();
+    std::string imageFile = m_files[age][gender][imageIx];
 
     cv::Mat cv_img = ReadImageToCVMat(root_folder + imageFile,
         new_height, new_width, is_color);
@@ -157,7 +158,7 @@ void DemographyDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
     trans_time += timer.MicroSeconds();
 
-    int labelOffset = batch->label_.offset(item_id);  // item_id * m_intervalLength
+    int labelOffset = batch->label_.offset(item_id);  // item_id * (m_numIntervals+1)
 
     //std::cout << age;
 
@@ -170,6 +171,8 @@ void DemographyDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       prefetch_label[ labelOffset + intervalIx ] = ndf( x2, age, sigma ) - ndf( x1, age, sigma );
       //std::cout << " " << prefetch_label[ labelOffset + intervalIx ];
     }
+
+    prefetch_label[ labelOffset + m_numIntervals ] = gender;
     //std::cout << std::endl << std::endl;
   }
   batch_timer.Stop();
