@@ -1685,7 +1685,6 @@ message CenterLossParameter {
   optional int32 axis = 3 [default = 1];
 }
 
-<<<<<<< Updated upstream
 message LargeMarginInnerProductParameter {
   optional uint32 num_output = 1; // The number of outputs
   enum LargeMarginType {
