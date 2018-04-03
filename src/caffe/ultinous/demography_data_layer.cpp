@@ -48,6 +48,7 @@ void DemographyDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   {
     if( age >= m_maxAge ) age = m_maxAge;
     m_files[age][gender].push_back( imageName );
+    m_indices[age][gender] = 0;
   }
   CHECK(!m_files.empty()) << "File is empty";
 
@@ -140,7 +141,9 @@ void DemographyDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       }
     }
 
-    size_t imageIx = rand() % m_files[age][gender].size();
+    size_t imageIx = m_indices[age][gender]++;
+    m_indices[age][gender] %= m_files[age][gender].size();
+
     std::string imageFile = m_files[age][gender][imageIx];
 
     cv::Mat cv_img = ReadImageToCVMat(root_folder + imageFile,

@@ -53,7 +53,8 @@ class DemographyDataLayer : public BasePrefetchingDataLayer<Dtype> {
 
   virtual void load_batch(Batch<Dtype>* batch);
 
-  std::map< int, std::map< int, std::vector<std::string> > > m_files; //age -> gender -> filename
+  std::map< int, std::map< int, std::vector<std::string> > > m_files; //age -> gender -> filenames
+  std::map< int, std::map< int, int > > m_indices; //age -> gender -> current index
   int m_maxAge;
   int m_intervalLength;
   int m_additionalIntervals;
