@@ -1,17 +1,14 @@
 #ifdef USE_OPENCV
 #include <opencv2/core/core.hpp>
 
-#include <fstream>  // NOLINT(readability/streams)
-#include <iostream>  // NOLINT(readability/streams)
-#include <string>
-#include <utility>
-#include <vector>
+#include <fstream>
+#include <iostream>
+#include <boost/make_shared.hpp>
 
 #include "caffe/data_transformer.hpp"
 #include "caffe/layers/base_data_layer.hpp"
 #include "caffe/util/benchmark.hpp"
 #include "caffe/util/io.hpp"
-#include "caffe/util/math_functions.hpp"
 #include "caffe/util/rng.hpp"
 
 #include "caffe/ultinous/adv_image_data_layer.hpp"
@@ -25,8 +22,8 @@ AdvImageDataLayer<Dtype>::~AdvImageDataLayer<Dtype>() {
 }
 
 template <typename Dtype>
-void AdvImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top) {
+void AdvImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top)
+{
   const int new_height = this->layer_param_.image_data_param().new_height();
   const int new_width  = this->layer_param_.image_data_param().new_width();
   const bool is_color  = this->layer_param_.image_data_param().is_color();
@@ -44,8 +41,8 @@ void AdvImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   int label;
   while (std::getline(infile, line)) {
     pos = line.find_last_of(' ');
-    label = atoi(line.substr(pos + 1).c_str());
-    lines_.push_back(std::make_pair(line.substr(0, pos), label));
+    label = boost::lexical_cast<int>(line.substr(pos + 1).c_str());
+    lines_.emplace_back(line.substr(0, pos), label);
   }
 
   CHECK(!lines_.empty()) << "File is empty";
@@ -54,7 +51,7 @@ void AdvImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     // randomly shuffle data
     LOG(INFO) << "Shuffling data";
     const unsigned int prefetch_rng_seed = caffe_rng_rand();
-    prefetch_rng_.reset(new Caffe::RNG(prefetch_rng_seed));
+    prefetch_rng_ = boost::make_shared<Caffe::RNG>(prefetch_rng_seed);
     ShuffleImages();
   }
   LOG(INFO) << "A total of " << lines_.size() << " images.";
@@ -80,7 +77,7 @@ void AdvImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   CHECK_GT(batch_size, 0) << "Positive batch size required";
   top_shape[0] = batch_size;
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
-    this->prefetch_[i].data_.Reshape(top_shape);
+    this->prefetch_[i]->data_.Reshape(top_shape);
   }
   top[0]->Reshape(top_shape);
 
@@ -93,7 +90,7 @@ void AdvImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   label_shape[1] = 2;                      // label and isAdversarial for each sample
   top[1]->Reshape(label_shape);
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
-    this->prefetch_[i].label_.Reshape(label_shape);
+    this->prefetch_[i]->label_.Reshape(label_shape);
   }
 }
 
@@ -119,7 +116,7 @@ void AdvImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   const int new_height = image_data_param.new_height();
   const int new_width = image_data_param.new_width();
   const bool is_color = image_data_param.is_color();
-  string root_folder = image_data_param.root_folder();
+  string const &root_folder = image_data_param.root_folder();
 
   // Reshape according to the first image of each batch
   // on single input batches allows for inputs of varying dimension.
@@ -139,7 +136,7 @@ void AdvImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   static int iterations = 0;
 
   // datum scales
-  const int lines_size = lines_.size();
+  int const lines_size = boost::numeric_cast<int>(lines_.size());
   for (int item_id = 0; item_id < batch_size; ++item_id) {
     // get a blob
 
