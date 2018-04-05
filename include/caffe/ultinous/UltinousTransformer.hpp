@@ -57,11 +57,14 @@ public:
     {
       CHECK( cropHeight > 0 && cropWidth > 0 );
       CHECK( cropHeight <= cv_img.rows && cropWidth <= cv_img.cols );
+      uint32_t margin = m_params.cropmargin();
+      CHECK( margin >= 0 );
+      CHECK( cropHeight + 2*margin <= cv_img.rows && cropWidth + 2*margin <= cv_img.cols );
 
-      uint32_t offX = rand() % (cv_img.cols-cropWidth+1);
-      uint32_t offY = rand() % (cv_img.rows-cropHeight+1);
+      uint32_t offX = rand() % (cv_img.cols-cropWidth+1 - 2 * margin);
+      uint32_t offY = rand() % (cv_img.rows-cropHeight+1- 2 * margin);
 
-      cv_img = cv_img( cv::Rect(offX, offY, cropWidth, cropHeight ) ).clone();
+      cv_img = cv_img( cv::Rect(margin + offX, margin + offY, cropWidth, cropHeight ) ).clone();
     }
 
     // Apply color transformation
