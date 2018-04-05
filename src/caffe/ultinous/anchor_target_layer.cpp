@@ -2,6 +2,7 @@
 #include <boost/graph/graph_concepts.hpp>
 
 #include "caffe/filler.hpp"
+#include "caffe/util/anchors.hpp"
 #include "caffe/ultinous/anchor_target_layer.hpp"
 
 namespace caffe {
@@ -28,19 +29,35 @@ void AnchorTargetLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype> *> &bottom,
 
   feat_stride_ = anchorTargetParam_.feat_stride();
   allowed_border_ = anchorTargetParam_.allowed_border();
-  base_anchors_ = generate_anchors(anchor_scales, anchor_ratios, feat_stride_);
 
+  std::vector<Anchor> base_anchors = generate_anchors(anchor_scales, anchor_ratios, feat_stride_);
+  base_anchors_size_ = static_cast<int>(base_anchors.size());
+
+  base_anchors_.Reshape(std::vector<int>({(int) base_anchors.size(), (int) base_anchors[0].size()}));
+  for (std::size_t i = 0; i < base_anchors.size(); ++i)
+    for (std::size_t j = 0; j < base_anchors[i].size(); ++j)
+      base_anchors_.mutable_cpu_data()[base_anchors_.offset(static_cast<int> (i),
+                                                            static_cast<int> (j))] = base_anchors[i][j];
+
+  int image_num = bottom[0]->shape(0);
   int height = bottom[0]->shape(2);
   int width = bottom[0]->shape(3);
 
   // labels
-  top[0]->Reshape(1, 1, base_anchors_.size() * height, width);
+  top[0]->Reshape(image_num, 1, base_anchors_size_ * height, width);
   // bbox_targets
-  top[1]->Reshape(1, base_anchors_.size() * 4, height, width);
+  top[1]->Reshape(image_num, base_anchors_size_ * 4, height, width);
   // bbox_inside_weights
-  top[2]->Reshape(1, base_anchors_.size() * 4, height, width);
+  top[2]->Reshape(image_num, base_anchors_size_ * 4, height, width);
   // bbox_outside_weights
-  top[3]->Reshape(1, base_anchors_.size() * 4, height, width);
+  top[3]->Reshape(image_num, base_anchors_size_ * 4, height, width);
+
+  rpn_bbox_inside_weights_.Reshape({4});
+  for (int i = 0; i < anchorTargetParam_.bbox_inside_weights().size(); ++i )
+    rpn_bbox_inside_weights_.mutable_cpu_data()[i]= anchorTargetParam_.bbox_inside_weights(i);
+  if (anchorTargetParam_.bbox_inside_weights().size() == 0)
+    for(int i = 0; i < 4; ++i)
+      rpn_bbox_inside_weights_.mutable_cpu_data()[i] = 1.0;
 }
 
 template<typename Dtype>
@@ -53,13 +70,13 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
   int width = bottom[0]->shape(3);
 
   // labels
-  top[0]->Reshape(1, 1, base_anchors_.size() * height, width);
+  top[0]->Reshape(1, 1, base_anchors_size_ * height, width);
   // bbox_targets
-  top[1]->Reshape(1, base_anchors_.size() * 4, height, width);
+  top[1]->Reshape(1, base_anchors_size_ * 4, height, width);
   // bbox_inside_weights
-  top[2]->Reshape(1, base_anchors_.size() * 4, height, width);
+  top[2]->Reshape(1, base_anchors_size_ * 4, height, width);
   // bbox_outside_weights
-  top[3]->Reshape(1, base_anchors_.size() * 4, height, width);
+  top[3]->Reshape(1, base_anchors_size_ * 4, height, width);
 
 
   Dtype const *const im_info = bottom[2]->cpu_data();
@@ -80,11 +97,11 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
 
   for (int shift_y = 0; shift_y < height; ++shift_y) {
     for (int shift_x = 0; shift_x < width; ++shift_x) {
-      for (int baseAnchorIx = 0; baseAnchorIx < base_anchors_.size(); ++baseAnchorIx) {
-        Anchor anchor{base_anchors_[baseAnchorIx][0] + shift_x * feat_stride_,
-                      base_anchors_[baseAnchorIx][1] + shift_y * feat_stride_,
-                      base_anchors_[baseAnchorIx][2] + shift_x * feat_stride_,
-                      base_anchors_[baseAnchorIx][3] + shift_y * feat_stride_};
+      for (int baseAnchorIx = 0; baseAnchorIx < base_anchors_size_; ++baseAnchorIx) {
+        Anchor anchor{base_anchors_.mutable_cpu_data()[baseAnchorIx*4] + shift_x * feat_stride_,
+                      base_anchors_.mutable_cpu_data()[baseAnchorIx*4+1] + shift_y * feat_stride_,
+                      base_anchors_.mutable_cpu_data()[baseAnchorIx*4+2] + shift_x * feat_stride_,
+                      base_anchors_.mutable_cpu_data()[baseAnchorIx*4+3] + shift_y * feat_stride_};
 
         if (anchor[0] >= -allowed_border_ && anchor[1] >= -allowed_border_
             && anchor[2] < im_info[1] + allowed_border_ && anchor[3] < im_info[0] + allowed_border_) {
@@ -145,7 +162,7 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
 
   // Compute labels
   Dtype *labels = top[0]->mutable_cpu_data();
-  std::fill(labels, labels + base_anchors_.size() * height * width, Dtype(-1));
+  std::fill(labels, labels + base_anchors_size_ * height * width, Dtype(-1));
 
   float RPN_POSITIVE_OVERLAP = anchorTargetParam_.positive_overlap();
   float RPN_NEGATIVE_OVERLAP = anchorTargetParam_.negative_overlap();
@@ -202,7 +219,7 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
   int num_fg = RPN_FG_FRACTION * RPN_BATCHSIZE;
   std::vector<size_t> fg_inds;
   fg_inds.reserve(num_fg);
-  for (int i = 0; i < base_anchors_.size() * width * height; ++i)
+  for (int i = 0; i < base_anchors_size_ * width * height; ++i)
     if (labels[i] == 1) fg_inds.push_back(i);
 
   if (RPN_BATCHSIZE > 0 && fg_inds.size() > num_fg) {
@@ -226,7 +243,7 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
 
   // Computing bbox_targets
   Dtype *bbox_targets = top[1]->mutable_cpu_data();
-  std::fill(bbox_targets, bbox_targets + 4 * base_anchors_.size() * height * width, Dtype(0));
+  std::fill(bbox_targets, bbox_targets + 4 * base_anchors_size_ * height * width, Dtype(0));
 
   for (size_t i = 0; i < anchors.size(); ++i) {
     Anchor ex = anchors[i];
@@ -258,12 +275,14 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
     bbox_targets[anchor_base_indices[i] * 4 * width * height + 3 * width * height
                  + anchorShift.y * width + anchorShift.x] = targets_dh;
   }
+
+  //debugblob(*top[1]);
   // At this point bbox_targets are ready :)
 
 
   // Computing bbox_inside_weights
   Dtype *bbox_inside_weights = top[2]->mutable_cpu_data();
-  std::fill(bbox_inside_weights, bbox_inside_weights + 4 * base_anchors_.size() * height * width, Dtype(0));
+  std::fill(bbox_inside_weights, bbox_inside_weights + 4 * base_anchors_size_ * height * width, Dtype(0));
   for (size_t i = 0; i < anchors.size(); ++i) {
     Shift anchorShift = anchors_shifts[i];
     if (labels[anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x] == 1) {
@@ -282,7 +301,7 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
 
   // Computing bbox_outside_weights
   Dtype *bbox_outside_weights = top[3]->mutable_cpu_data();
-  std::fill(bbox_outside_weights, bbox_outside_weights + 4 * base_anchors_.size() * height * width, Dtype(0));
+  std::fill(bbox_outside_weights, bbox_outside_weights + 4 * base_anchors_size_ * height * width, Dtype(0));
 
   int num_examples = num_fg + num_bg;
   Dtype positive_weight;
@@ -320,21 +339,21 @@ AnchorTargetLayer<Dtype>::hardNegativeMining(uint32_t num_bg, Dtype const *score
                                              uint32_t height) {
   int num_bg_per_baseAnchor = static_cast<int>(
       std::ceil(static_cast<float>(num_bg)
-                / base_anchors_.size())
+                / base_anchors_size_)
   );
 
   float hnm = anchorTargetParam_.hard_negative_mining();
 
   typedef std::pair<size_t, Dtype> IndexScorePair;
   typedef std::vector<IndexScorePair> IndexScorePairs;
-  std::vector<IndexScorePairs> bg_inds(base_anchors_.size()); //bg_inds.reserve( num_bg );
+  std::vector<IndexScorePairs> bg_inds(base_anchors_size_); //bg_inds.reserve( num_bg );
 
-  for (size_t anchorIx = 0; anchorIx < base_anchors_.size(); ++anchorIx) {
+  for (size_t anchorIx = 0; anchorIx < base_anchors_size_; ++anchorIx) {
     for (size_t spatialIx = 0; spatialIx < width * height; ++spatialIx) {
       size_t labelIx = anchorIx * width * height + spatialIx;
       if (labels[labelIx] == 0) {
         Dtype scoreNeg = scores[(anchorIx) * width * height + spatialIx];
-        Dtype scorePos = scores[(base_anchors_.size() + anchorIx) * width * height + spatialIx];
+        Dtype scorePos = scores[(base_anchors_size_ + anchorIx) * width * height + spatialIx];
         Dtype score = exp(scorePos) / (exp(scorePos) + exp(scoreNeg)); // softmax
 
         bg_inds[anchorIx].push_back(std::make_pair(labelIx, score));
@@ -343,7 +362,7 @@ AnchorTargetLayer<Dtype>::hardNegativeMining(uint32_t num_bg, Dtype const *score
   }
 
   num_bg = 0;
-  for (size_t anchorIx = 0; anchorIx < base_anchors_.size(); ++anchorIx) {
+  for (size_t anchorIx = 0; anchorIx < base_anchors_size_; ++anchorIx) {
     if (bg_inds[anchorIx].size() > num_bg_per_baseAnchor) {
       std::sort(bg_inds[anchorIx].begin(), bg_inds[anchorIx].end(),
                 [](IndexScorePair const &p1, IndexScorePair const &p2) { return p1.second > p2.second; });
@@ -419,13 +438,14 @@ uint32_t AnchorTargetLayer<Dtype>::hardNegativeMining( uint32_t num_fg, Dtype co
 }*/
 
 
+
 template<typename Dtype>
 uint32_t
 AnchorTargetLayer<Dtype>::randomNegativeMining(uint32_t num_bg, Dtype const *scores, Dtype *labels, uint32_t width,
                                                uint32_t height) {
   std::vector<size_t> bg_inds;
   bg_inds.reserve(num_bg);
-  for (int i = 0; i < base_anchors_.size() * width * height; ++i)
+  for (int i = 0; i < base_anchors_size_ * width * height; ++i)
     if (labels[i] == 0) bg_inds.push_back(i);
 
   if (bg_inds.size() > num_bg) {
@@ -436,6 +456,8 @@ AnchorTargetLayer<Dtype>::randomNegativeMining(uint32_t num_bg, Dtype const *sco
 
   return num_bg;
 }
+
+
 
 template<typename Dtype>
 typename AnchorTargetLayer<Dtype>::Overlaps

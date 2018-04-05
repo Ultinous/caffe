@@ -2,7 +2,6 @@
 
 #include <vector>
 
-#include "caffe/util/anchors.hpp"
 #include "caffe/blob.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
@@ -53,9 +52,52 @@ protected:
   uint32_t hardNegativeMining(uint32_t num_fg, Dtype const *scores, Dtype *labels, uint32_t width, uint32_t height);
 
   uint32_t randomNegativeMining(uint32_t num_fg, Dtype const *scores, Dtype *labels, uint32_t width, uint32_t height);
+//
+//  virtual void Forward_gpu(const vector<Blob<Dtype> *> &bottom, const vector<Blob<Dtype> *> &top);
+//
+//  virtual void Backward_gpu(const vector<Blob<Dtype> *> &top, const vector<bool> &propagate_down,
+//                            const vector<Blob<Dtype> *> &bottom);
+//
+//
+//  void inline debugblob(const Blob<Dtype>& blob)
+//  {
+//    std::cout << "Blob: "<<std::endl;
+//    for(int ch = 0; ch < blob.shape(1) ; ch+=4 )
+//    {
+//      for(int h = 0; h < blob.shape(2); ++h)
+//      {
+//        for(int w = 0; w < blob.shape(3); ++w)
+//        {
+//          std::cout<<"(";
+//          for(int i = 0; i<4; ++i)
+//            std::cout<<blob.data_at(0,ch+i,h,w)<<" ";
+//          std::cout<<") ";
+//        }
+//        std::cout<<std::endl;
+//      }
+//      std::cout<<"_____________"<<std::endl;
+//    }
+//    std::cout<< "Blob_end"<<std::endl;
+//  };
+  //std::vector<Anchor> base_anchors_;
 
+  Blob<Dtype> base_anchors_;
+  int base_anchors_size_;
 
-  std::vector<Anchor> base_anchors_;
+  Blob<Dtype> anchors_;
+  Blob<Dtype> anchors_scores_;
+
+  Blob<int> anchors_validation_;
+
+  Blob<int> anchor_gt_maximal_overlap_idx_;
+  Blob<int> gt_anchor_maximal_overlap_idx_;
+
+  Blob<int> random_seq_;
+  Blob<Dtype> random_temp_;
+
+  Blob<Dtype> anchor_overlaps_;
+
+  Blob<Dtype> rpn_bbox_inside_weights_;
 
   int feat_stride_;
   int allowed_border_;
