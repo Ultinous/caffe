@@ -13,12 +13,7 @@ namespace bp = boost::python;
 
 #include "boost/algorithm/string.hpp"
 #include "caffe/caffe.hpp"
-
-#ifndef _MSC_VER
 #include "caffe/util/signal_handler.h"
-#else
-#include <caffe/register_layers.h>
-#endif
 
 using caffe::Blob;
 using caffe::Caffe;
@@ -32,33 +27,33 @@ using caffe::vector;
 using std::ostringstream;
 
 DEFINE_string(gpu, "",
-    "Optional; run in GPU mode on given device IDs separated by ','."
-    "Use '-gpu all' to run on all available GPUs. The effective training "
-    "batch size is multiplied by the number of devices.");
+              "Optional; run in GPU mode on given device IDs separated by ','."
+              "Use '-gpu all' to run on all available GPUs. The effective training "
+              "batch size is multiplied by the number of devices.");
 DEFINE_string(solver, "",
-    "The solver definition protocol buffer text file.");
+              "The solver definition protocol buffer text file.");
 DEFINE_string(model, "",
-    "The model definition protocol buffer text file.");
+              "The model definition protocol buffer text file.");
 DEFINE_string(phase, "",
-    "Optional; network phase (TRAIN or TEST). Only used for 'time'.");
+              "Optional; network phase (TRAIN or TEST). Only used for 'time'.");
 DEFINE_int32(level, 0,
-    "Optional; network level.");
+             "Optional; network level.");
 DEFINE_string(stage, "",
-    "Optional; network stages (not to be confused with phase), "
-    "separated by ','.");
+              "Optional; network stages (not to be confused with phase), "
+              "separated by ','.");
 DEFINE_string(snapshot, "",
-    "Optional; the snapshot solver state to resume training.");
+              "Optional; the snapshot solver state to resume training.");
 DEFINE_string(weights, "",
-    "Optional; the pretrained weights to initialize finetuning, "
-    "separated by ','. Cannot be set simultaneously with snapshot.");
+              "Optional; the pretrained weights to initialize finetuning, "
+              "separated by ','. Cannot be set simultaneously with snapshot.");
 DEFINE_int32(iterations, 50,
-    "The number of iterations to run.");
+             "The number of iterations to run.");
 DEFINE_string(sigint_effect, "stop",
-             "Optional; action to take when a SIGINT signal is received: "
+              "Optional; action to take when a SIGINT signal is received: "
               "snapshot, stop or none.");
 DEFINE_string(sighup_effect, "snapshot",
-             "Optional; action to take when a SIGHUP signal is received: "
-             "snapshot, stop or none.");
+              "Optional; action to take when a SIGHUP signal is received: "
+              "snapshot, stop or none.");
 
 // A simple registry for caffe commands.
 typedef int (*BrewFunction)();
@@ -151,20 +146,6 @@ int device_query() {
 }
 RegisterBrewFunction(device_query);
 
-// Load the weights from the specified caffemodel(s) into the train and
-// test nets.
-void CopyLayers(caffe::Solver<float>* solver, const std::string& model_list) {
-  std::vector<std::string> model_names;
-  boost::split(model_names, model_list, boost::is_any_of(",") );
-  for (int i = 0; i < model_names.size(); ++i) {
-    LOG(INFO) << "Finetuning from " << model_names[i];
-    solver->net()->CopyTrainedLayersFrom(model_names[i]);
-    for (int j = 0; j < solver->test_nets().size(); ++j) {
-      solver->test_nets()[j]->CopyTrainedLayersFrom(model_names[i]);
-    }
-  }
-}
-
 // Translate the signal effect the user specified on the command-line to the
 // corresponding enumeration.
 caffe::SolverAction::Enum GetRequestedAction(
@@ -185,8 +166,8 @@ caffe::SolverAction::Enum GetRequestedAction(
 int train() {
   CHECK_GT(FLAGS_solver.size(), 0) << "Need a solver definition to train.";
   CHECK(!FLAGS_snapshot.size() || !FLAGS_weights.size())
-      << "Give a snapshot to resume training or weights to finetune "
-      "but not both.";
+  << "Give a snapshot to resume training or weights to finetune "
+     "but not both.";
   vector<string> stages = get_stages_from_flags();
 
   caffe::SolverParameter solver_param;
@@ -202,12 +183,12 @@ int train() {
   if (FLAGS_gpu.size() == 0
       && solver_param.has_solver_mode()
       && solver_param.solver_mode() == caffe::SolverParameter_SolverMode_GPU) {
-      if (solver_param.has_device_id()) {
-          FLAGS_gpu = "" +
-              boost::lexical_cast<string>(solver_param.device_id());
-      } else {  // Set default GPU if unspecified
-          FLAGS_gpu = "" + boost::lexical_cast<string>(0);
-      }
+    if (solver_param.has_device_id()) {
+      FLAGS_gpu = "" +
+                  boost::lexical_cast<string>(solver_param.device_id());
+    } else {  // Set default GPU if unspecified
+      FLAGS_gpu = "" + boost::lexical_cast<string>(0);
+    }
   }
 
   vector<int> gpus;
@@ -234,23 +215,25 @@ int train() {
     Caffe::set_solver_count(gpus.size());
   }
 
-#ifndef _MSC_VER
   caffe::SignalHandler signal_handler(
-        GetRequestedAction(FLAGS_sigint_effect),
-        GetRequestedAction(FLAGS_sighup_effect));
-#endif
+      GetRequestedAction(FLAGS_sigint_effect),
+      GetRequestedAction(FLAGS_sighup_effect));
+
+  if (FLAGS_snapshot.size()) {
+    solver_param.clear_weights();
+  } else if (FLAGS_weights.size()) {
+    solver_param.clear_weights();
+    solver_param.add_weights(FLAGS_weights);
+  }
+
   shared_ptr<caffe::Solver<float> >
       solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
-#ifndef _MSC_VER
   solver->SetActionFunction(signal_handler.GetActionFunction());
-#endif
 
   if (FLAGS_snapshot.size()) {
     LOG(INFO) << "Resuming from " << FLAGS_snapshot;
     solver->Restore(FLAGS_snapshot.c_str());
-  } else if (FLAGS_weights.size()) {
-    CopyLayers(solver.get(), FLAGS_weights);
   }
 
   LOG(INFO) << "Starting Optimization";
@@ -409,25 +392,25 @@ int time() {
     }
     backward_time += backward_timer.MicroSeconds();
     LOG(INFO) << "Iteration: " << j + 1 << " forward-backward time: "
-      << iter_timer.MilliSeconds() << " ms.";
+              << iter_timer.MilliSeconds() << " ms.";
   }
   LOG(INFO) << "Average time per layer: ";
   for (int i = 0; i < layers.size(); ++i) {
     const caffe::string& layername = layers[i]->layer_param().name();
     LOG(INFO) << std::setfill(' ') << std::setw(10) << layername <<
-      "\tforward: " << forward_time_per_layer[i] / 1000 /
-      FLAGS_iterations << " ms.";
+              "\tforward: " << forward_time_per_layer[i] / 1000 /
+                               FLAGS_iterations << " ms.";
     LOG(INFO) << std::setfill(' ') << std::setw(10) << layername  <<
-      "\tbackward: " << backward_time_per_layer[i] / 1000 /
-      FLAGS_iterations << " ms.";
+              "\tbackward: " << backward_time_per_layer[i] / 1000 /
+                                FLAGS_iterations << " ms.";
   }
   total_timer.Stop();
   LOG(INFO) << "Average Forward pass: " << forward_time / 1000 /
-    FLAGS_iterations << " ms.";
+                                           FLAGS_iterations << " ms.";
   LOG(INFO) << "Average Backward pass: " << backward_time / 1000 /
-    FLAGS_iterations << " ms.";
+                                            FLAGS_iterations << " ms.";
   LOG(INFO) << "Average Forward-Backward: " << total_timer.MilliSeconds() /
-    FLAGS_iterations << " ms.";
+                                               FLAGS_iterations << " ms.";
   LOG(INFO) << "Total Time: " << total_timer.MilliSeconds() << " ms.";
   LOG(INFO) << "*** Benchmark ends ***";
   return 0;
@@ -435,28 +418,25 @@ int time() {
 RegisterBrewFunction(time);
 
 int main(int argc, char** argv) {
-#ifdef _MSC_VER
-  caffe::RegisterHelper::register_layers();
-#endif
   // Print output to stderr (while still logging).
   FLAGS_alsologtostderr = 1;
   // Set version
   gflags::SetVersionString(AS_STRING(CAFFE_VERSION));
   // Usage message.
   gflags::SetUsageMessage("command line brew\n"
-      "usage: caffe <command> <args>\n\n"
-      "commands:\n"
-      "  train           train or finetune a model\n"
-      "  test            score a model\n"
-      "  device_query    show GPU diagnostic information\n"
-      "  time            benchmark model execution time");
+                          "usage: caffe <command> <args>\n\n"
+                          "commands:\n"
+                          "  train           train or finetune a model\n"
+                          "  test            score a model\n"
+                          "  device_query    show GPU diagnostic information\n"
+                          "  time            benchmark model execution time");
   // Run tool or show usage.
   caffe::GlobalInit(&argc, &argv);
   if (argc == 2) {
 #ifdef WITH_PYTHON_LAYER
     try {
 #endif
-      return GetBrewFunction(caffe::string(argv[1]))();
+    return GetBrewFunction(caffe::string(argv[1]))();
 #ifdef WITH_PYTHON_LAYER
     } catch (bp::error_already_set) {
       PyErr_Print();
