@@ -24,6 +24,7 @@ void InternalThread::StartInternalThread() {
   int device = 0;
 #ifndef CPU_ONLY
   CUDA_CHECK(cudaGetDevice(&device));
+  cudaStream_t str = Caffe::cuda_stream();
 #endif
   Caffe::Brew mode = Caffe::mode();
   int rand_seed = caffe_rng_rand();
@@ -32,17 +33,26 @@ void InternalThread::StartInternalThread() {
   bool multiprocess = Caffe::multiprocess();
 
   try {
+#ifdef CPU_ONLY
     thread_.reset(new boost::thread(&InternalThread::entry, this, device, mode,
           rand_seed, solver_count, solver_rank, multiprocess));
+#else
+    thread_.reset(new boost::thread(&InternalThread::entry, this, device, str, mode,
+                                    rand_seed, solver_count, solver_rank, multiprocess));
+#endif
   } catch (std::exception& e) {
     LOG(FATAL) << "Thread exception: " << e.what();
   }
 }
 
+#ifdef CPU_ONLY
 void InternalThread::entry(int device, Caffe::Brew mode, int rand_seed,
     int solver_count, int solver_rank, bool multiprocess) {
-#ifndef CPU_ONLY
-  CUDA_CHECK(cudaSetDevice(device));
+#else
+  void InternalThread::entry(int device, cudaStream_t str, Caffe::Brew mode, int rand_seed,
+    int solver_count, int solver_rank, bool multiprocess) {
+  Caffe::SetDevice(device);
+    Caffe::setCudaStream(str);
 #endif
   Caffe::set_mode(mode);
   Caffe::set_random_seed(rand_seed);

@@ -136,6 +136,8 @@ class Caffe {
   inline static curandGenerator_t curand_generator() {
     return Get().curand_generator_;
   }
+  inline static cudaStream_t cuda_stream(){ return Get().cuda_stream_;}
+  static void setCudaStream(cudaStream_t str);
 #endif
 
   // Returns the mode: running on CPU or GPU.
@@ -169,6 +171,7 @@ class Caffe {
 
  protected:
 #ifndef CPU_ONLY
+  cudaStream_t cuda_stream_;
   cublasHandle_t cublas_handle_;
   curandGenerator_t curand_generator_;
 #endif

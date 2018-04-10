@@ -46,6 +46,8 @@ class CuDNNConvolutionLayer : public ConvolutionLayer<Dtype> {
   bool handles_setup_;
   cudnnHandle_t* handle_;
   cudaStream_t*  stream_;
+  cudaEvent_t start_event_;
+  cudaEvent_t* end_event_;
 
   // algorithms for forward and backwards convolutions
   cudnnConvolutionFwdAlgo_t *fwd_algo_;

@@ -113,7 +113,7 @@ void TripletLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
 		  static_cast<Dtype>(bottom[0]->num());
 	  if(i==0){
 		  // NOLINT_NEXT_LINE(whitespace/operators)
-		  CLLBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
+		  CLLBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
 			  count, channels, margin, alpha,
 			  //bottom[3]->gpu_data(),
 			  diff_pn_.gpu_data(),  // the cached eltwise difference between p and n
@@ -123,7 +123,7 @@ void TripletLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
 		  CUDA_POST_KERNEL_CHECK;
 	  }else if(i==1){
 		  // NOLINT_NEXT_LINE(whitespace/operators)
-		  CLLBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
+		  CLLBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
 			  count, channels, margin, alpha,
 			  //bottom[3]->gpu_data(),
 			  diff_ap_.gpu_data(),  // the cached eltwise difference between a and p
@@ -133,7 +133,7 @@ void TripletLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
 		  CUDA_POST_KERNEL_CHECK;
 	  }else if(i==2){
 		  // NOLINT_NEXT_LINE(whitespace/operators)
-		  CLLBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
+		  CLLBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
 			  count, channels, margin, alpha,
 			  //bottom[3]->gpu_data(),
 			  diff_an_.gpu_data(),  // the cached eltwise difference between a and n

@@ -281,193 +281,194 @@ template <typename Dtype>
 void ProposalLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top)
 {
-  if(bottom.size()==4)
-  {
-    m_pre_nms_topN = bottom[3]->cpu_data()[bottom[3]->offset(0,0)];
-    m_post_nms_topN = bottom[3]->cpu_data()[bottom[3]->offset(0,1)];
-    m_nms_thresh =bottom[3]->cpu_data()[bottom[3]->offset(0,2)];
-    m_min_size = bottom[3]->cpu_data()[bottom[3]->offset(0,3)];
-  }
-  
-  int count = m_anchors.count()/4;
-//   {
-//     float time;
-//     cudaEvent_t start, stop;
-// 
-//    cudaEventCreate(&start) ;
-//    cudaEventCreate(&stop) ;
-//    cudaEventRecord(start, 0);
-  
-    create_full_anchors<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
-    m_base_anchors.gpu_data(), m_num_anchors, bottom[0]->shape(3), m_feat_stride,
-    m_anchors.mutable_gpu_data());
-    
-//     cudaEventRecord(stop, 0);
-//     cudaEventSynchronize(stop);
-//     cudaEventElapsedTime(&time, start, stop);
-// 
-//     printf("Time to create_full_anchors:  %3.10f ms \n", time);
-//   }
-
-
-  
-  
-
-  
-  const Dtype* bottom_1 = bottom[1]->gpu_data();
-  const Dtype* bottom_0 = bottom[0]->gpu_data();
-  
-  Dtype* proposals = m_proposals.mutable_gpu_data(); 
-  Dtype* scores = m_scores.mutable_gpu_data();
-  Dtype* anchors = m_anchors.mutable_gpu_data();
-  int* indexes = m_indexes.mutable_gpu_data();
-  int* ioumat = m_iou.mutable_gpu_data();
-  
-//   {
-//   float time;
-//   cudaEvent_t start, stop;
-// 
+  NOT_IMPLEMENTED;
+//  if(bottom.size()==4)
+//  {
+//    m_pre_nms_topN = bottom[3]->cpu_data()[bottom[3]->offset(0,0)];
+//    m_post_nms_topN = bottom[3]->cpu_data()[bottom[3]->offset(0,1)];
+//    m_nms_thresh =bottom[3]->cpu_data()[bottom[3]->offset(0,2)];
+//    m_min_size = bottom[3]->cpu_data()[bottom[3]->offset(0,3)];
+//  }
+//
+//  int count = m_anchors.count()/4;
+////   {
+////     float time;
+////     cudaEvent_t start, stop;
+////
+////    cudaEventCreate(&start) ;
+////    cudaEventCreate(&stop) ;
+////    cudaEventRecord(start, 0);
+//
+//    create_full_anchors<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
+//    m_base_anchors.gpu_data(), m_num_anchors, bottom[0]->shape(3), m_feat_stride,
+//    m_anchors.mutable_gpu_data());
+//
+////     cudaEventRecord(stop, 0);
+////     cudaEventSynchronize(stop);
+////     cudaEventElapsedTime(&time, start, stop);
+////
+////     printf("Time to create_full_anchors:  %3.10f ms \n", time);
+////   }
+//
+//
+//
+//
+//
+//
+//  const Dtype* bottom_1 = bottom[1]->gpu_data();
+//  const Dtype* bottom_0 = bottom[0]->gpu_data();
+//
+//  Dtype* proposals = m_proposals.mutable_gpu_data();
+//  Dtype* scores = m_scores.mutable_gpu_data();
+//  Dtype* anchors = m_anchors.mutable_gpu_data();
+//  int* indexes = m_indexes.mutable_gpu_data();
+//  int* ioumat = m_iou.mutable_gpu_data();
+//
+////   {
+////   float time;
+////   cudaEvent_t start, stop;
+////
+////   cudaEventCreate(&start) ;
+////   cudaEventCreate(&stop) ;
+////   cudaEventRecord(start, 0) ;
+//
+//  create_full_proposals<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
+//    bottom_1, bottom[1]->shape(1), bottom[1]->shape(2), bottom[1]->shape(3),
+//    bottom_0, bottom[0]->shape(1), bottom[0]->shape(2), bottom[0]->shape(3),
+//    proposals, anchors, scores, indexes,
+//    bottom[2]->gpu_data(), m_num_anchors, m_min_size);
+//
+////     cudaEventRecord(stop, 0) ;
+////     cudaEventSynchronize(stop) ;
+////     cudaEventElapsedTime(&time, start, stop) ;
+////
+////     printf("Time to create_full_proposals:  %3.10f ms \n", time);
+////   }
+//
+//  CUDA_POST_KERNEL_CHECK;
+//
+////     {
+////   float time;
+////   cudaEvent_t start, stop;
+////
+////    cudaEventCreate(&start) ;
+////    cudaEventCreate(&stop) ;
+////    cudaEventRecord(start, 0) ;
+//  int j, k;
+//  for (k = 2; k <= count; k <<= 1) {
+//    for (j=k>>1; j>0; j=j>>1) {
+//      bitonic_sort_base<<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count, j, k, indexes, scores);
+//    }
+//  }
+////     cudaEventRecord(stop, 0) ;
+////     cudaEventSynchronize(stop) ;
+////     cudaEventElapsedTime(&time, start, stop) ;
+////
+////     printf("Time to sort1:  %3.10f ms \n", time);
+////   }
+//  CUDA_POST_KERNEL_CHECK;
+//
+///*
+//  {
+//  float time;
+//  cudaEvent_t start, stop;
+//
 //   cudaEventCreate(&start) ;
 //   cudaEventCreate(&stop) ;
 //   cudaEventRecord(start, 0) ;
-  
-  create_full_proposals<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count,
-    bottom_1, bottom[1]->shape(1), bottom[1]->shape(2), bottom[1]->shape(3),
-    bottom_0, bottom[0]->shape(1), bottom[0]->shape(2), bottom[0]->shape(3),
-    proposals, anchors, scores, indexes,
-    bottom[2]->gpu_data(), m_num_anchors, m_min_size);
-  
-//     cudaEventRecord(stop, 0) ;
-//     cudaEventSynchronize(stop) ;
-//     cudaEventElapsedTime(&time, start, stop) ;
-// 
-//     printf("Time to create_full_proposals:  %3.10f ms \n", time);
-//   }  
-    
-  CUDA_POST_KERNEL_CHECK;
-  
-//     {
-//   float time;
-//   cudaEvent_t start, stop;
-// 
-//    cudaEventCreate(&start) ;
-//    cudaEventCreate(&stop) ;
-//    cudaEventRecord(start, 0) ;
-  int j, k;
-  for (k = 2; k <= count; k <<= 1) {
-    for (j=k>>1; j>0; j=j>>1) {
-      bitonic_sort_base<<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count, j, k, indexes, scores);
-    }
-  }
-//     cudaEventRecord(stop, 0) ;
-//     cudaEventSynchronize(stop) ;
-//     cudaEventElapsedTime(&time, start, stop) ;
-// 
-//     printf("Time to sort1:  %3.10f ms \n", time);
-//   }  
-  CUDA_POST_KERNEL_CHECK;
-  
-/*  
-  {
-  float time;
-  cudaEvent_t start, stop;
-
-   cudaEventCreate(&start) ;
-   cudaEventCreate(&stop) ;
-   cudaEventRecord(start, 0) ;
-  
-  base_gpu_nms<Dtype><<<CAFFE_GET_BLOCKS(m_pre_nms_topN), CAFFE_CUDA_NUM_THREADS>>>(m_pre_nms_topN, indexes, scores, proposals, m_nms_thresh);
-  CUDA_POST_KERNEL_CHECK;
-    cudaEventRecord(stop, 0) ;
-    cudaEventSynchronize(stop) ;
-    cudaEventElapsedTime(&time, start, stop) ;
-
-    printf("Time to nms:  %3.1f ms \n", time);
-  }  
- */
-//   {
-//     float time;
-//     cudaEvent_t start, stop;
-// 
-//     cudaEventCreate(&start) ;
-//     cudaEventCreate(&stop) ;
-//     cudaEventRecord(start, 0) ;
-//     calc_iou_matrix<Dtype><<<CAFFE_GET_BLOCKS(m_pre_nms_topN * m_pre_nms_topN), CAFFE_CUDA_NUM_THREADS>>>(m_pre_nms_topN*m_pre_nms_topN, m_pre_nms_topN, indexes, proposals, scores, ioumat ,m_nms_thresh);
-//     CUDA_POST_KERNEL_CHECK;
-//     cudaEventRecord(stop, 0) ;
-//     cudaEventSynchronize(stop) ;
-//     cudaEventElapsedTime(&time, start, stop) ;
-// 
-//     printf("Time to nms:  %3.10f ms \n", time);
-//   }  
-// 
-//   
-//   {
-//     float time;
-//     cudaEvent_t start, stop;
-// 
-//     cudaEventCreate(&start);
-//     cudaEventCreate(&stop);
-//     cudaEventRecord(start, 0);
-    
-    dim3 threadsPerBlock(16, 16);
-    dim3 numBlocks((m_pre_nms_topN +15) /threadsPerBlock.x,
-                   (m_pre_nms_topN +15) /threadsPerBlock.y);  
-    
-    nms_improve<Dtype><<<numBlocks, threadsPerBlock>>>(m_pre_nms_topN, indexes, proposals, scores, m_nms_thresh);
-    
-    
-    CUDA_POST_KERNEL_CHECK;
-//     cudaEventRecord(stop, 0) ;
-//     cudaEventSynchronize(stop) ;
-//     cudaEventElapsedTime(&time, start, stop) ;
-// 
-//     printf("Time to nms:  %3.10f ms \n", time);
-//   }  
-  
-  
-  
-  
-  
-//       {
-//   float time;
-//   cudaEvent_t start, stop;
-// 
-//   cudaEventCreate(&start) ;
-//   cudaEventCreate(&stop) ;
-//   cudaEventRecord(start, 0) ;
-//   int j, k;
-  for (k = 2; k <= m_pre_nms_topN; k <<= 1) {
-    for (j=k>>1; j>0; j=j>>1) {
-      bitonic_sort_base<<<CAFFE_GET_BLOCKS(m_pre_nms_topN), CAFFE_CUDA_NUM_THREADS>>>(m_pre_nms_topN, j, k, indexes, scores);
-    }
-  }
-//     cudaEventRecord(stop, 0) ;
-//     cudaEventSynchronize(stop) ;
+//
+//  base_gpu_nms<Dtype><<<CAFFE_GET_BLOCKS(m_pre_nms_topN), CAFFE_CUDA_NUM_THREADS>>>(m_pre_nms_topN, indexes, scores, proposals, m_nms_thresh);
+//  CUDA_POST_KERNEL_CHECK;
+//    cudaEventRecord(stop, 0) ;
+//    cudaEventSynchronize(stop) ;
 //    cudaEventElapsedTime(&time, start, stop) ;
-// 
-//     printf("Time to sort2:  %3.10f ms \n", time);
-//   }  
-  
-//   {
-//   float time;
-//   cudaEvent_t start, stop;
-// 
-//    cudaEventCreate(&start) ;
-//    cudaEventCreate(&stop) ;
-//    cudaEventRecord(start, 0);
-//   
-  data_to_top<Dtype><<<CAFFE_GET_BLOCKS(m_post_nms_topN), CAFFE_CUDA_NUM_THREADS>>>(m_post_nms_topN, indexes, proposals, top[0]->mutable_gpu_data() );
-  CUDA_POST_KERNEL_CHECK;
-//     cudaEventRecord(stop, 0) ;
-//     cudaEventSynchronize(stop) ;
-//     cudaEventElapsedTime(&time, start, stop);
-// 
-//     printf("Time to copy to top:  %3.10f ms \n", time);
-//   }  
-//   
-  
-  //TODO write scores to output blob
+//
+//    printf("Time to nms:  %3.1f ms \n", time);
+//  }
+// */
+////   {
+////     float time;
+////     cudaEvent_t start, stop;
+////
+////     cudaEventCreate(&start) ;
+////     cudaEventCreate(&stop) ;
+////     cudaEventRecord(start, 0) ;
+////     calc_iou_matrix<Dtype><<<CAFFE_GET_BLOCKS(m_pre_nms_topN * m_pre_nms_topN), CAFFE_CUDA_NUM_THREADS>>>(m_pre_nms_topN*m_pre_nms_topN, m_pre_nms_topN, indexes, proposals, scores, ioumat ,m_nms_thresh);
+////     CUDA_POST_KERNEL_CHECK;
+////     cudaEventRecord(stop, 0) ;
+////     cudaEventSynchronize(stop) ;
+////     cudaEventElapsedTime(&time, start, stop) ;
+////
+////     printf("Time to nms:  %3.10f ms \n", time);
+////   }
+////
+////
+////   {
+////     float time;
+////     cudaEvent_t start, stop;
+////
+////     cudaEventCreate(&start);
+////     cudaEventCreate(&stop);
+////     cudaEventRecord(start, 0);
+//
+//    dim3 threadsPerBlock(16, 16);
+//    dim3 numBlocks((m_pre_nms_topN +15) /threadsPerBlock.x,
+//                   (m_pre_nms_topN +15) /threadsPerBlock.y);
+//
+//    nms_improve<Dtype><<<numBlocks, threadsPerBlock>>>(m_pre_nms_topN, indexes, proposals, scores, m_nms_thresh);
+//
+//
+//    CUDA_POST_KERNEL_CHECK;
+////     cudaEventRecord(stop, 0) ;
+////     cudaEventSynchronize(stop) ;
+////     cudaEventElapsedTime(&time, start, stop) ;
+////
+////     printf("Time to nms:  %3.10f ms \n", time);
+////   }
+//
+//
+//
+//
+//
+////       {
+////   float time;
+////   cudaEvent_t start, stop;
+////
+////   cudaEventCreate(&start) ;
+////   cudaEventCreate(&stop) ;
+////   cudaEventRecord(start, 0) ;
+////   int j, k;
+//  for (k = 2; k <= m_pre_nms_topN; k <<= 1) {
+//    for (j=k>>1; j>0; j=j>>1) {
+//      bitonic_sort_base<<<CAFFE_GET_BLOCKS(m_pre_nms_topN), CAFFE_CUDA_NUM_THREADS>>>(m_pre_nms_topN, j, k, indexes, scores);
+//    }
+//  }
+////     cudaEventRecord(stop, 0) ;
+////     cudaEventSynchronize(stop) ;
+////    cudaEventElapsedTime(&time, start, stop) ;
+////
+////     printf("Time to sort2:  %3.10f ms \n", time);
+////   }
+//
+////   {
+////   float time;
+////   cudaEvent_t start, stop;
+////
+////    cudaEventCreate(&start) ;
+////    cudaEventCreate(&stop) ;
+////    cudaEventRecord(start, 0);
+////
+//  data_to_top<Dtype><<<CAFFE_GET_BLOCKS(m_post_nms_topN), CAFFE_CUDA_NUM_THREADS>>>(m_post_nms_topN, indexes, proposals, top[0]->mutable_gpu_data() );
+//  CUDA_POST_KERNEL_CHECK;
+////     cudaEventRecord(stop, 0) ;
+////     cudaEventSynchronize(stop) ;
+////     cudaEventElapsedTime(&time, start, stop);
+////
+////     printf("Time to copy to top:  %3.10f ms \n", time);
+////   }
+////
+//
+//  //TODO write scores to output blob
 }
 
 

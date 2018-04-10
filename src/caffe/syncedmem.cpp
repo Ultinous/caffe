@@ -78,7 +78,7 @@ inline void SyncedMemory::to_gpu() {
       CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
       own_gpu_data_ = true;
     }
-    caffe_gpu_memcpy(size_, cpu_ptr_, gpu_ptr_);
+    caffe_gpu_memcpy_async(size_, cpu_ptr_, gpu_ptr_,Caffe::cuda_stream());
     head_ = SYNCED;
     break;
   case HEAD_AT_GPU:

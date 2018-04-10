@@ -80,7 +80,7 @@ void AccuracyLayer<Dtype>::Forward_gpu(
     Dtype* counts = gpu_buffer_.mutable_gpu_diff();
     // NOLINT_NEXT_LINE(whitespace/operators)
     AccuracyForwardGPU<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-        CAFFE_CUDA_NUM_THREADS>>>(nthreads, bottom_data, bottom_label,
+        CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(nthreads, bottom_data, bottom_label,
         acc_data, outer_num_, dim, inner_num_, num_labels, top_k_,
         has_ignore_label_, ignore_label_, counts);
     Dtype acc;

@@ -112,7 +112,7 @@ void ProjectiveTransformerLayer<Dtype>::Forward_gpu(
 	const int nthreads = N * C * output_H_ * output_W_;
 
 	ProjectiveTransformerForwardGPU<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-	      CAFFE_CUDA_NUM_THREADS>>>(nthreads, N, C, output_H_, output_W_, H, W, input_grid_data, U, V, this->layer_param_.proj_trans_param().grid());
+	      CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(nthreads, N, C, output_H_, output_W_, H, W, input_grid_data, U, V, this->layer_param_.proj_trans_param().grid());
 }
 
 
@@ -233,7 +233,7 @@ void ProjectiveTransformerLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>&
 
 	const int nthreads = N * C * output_H_ * output_W_;
 	ProjectiveTransformerBackwardGPU_dTheta<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-			CAFFE_CUDA_NUM_THREADS>>>(nthreads, C, output_H_, output_W_, H, W, input_grid_data,
+			CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(nthreads, C, output_H_, output_W_, H, W, input_grid_data,
 					dV, U, dTheta_tmp_diff, bottom[1]->gpu_data());
 
 	Dtype* all_ones_2_data = all_ones_2.mutable_gpu_data();

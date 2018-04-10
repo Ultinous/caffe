@@ -21,6 +21,7 @@ void CuDNNDeconvolutionLayer<Dtype>::LayerSetUp(
   // Initialize CUDA streams and cuDNN.
   stream_         = new cudaStream_t[this->group_ * CUDNN_STREAMS_PER_GROUP];
   handle_         = new cudnnHandle_t[this->group_ * CUDNN_STREAMS_PER_GROUP];
+  end_event_          = new cudaEvent_t[this->group_ * CUDNN_STREAMS_PER_GROUP];
 
   // Initialize algorithm arrays
   fwd_algo_       = new cudnnConvolutionFwdAlgo_t[bottom.size()];
@@ -47,11 +48,12 @@ void CuDNNDeconvolutionLayer<Dtype>::LayerSetUp(
     workspace_bwd_data_sizes_[i] = 0;
     workspace_bwd_filter_sizes_[i] = 0;
   }
-
+  CUDA_CHECK(cudaEventCreateWithFlags(&start_event_,cudaEventDisableTiming));
   for (int g = 0; g < this->group_ * CUDNN_STREAMS_PER_GROUP; g++) {
     CUDA_CHECK(cudaStreamCreate(&stream_[g]));
     CUDNN_CHECK(cudnnCreate(&handle_[g]));
     CUDNN_CHECK(cudnnSetStream(handle_[g], stream_[g]));
+    CUDA_CHECK(cudaEventCreateWithFlags(&end_event_[g], cudaEventDisableTiming));
     workspace[g] = NULL;
   }
 
@@ -304,13 +306,16 @@ CuDNNDeconvolutionLayer<Dtype>::~CuDNNDeconvolutionLayer() {
   }
   cudnnDestroyFilterDescriptor(filter_desc_);
 
+  cudaEventDestroy(start_event_);
   for (int g = 0; g < this->group_ * CUDNN_STREAMS_PER_GROUP; g++) {
     cudaStreamDestroy(stream_[g]);
     cudnnDestroy(handle_[g]);
+    cudaEventDestroy(end_event_[g]);
   }
 
   cudaFree(workspaceData);
   delete [] workspace;
+  delete [] end_event_;
   delete [] stream_;
   delete [] handle_;
   delete [] fwd_algo_;

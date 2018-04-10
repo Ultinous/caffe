@@ -55,7 +55,7 @@ void SigmoidCrossEntropyLossLayer<Dtype>::Forward_gpu(
   Dtype valid_count;
   // NOLINT_NEXT_LINE(whitespace/operators)
   SigmoidCrossEntropyLossForwardGPU<Dtype><<<CAFFE_GET_BLOCKS(count),
-      CAFFE_CUDA_NUM_THREADS>>>(count, input_data, target, loss_data,
+      CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(count, input_data, target, loss_data,
       has_ignore_label_, ignore_label_, count_data);
   // Only launch another CUDA kernel if we actually need the valid count.
   if (normalization_ == LossParameter_NormalizationMode_VALID &&
@@ -94,7 +94,7 @@ void SigmoidCrossEntropyLossLayer<Dtype>::Backward_gpu(
     if (has_ignore_label_) {
       // NOLINT_NEXT_LINE(whitespace/operators)
       SigmoidCrossEntropyLossIgnoreDiffGPU<Dtype><<<CAFFE_GET_BLOCKS(count),
-        CAFFE_CUDA_NUM_THREADS>>>(count, ignore_label_, target, bottom_diff);
+        CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(count, ignore_label_, target, bottom_diff);
     }
     // Scale down gradient
     Dtype loss_weight = top[0]->cpu_diff()[0] / normalizer_;

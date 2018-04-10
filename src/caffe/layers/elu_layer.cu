@@ -22,7 +22,7 @@ void ELULayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   const int count = bottom[0]->count();
   Dtype alpha = this->layer_param_.elu_param().alpha();
   // NOLINT_NEXT_LINE(whitespace/operators)
-  ELUForward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
+  ELUForward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
       count, bottom_data, top_data, alpha);
   CUDA_POST_KERNEL_CHECK;
 }
@@ -49,7 +49,7 @@ void ELULayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     const int count = bottom[0]->count();
     Dtype alpha = this->layer_param_.elu_param().alpha();
     // NOLINT_NEXT_LINE(whitespace/operators)
-    ELUBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
+    ELUBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
         count, top_diff, top_data, bottom_data, bottom_diff, alpha);
     CUDA_POST_KERNEL_CHECK;
   }
