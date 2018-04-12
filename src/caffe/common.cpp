@@ -132,6 +132,9 @@ Caffe::Caffe()
       != CURAND_STATUS_SUCCESS) {
     LOG(ERROR) << "Cannot create Curand generator. Curand won't be available.";
   }
+#ifdef USE_CUDNN
+  CUDNN_CHECK(cudnnCreate(&cudnn_handle_));
+#endif
 }
 
 Caffe::~Caffe() {
@@ -139,6 +142,10 @@ Caffe::~Caffe() {
   if (curand_generator_) {
     CURAND_CHECK(curandDestroyGenerator(curand_generator_));
   }
+#ifdef USE_CUDNN
+  if(cudnn_handle_)
+    cudnnDestroy(cudnn_handle_);
+#endif
 }
 
 void Caffe::set_random_seed(const unsigned int seed) {
@@ -178,6 +185,9 @@ void Caffe::SetDevice(const int device_id) {
   CURAND_CHECK(curandSetPseudoRandomGeneratorSeed(Get().curand_generator_,
       cluster_seedgen()));
   //Reset stream, for new thread you have to create set new stream
+#ifdef USE_CUDNN
+  CUDNN_CHECK(cudnnCreate(&Get().cudnn_handle_));
+#endif
   Get().cuda_stream_ = 0;
 }
 
@@ -185,6 +195,10 @@ void Caffe::setCudaStream(cudaStream_t str) {
   Get().cuda_stream_ = str;
   CUBLAS_CHECK(cublasSetStream_v2(Get().cublas_handle_, Get().cuda_stream_));
   CURAND_CHECK(curandSetStream(Get().curand_generator_,Get().cuda_stream_));
+#ifdef USE_CUDNN
+  CUDNN_CHECK(cudnnSetStream(Get().cudnn_handle_,Get().cuda_stream_));
+#endif
+
 }
 
 

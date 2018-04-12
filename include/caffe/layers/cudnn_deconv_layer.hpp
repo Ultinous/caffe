@@ -40,11 +40,12 @@ class CuDNNDeconvolutionLayer : public DeconvolutionLayer<Dtype> {
                             const vector<Blob<Dtype>*>& bottom);
 
   bool handles_setup_;
+#if !CUDNN_VERSION_MIN(7,0,0) //FIX THIS
   cudnnHandle_t* handle_;
   cudaStream_t*  stream_;
   cudaEvent_t start_event_;
   cudaEvent_t* end_event_;
-
+#endif
   // algorithms for forward and backwards convolutions
   cudnnConvolutionFwdAlgo_t *fwd_algo_;
   cudnnConvolutionBwdFilterAlgo_t *bwd_filter_algo_;

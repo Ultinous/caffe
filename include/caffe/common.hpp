@@ -137,9 +137,14 @@ class Caffe {
     return Get().curand_generator_;
   }
   inline static cudaStream_t cuda_stream(){ return Get().cuda_stream_;}
+
   static void setCudaStream(cudaStream_t str);
+
+#ifdef USE_CUDNN
+  inline static cudnnHandle_t cudnn_handle() { return Get().cudnn_handle_; }
 #endif
 
+#endif
   // Returns the mode: running on CPU or GPU.
   inline static Brew mode() { return Get().mode_; }
   // The setters for the variables
@@ -174,6 +179,10 @@ class Caffe {
   cudaStream_t cuda_stream_;
   cublasHandle_t cublas_handle_;
   curandGenerator_t curand_generator_;
+#ifdef USE_CUDNN
+  cudnnHandle_t cudnn_handle_;
+#endif
+
 #endif
   shared_ptr<RNG> random_generator_;
 
