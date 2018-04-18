@@ -29,10 +29,13 @@ void ImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   const int new_width  = this->layer_param_.image_data_param().new_width();
   const bool is_color  = this->layer_param_.image_data_param().is_color();
   string root_folder = this->layer_param_.image_data_param().root_folder();
+  
+  m_additionalImagePairs = this->layer_param_.image_data_param().additional_image_pairs();
 
   CHECK((new_height == 0 && new_width == 0) ||
       (new_height > 0 && new_width > 0)) << "Current implementation requires "
       "new_height and new_width to be set at the same time.";
+
   // Read the file with filenames and labels
   const string& source = this->layer_param_.image_data_param().source();
   LOG(INFO) << "Opening file " << source;
@@ -45,6 +48,23 @@ void ImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
     label = atoi(line.substr(pos + 1).c_str());
     lines_.push_back(std::make_pair(line.substr(0, pos), label));
   }
+  
+  if( m_additionalImagePairs > 0 )
+  {
+    const string& source = this->layer_param_.image_data_param().additional_image_pairs_source();
+    LOG(INFO) << "Opening file " << source;
+    
+    std::ifstream infile(source.c_str());
+    string line;
+    size_t pos;
+    int label;
+    while (std::getline(infile, line)) {
+      pos = line.find_last_of(' ');
+      label = atoi(line.substr(pos + 1).c_str());
+      m_additionalImages[label].push_back( line.substr(0, pos) );
+    }
+  }
+  
 
   CHECK(!lines_.empty()) << "File is empty";
 
@@ -81,7 +101,7 @@ void ImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   // Reshape prefetch_data and top[0] according to the batch_size.
   const int batch_size = this->layer_param_.image_data_param().batch_size();
   CHECK_GT(batch_size, 0) << "Positive batch size required";
-  top_shape[0] = batch_size;
+  top_shape[0] = batch_size + 2*m_additionalImagePairs;
   for (int i = 0; i < this->prefetch_.size(); ++i) {
     this->prefetch_[i]->data_.Reshape(top_shape);
   }
@@ -90,8 +110,9 @@ void ImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   LOG(INFO) << "output data size: " << top[0]->num() << ","
       << top[0]->channels() << "," << top[0]->height() << ","
       << top[0]->width();
+  
   // label
-  vector<int> label_shape(1, batch_size);
+  vector<int> label_shape(1, batch_size + m_additionalImagePairs);
   top[1]->Reshape(label_shape);
   for (int i = 0; i < this->prefetch_.size(); ++i) {
     this->prefetch_[i]->label_.Reshape(label_shape);
@@ -131,7 +152,7 @@ void ImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
   this->transformed_data_.Reshape(top_shape);
   // Reshape batch according to the batch_size.
-  top_shape[0] = batch_size;
+  top_shape[0] = batch_size + 2*m_additionalImagePairs;
   batch->data_.Reshape(top_shape);
 
   Dtype* prefetch_data = batch->data_.mutable_cpu_data();
@@ -169,6 +190,35 @@ void ImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       }
     }
   }
+
+  // Additional image pairs
+  for (int i = 0; i < m_additionalImagePairs; ++i)
+  {
+    int classIx = rand() % m_additionalImages.size();
+    int imIx1 = rand() % m_additionalImages[classIx].size();
+    int imIx2 = rand() % m_additionalImages[classIx].size();
+    if( imIx1 == imIx2 )
+      imIx2 = (1+imIx2) % m_additionalImages[classIx].size();
+
+    cv::Mat cv_img1 = ReadImageToCVMat(root_folder + m_additionalImages[classIx][imIx1], new_height, new_width, is_color);
+    CHECK(cv_img1.data) << "Could not load " << lines_[lines_id_].first;
+    cv::Mat cv_img2 = ReadImageToCVMat(root_folder + m_additionalImages[classIx][imIx2], new_height, new_width, is_color);
+    CHECK(cv_img2.data) << "Could not load " << lines_[lines_id_].first;
+
+    m_unTransformer.transform( cv_img1 );
+    m_unTransformer.transform( cv_img2 );
+    
+    int offset1 = batch->data_.offset(batch_size + i );
+    this->transformed_data_.set_cpu_data(prefetch_data + offset1);
+    this->data_transformer_->Transform(cv_img1, &(this->transformed_data_));
+    
+    int offset2 = batch->data_.offset(batch_size + m_additionalImagePairs + i );
+    this->transformed_data_.set_cpu_data(prefetch_data + offset2);
+    this->data_transformer_->Transform(cv_img2, &(this->transformed_data_));
+    
+    prefetch_label[batch_size + i] = 1;
+  }
+
   batch_timer.Stop();
   DLOG(INFO) << "Prefetch batch: " << batch_timer.MilliSeconds() << " ms.";
   DLOG(INFO) << "     Read time: " << read_time / 1000 << " ms.";

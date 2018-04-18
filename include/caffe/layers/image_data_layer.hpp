@@ -46,6 +46,9 @@ class ImageDataLayer : public BasePrefetchingDataLayer<Dtype> {
   int lines_id_;
 
   ultinous::UltinousTransformer m_unTransformer;
+
+  int m_additionalImagePairs;  
+  std::map< int, std::vector< std::string > > m_additionalImages;
 };
 
 
