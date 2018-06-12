@@ -75,12 +75,13 @@ void ImgMultiLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& b
   CHECK(cv_img.data) << "Could not load " << lines_[lines_id_].first;
   // Use data_transformer to infer the expected blob shape from a cv_image.
   vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
+  
   this->transformed_data_.Reshape(top_shape);
   // Reshape prefetch_data and top[0] according to the batch_size.
   const int batch_size = this->layer_param_.image_data_param().batch_size();
   CHECK_GT(batch_size, 0) << "Positive batch size required";
   top_shape[0] = batch_size;
-  for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
+  for (int i = 0; i < this->prefetch_.size(); ++i) {
     this->prefetch_[i]->data_.Reshape(top_shape);
   }
   top[0]->Reshape(top_shape);
@@ -93,7 +94,7 @@ void ImgMultiLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& b
   label_shape.push_back(batch_size);
   label_shape.push_back(boost::numeric_cast<int>(output.size()));
   top[1]->Reshape(label_shape);
-  for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
+  for (int i = 0; i < this->prefetch_.size(); ++i) {
     this->prefetch_[i]->label_.Reshape(label_shape);
   }
 }

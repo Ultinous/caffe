@@ -53,7 +53,7 @@ void HardTripletGenerator<Dtype>::recalcDistancesGPU( ) {
   Dtype * gpFeatures = (Dtype*)m_syncedFeatures->gpu_data();
   Dtype * gpDistances = (Dtype*)m_syncedDistances->mutable_gpu_data();
 
-  doCalcDistancesGPU<Dtype><<<CAFFE_GET_BLOCKS(nSample*nSample), CAFFE_CUDA_NUM_THREADS>>>(
+  doCalcDistancesGPU<Dtype><<<CAFFE_GET_BLOCKS(nSample*nSample), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
       nSample, featureLength, gpFeatures, gpDistances );
 
   CUDA_POST_KERNEL_CHECK;

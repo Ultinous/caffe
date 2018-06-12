@@ -42,8 +42,13 @@ class InternalThread {
   bool must_stop();
 
  private:
+#ifdef CPU_ONLY
   void entry(int device, Caffe::Brew mode, int rand_seed,
       int solver_count, int solver_rank, bool multiprocess);
+#else
+  void entry(int device, cudaStream_t , Caffe::Brew mode, int rand_seed,
+      int solver_count, int solver_rank, bool multiprocess);
+#endif
 
   shared_ptr<boost::thread> thread_;
 };

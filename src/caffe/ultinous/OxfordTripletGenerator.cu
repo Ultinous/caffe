@@ -41,7 +41,7 @@ void OxfordTripletGenerator<Dtype>::computeDistancesGPU( size_t N, size_t M, siz
   Dtype * gpFeatures = (Dtype*)m_syncedFeatures->mutable_gpu_data();
   Dtype * gpDistances = (Dtype*)m_syncedDistances->mutable_gpu_data();
 
-  doComputeDistancesGPU<Dtype><<<CAFFE_GET_BLOCKS(N*(M-1)), CAFFE_CUDA_NUM_THREADS>>>(
+  doComputeDistancesGPU<Dtype><<<CAFFE_GET_BLOCKS(N*(M-1)), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
       N, M, featureLength, gpFeatures, gpDistances );
 
   CUDA_POST_KERNEL_CHECK;

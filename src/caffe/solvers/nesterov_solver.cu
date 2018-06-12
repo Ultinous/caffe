@@ -16,7 +16,7 @@ template <typename Dtype>
 void nesterov_update_gpu(int N, Dtype* g, Dtype* h, Dtype momentum,
     Dtype local_rate) {
   NesterovUpdate<Dtype>  // NOLINT_NEXT_LINE(whitespace/operators)
-      <<<CAFFE_GET_BLOCKS(N), CAFFE_CUDA_NUM_THREADS>>>(
+      <<<CAFFE_GET_BLOCKS(N), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
       N, g, h, momentum, local_rate);
   CUDA_POST_KERNEL_CHECK;
 }

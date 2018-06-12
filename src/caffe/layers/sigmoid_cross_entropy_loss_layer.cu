@@ -48,15 +48,14 @@ void SigmoidCrossEntropyLossLayer<Dtype>::Forward_gpu(
   // Stable version of loss computation from input data
   const Dtype* input_data = bottom[0]->gpu_data();
   const Dtype* target = bottom[1]->gpu_data();
-  // Since this memory is not used for anything until it is overwritten
-  // on the backward pass, we use it here to avoid having to allocate new GPU
-  // memory to accumulate intermediate results in the kernel.
+  // Since this memory is not used for anything, we use it here to avoid having
+  // to allocate new GPU memory to accumulate intermediate results.
   Dtype* loss_data = bottom[0]->mutable_gpu_diff();
   Dtype* count_data = bottom[1]->mutable_gpu_diff();
   Dtype valid_count;
   // NOLINT_NEXT_LINE(whitespace/operators)
   SigmoidCrossEntropyLossForwardGPU<Dtype><<<CAFFE_GET_BLOCKS(count),
-      CAFFE_CUDA_NUM_THREADS>>>(count, input_data, target, loss_data,
+      CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(count, input_data, target, loss_data,
       has_ignore_label_, ignore_label_, count_data);
   // Only launch another CUDA kernel if we actually need the valid count.
   if (normalization_ == LossParameter_NormalizationMode_VALID &&
@@ -69,6 +68,10 @@ void SigmoidCrossEntropyLossLayer<Dtype>::Forward_gpu(
   caffe_gpu_asum(count, loss_data, &loss);
   normalizer_ = get_normalizer(normalization_, valid_count);
   top[0]->mutable_cpu_data()[0] = loss / normalizer_;
+
+  // Clear scratch memory to prevent interfering with backward (see #6202).
+  caffe_gpu_set(bottom[0]->count(), Dtype(0), bottom[0]->mutable_gpu_diff());
+  caffe_gpu_set(bottom[1]->count(), Dtype(0), bottom[1]->mutable_gpu_diff());
 }
 
 template <typename Dtype>
@@ -91,7 +94,7 @@ void SigmoidCrossEntropyLossLayer<Dtype>::Backward_gpu(
     if (has_ignore_label_) {
       // NOLINT_NEXT_LINE(whitespace/operators)
       SigmoidCrossEntropyLossIgnoreDiffGPU<Dtype><<<CAFFE_GET_BLOCKS(count),
-        CAFFE_CUDA_NUM_THREADS>>>(count, ignore_label_, target, bottom_diff);
+        CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(count, ignore_label_, target, bottom_diff);
     }
     // Scale down gradient
     Dtype loss_weight = top[0]->cpu_diff()[0] / normalizer_;

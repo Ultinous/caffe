@@ -17,7 +17,7 @@ template <typename Dtype>
 void adam_update_gpu(int N, Dtype* g, Dtype* m, Dtype* v, Dtype beta1,
     Dtype beta2, Dtype eps_hat, Dtype corrected_local_rate) {
   AdamUpdate<Dtype>  // NOLINT_NEXT_LINE(whitespace/operators)
-      <<<CAFFE_GET_BLOCKS(N), CAFFE_CUDA_NUM_THREADS>>>(
+      <<<CAFFE_GET_BLOCKS(N), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
       N, g, m, v, beta1, beta2, eps_hat, corrected_local_rate);
   CUDA_POST_KERNEL_CHECK;
 }

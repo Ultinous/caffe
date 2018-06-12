@@ -55,7 +55,7 @@ void CropLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   Dtype* top_data = top[0]->mutable_gpu_data();
   int n = top[0]->count();
   // NOLINT_NEXT_LINE(whitespace/operators)
-  crop_kernel_forward<<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS>>>(n,
+  crop_kernel_forward<<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(n,
       bottom[0]->num_axes(),
       src_strides_.gpu_data(),
       dest_strides_.gpu_data(),
@@ -73,7 +73,7 @@ void CropLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   if (propagate_down[0]) {
     caffe_gpu_set(bottom[0]->count(), static_cast<Dtype>(0), bottom_diff);
     // NOLINT_NEXT_LINE(whitespace/operators)
-    crop_kernel_backward<<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS>>>(n,
+    crop_kernel_backward<<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(n,
         bottom[0]->num_axes(),
         src_strides_.gpu_data(),
         dest_strides_.gpu_data(),

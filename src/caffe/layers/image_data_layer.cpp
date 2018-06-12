@@ -202,8 +202,17 @@ void ImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
 
     cv::Mat cv_img1 = ReadImageToCVMat(root_folder + m_additionalImages[classIx][imIx1], new_height, new_width, is_color);
     CHECK(cv_img1.data) << "Could not load " << lines_[lines_id_].first;
-    cv::Mat cv_img2 = ReadImageToCVMat(root_folder + m_additionalImages[classIx][imIx2], new_height, new_width, is_color);
-    CHECK(cv_img2.data) << "Could not load " << lines_[lines_id_].first;
+
+    cv::Mat cv_img2;
+    if( imIx2 == imIx1 )
+    {
+      cv_img2 = cv_img1.clone();
+    }
+    else 
+    {
+      ReadImageToCVMat(root_folder + m_additionalImages[classIx][imIx2], new_height, new_width, is_color);
+      CHECK(cv_img2.data) << "Could not load " << lines_[lines_id_].first;
+    }
 
     m_unTransformer.transform( cv_img1 );
     m_unTransformer.transform( cv_img2 );

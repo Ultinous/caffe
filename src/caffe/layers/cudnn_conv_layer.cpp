@@ -18,9 +18,12 @@ template <typename Dtype>
 void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   ConvolutionLayer<Dtype>::LayerSetUp(bottom, top);
-  // Initialize CUDA streams and cuDNN.
+// Initialize CUDA streams and cuDNN.
+#if !CUDNN_VERSION_MIN(7,0,0)
   stream_         = new cudaStream_t[this->group_ * CUDNN_STREAMS_PER_GROUP];
   handle_         = new cudnnHandle_t[this->group_ * CUDNN_STREAMS_PER_GROUP];
+  end_event_      = new cudaEvent_t[this->group_ * CUDNN_STREAMS_PER_GROUP];
+#endif
 
   // Initialize algorithm arrays
   fwd_algo_       = new cudnnConvolutionFwdAlgo_t[bottom.size()];
@@ -47,24 +50,36 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
     workspace_bwd_data_sizes_[i] = 0;
     workspace_bwd_filter_sizes_[i] = 0;
   }
-
+#if !CUDNN_VERSION_MIN(7,0,0)
+  CUDA_CHECK(cudaEventCreateWithFlags(&start_event_,cudaEventDisableTiming));
   for (int g = 0; g < this->group_ * CUDNN_STREAMS_PER_GROUP; g++) {
     CUDA_CHECK(cudaStreamCreate(&stream_[g]));
     CUDNN_CHECK(cudnnCreate(&handle_[g]));
     CUDNN_CHECK(cudnnSetStream(handle_[g], stream_[g]));
+    CUDA_CHECK(cudaEventCreateWithFlags(&end_event_[g],cudaEventDisableTiming));
     workspace[g] = NULL;
   }
-
+#endif
   // Set the indexing parameters.
+#if CUDNN_VERSION_MIN(7,0,0)
+  bias_offset_ = this->num_output_;
+#else
   bias_offset_ = (this->num_output_ / this->group_);
+#endif
 
   // Create filter descriptor.
   const int* kernel_shape_data = this->kernel_shape_.cpu_data();
   const int kernel_h = kernel_shape_data[0];
   const int kernel_w = kernel_shape_data[1];
+#if CUDNN_VERSION_MIN(7,0,0)
+  cudnn::createFilterDesc<Dtype>(&filter_desc_,
+      this->num_output_, this->channels_ / this->group_,
+      kernel_h, kernel_w);
+#else
   cudnn::createFilterDesc<Dtype>(&filter_desc_,
       this->num_output_ / this->group_, this->channels_ / this->group_,
       kernel_h, kernel_w);
+#endif
 
   // Create tensor descriptor(s) for data and corresponding convolution(s).
   for (int i = 0; i < bottom.size(); i++) {
@@ -76,6 +91,9 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
     top_descs_.push_back(top_desc);
     cudnnConvolutionDescriptor_t conv_desc;
     cudnn::createConvolutionDesc<Dtype>(&conv_desc);
+#if CUDNN_VERSION_MIN(7,0,0)
+    CUDNN_CHECK(cudnnSetConvolutionGroupCount(conv_desc,this->group_));
+#endif
     conv_descs_.push_back(conv_desc);
   }
 
@@ -95,8 +113,13 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
       << "CuDNNConvolution input must have 2 spatial axes "
       << "(e.g., height and width). "
       << "Use 'engine: CAFFE' for general ND convolution.";
+#if CUDNN_VERSION_MIN(7,0,0)
+  bottom_offset_ = this->bottom_dim_;
+  top_offset_ = this->top_dim_;
+#else
   bottom_offset_ = this->bottom_dim_ / this->group_;
   top_offset_ = this->top_dim_ / this->group_;
+#endif
   const int height = bottom[0]->shape(this->channel_axis_ + 1);
   const int width = bottom[0]->shape(this->channel_axis_ + 2);
   const int height_out = top[0]->shape(this->channel_axis_ + 1);
@@ -113,6 +136,18 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
   size_t workspace_limit_bytes = 8*1024*1024;
 
   for (int i = 0; i < bottom.size(); i++) {
+#if CUDNN_VERSION_MIN(7,0,0)
+    cudnn::setTensor4dDesc<Dtype>(&bottom_descs_[i],
+        this->num_,
+        this->channels_, height, width,
+        this->channels_ * height * width,
+        height * width, width, 1);
+    cudnn::setTensor4dDesc<Dtype>(&top_descs_[i],
+        this->num_,
+        this->num_output_, height_out, width_out,
+        this->num_output_ * this->out_spatial_dim_,
+        this->out_spatial_dim_, width_out, 1);
+#else
     cudnn::setTensor4dDesc<Dtype>(&bottom_descs_[i],
         this->num_,
         this->channels_ / this->group_, height, width,
@@ -123,12 +158,13 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
         this->num_output_ / this->group_, height_out, width_out,
         this->num_output_ * this->out_spatial_dim_,
         this->out_spatial_dim_, width_out, 1);
+#endif
     cudnn::setConvolutionDesc<Dtype>(&conv_descs_[i], bottom_descs_[i],
         filter_desc_, pad_h, pad_w,
         stride_h, stride_w);
 
     // choose forward and backward algorithms + workspace(s)
-    CUDNN_CHECK(cudnnGetConvolutionForwardAlgorithm(handle_[0],
+    CUDNN_CHECK(cudnnGetConvolutionForwardAlgorithm(Caffe::cudnn_handle(),
       bottom_descs_[i],
       filter_desc_,
       conv_descs_[i],
@@ -137,7 +173,7 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
       workspace_limit_bytes,
       &fwd_algo_[i]));
 
-    CUDNN_CHECK(cudnnGetConvolutionForwardWorkspaceSize(handle_[0],
+    CUDNN_CHECK(cudnnGetConvolutionForwardWorkspaceSize(Caffe::cudnn_handle(),
       bottom_descs_[i],
       filter_desc_,
       conv_descs_[i],
@@ -146,24 +182,24 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
       &(workspace_fwd_sizes_[i])));
 
     // choose backward algorithm for filter
-    CUDNN_CHECK(cudnnGetConvolutionBackwardFilterAlgorithm(handle_[0],
+    CUDNN_CHECK(cudnnGetConvolutionBackwardFilterAlgorithm(Caffe::cudnn_handle(),
           bottom_descs_[i], top_descs_[i], conv_descs_[i], filter_desc_,
           CUDNN_CONVOLUTION_BWD_FILTER_SPECIFY_WORKSPACE_LIMIT,
           workspace_limit_bytes, &bwd_filter_algo_[i]) );
 
     // get workspace for backwards filter algorithm
-    CUDNN_CHECK(cudnnGetConvolutionBackwardFilterWorkspaceSize(handle_[0],
+    CUDNN_CHECK(cudnnGetConvolutionBackwardFilterWorkspaceSize(Caffe::cudnn_handle(),
           bottom_descs_[i], top_descs_[i], conv_descs_[i], filter_desc_,
           bwd_filter_algo_[i], &workspace_bwd_filter_sizes_[i]));
 
     // choose backward algo for data
-    CUDNN_CHECK(cudnnGetConvolutionBackwardDataAlgorithm(handle_[0],
+    CUDNN_CHECK(cudnnGetConvolutionBackwardDataAlgorithm(Caffe::cudnn_handle(),
           filter_desc_, top_descs_[i], conv_descs_[i], bottom_descs_[i],
           CUDNN_CONVOLUTION_BWD_DATA_SPECIFY_WORKSPACE_LIMIT,
         workspace_limit_bytes, &bwd_data_algo_[i]));
 
     // get workspace size
-    CUDNN_CHECK(cudnnGetConvolutionBackwardDataWorkspaceSize(handle_[0],
+    CUDNN_CHECK(cudnnGetConvolutionBackwardDataWorkspaceSize(Caffe::cudnn_handle(),
           filter_desc_, top_descs_[i], conv_descs_[i], bottom_descs_[i],
           bwd_data_algo_[i], &workspace_bwd_data_sizes_[i]) );
   }
@@ -186,8 +222,13 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
                              total_workspace_bwd_data);
   max_workspace = std::max(max_workspace, total_workspace_bwd_filter);
   // ensure all groups have enough workspace
+#if CUDNN_VERSION_MIN(7,0,0)
+  size_t total_max_workspace = max_workspace;
+#else
   size_t total_max_workspace = max_workspace *
                                (this->group_ * CUDNN_STREAMS_PER_GROUP);
+#endif
+
 
   // this is the total amount of storage needed over all groups + streams
   if (total_max_workspace > workspaceSizeInBytes) {
@@ -210,24 +251,33 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
       }
 
       // NULL out all workspace pointers
+#if CUDNN_VERSION_MIN(7,0,0)
+      workspace[0] = NULL;
+#else
       for (int g = 0; g < (this->group_ * CUDNN_STREAMS_PER_GROUP); g++) {
         workspace[g] = NULL;
       }
+#endif;
       // NULL out underlying data
       workspaceData = NULL;
       workspaceSizeInBytes = 0;
     }
 
+#if CUDNN_VERSION_MIN(7,0,0)
+    workspace[0] = reinterpret_cast<char *>(workspaceData);
+#else
     // if we succeed in the allocation, set pointer aliases for workspaces
     for (int g = 0; g < (this->group_ * CUDNN_STREAMS_PER_GROUP); g++) {
       workspace[g] = reinterpret_cast<char *>(workspaceData) + g*max_workspace;
     }
+#endif
   }
+
 
   // Tensor descriptor for bias.
   if (this->bias_term_) {
     cudnn::setTensor4dDesc<Dtype>(&bias_desc_,
-        1, this->num_output_ / this->group_, 1, 1);
+        1, this->num_output_, 1, 1);
   }
 }
 
@@ -246,15 +296,22 @@ CuDNNConvolutionLayer<Dtype>::~CuDNNConvolutionLayer() {
   }
   cudnnDestroyFilterDescriptor(filter_desc_);
 
+#if !CUDNN_VERSION_MIN(7,0,0)
+  cudaEventDestroy(start_event_); 
   for (int g = 0; g < this->group_ * CUDNN_STREAMS_PER_GROUP; g++) {
+    cudaEventDestroy(end_event_[g]);
     cudaStreamDestroy(stream_[g]);
     cudnnDestroy(handle_[g]);
   }
+#endif
 
   cudaFree(workspaceData);
   delete [] workspace;
+#if !CUDNN_VERSION_MIN(7,0,0)
+  delete [] end_event_;
   delete [] stream_;
   delete [] handle_;
+#endif
   delete [] fwd_algo_;
   delete [] bwd_filter_algo_;
   delete [] bwd_data_algo_;
