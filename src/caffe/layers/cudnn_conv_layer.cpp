@@ -257,7 +257,7 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
       for (int g = 0; g < (this->group_ * CUDNN_STREAMS_PER_GROUP); g++) {
         workspace[g] = NULL;
       }
-#endif;
+#endif
       // NULL out underlying data
       workspaceData = NULL;
       workspaceSizeInBytes = 0;
