@@ -441,6 +441,7 @@ message LayerParameter {
   optional LargeMarginInnerProductParameter largemargin_inner_product_param = 5014;
   optional MarginInnerProductParameter margin_inner_product_param = 5015;
   optional ImResizeParameter imresize_param = 5016;
+  optional DemographyDataParam demography_data_param = 5017;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1761,3 +1762,9 @@ message ImResizeParameter {
   optional float scale_gap = 5 [default = 0.1];
 }
 
+message DemographyDataParam {
+  optional double age_stddev = 1 [default = 5.0];
+  optional int32 max_age = 2 [default = 100];
+  optional float interval_length = 3 [default = 5.0];
+  optional int32 additional_intervals = 4 [default = 2];
+}

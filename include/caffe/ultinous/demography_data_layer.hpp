@@ -56,7 +56,7 @@ class DemographyDataLayer : public BasePrefetchingDataLayer<Dtype> {
   std::map< int, std::map< int, std::vector<std::string> > > m_files; //age -> gender -> filenames
   std::map< int, std::map< int, int > > m_indices; //age -> gender -> current index
   int m_maxAge;
-  int m_intervalLength;
+  float m_intervalLength;
   int m_additionalIntervals;
   int m_numIntervals;
 

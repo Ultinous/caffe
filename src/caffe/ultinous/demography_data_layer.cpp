@@ -28,12 +28,13 @@ void DemographyDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   const bool is_color  = this->layer_param_.image_data_param().is_color();
   string root_folder = this->layer_param_.image_data_param().root_folder();
 
-  m_maxAge = 100;
-  m_intervalLength = 5;
-  m_additionalIntervals = 2;
-  m_numIntervals = 2*m_additionalIntervals + m_maxAge / m_intervalLength;
+  m_maxAge = this->layer_param_.demography_data_param().max_age();
+  m_intervalLength = this->layer_param_.demography_data_param().interval_length();
+  m_additionalIntervals = this->layer_param_.demography_data_param().additional_intervals();
+  m_numIntervals = int(2*m_additionalIntervals + float(m_maxAge) / m_intervalLength);
+  LOG(INFO) << "demography_data_layer numIntervals:" << m_numIntervals;
 
-  CHECK( 0 == (m_maxAge) % m_intervalLength );
+  //CHECK( 0 == (m_maxAge) % m_intervalLength );
 
   CHECK((new_height == 0 && new_width == 0) ||
       (new_height > 0 && new_width > 0)) << "Current implementation requires "
@@ -85,9 +86,9 @@ void DemographyDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   }
 }
 
-static double ndf( double x, double mu, double sigma )
+static double ncdf( double x, double mu, double sigma )
 {
-  return 0.5 + 0.5 * erf( (x-mu)/sigma );
+  return 0.5 + 0.5 * erf( (x-mu)/(sigma*std::sqrt(2.0)) );
 }
 
 // This function is called on prefetch thread
@@ -169,9 +170,9 @@ void DemographyDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     {
       double x1 = (intervalIx-m_additionalIntervals)*m_intervalLength;
       double x2 = x1 + m_intervalLength;
-      double sigma = double(m_intervalLength);
+      double sigma = this->layer_param_.demography_data_param().age_stddev();
 
-      prefetch_label[ labelOffset + intervalIx ] = ndf( x2, age, sigma ) - ndf( x1, age, sigma );
+      prefetch_label[ labelOffset + intervalIx ] = ncdf( x2, age, sigma ) - ncdf( x1, age, sigma );
       //std::cout << " " << prefetch_label[ labelOffset + intervalIx ];
     }
 
