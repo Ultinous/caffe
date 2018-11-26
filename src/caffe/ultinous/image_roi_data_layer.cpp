@@ -208,11 +208,22 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   cv::Mat cv_img, cv_img_slice;
   for (int i=0; i<inImgNum; ++i)
   {
-    cv_img_slice = ReadImageToCVMat(root_folder + samples[sample_id_].image_files[i],
-                              new_height, new_width, is_color);
-    CHECK(cv_img_slice.data) << "Could not load " << samples[sample_id_].image_files[i];
-    CHECK(cv_img.cols == cv_img_slice.cols && cv_img.rows == cv_img_slice.rows) << "Wrong resolution of " << samples[sample_id_].image_files[i];
-    cv::merge(cv_img_slice, cv_img);
+    if (i == 0)
+    {
+      cv_img = ReadImageToCVMat(root_folder + samples[sample_id_].image_files[0], new_height, new_width, is_color);
+      CHECK(cv_img.data && cv_img.rows != 0 && cv_img.cols != 0) << "Could not load " << samples[sample_id_].image_files[0];
+    }
+    else
+    {
+      cv_img_slice = ReadImageToCVMat(root_folder + samples[sample_id_].image_files[i], new_height, new_width, is_color);
+      CHECK(cv_img_slice.data) << "Could not load " << samples[sample_id_].image_files[i];
+      CHECK(cv_img.cols == cv_img_slice.cols && cv_img.rows == cv_img_slice.rows)
+      << "Resolution mismatch, expected " << cv_img.cols << "x" << cv_img.rows
+      << " got " << cv_img_slice.cols << "x" << cv_img_slice.rows
+      << " in " << samples[sample_id_].image_files[i];
+      cv::merge(cv_img_slice, cv_img);
+    }
+
   }
 
   read_time += timer.MicroSeconds();
