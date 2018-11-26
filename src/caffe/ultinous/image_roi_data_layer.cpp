@@ -36,6 +36,7 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   const int new_width  = this->layer_param_.image_data_param().new_width();
   const bool is_color  = this->layer_param_.image_data_param().is_color();
   string root_folder = this->layer_param_.image_data_param().root_folder();
+  uint32_t inImgNum = this->layer_param_.image_roi_data_param().in_img_num();
 
   CHECK((new_height == 0 && new_width == 0) ||
         (new_height > 0 && new_width > 0)) << "Current implementation requires "
@@ -53,13 +54,19 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     this->prefetch_[i].labels_ = std::vector<Blob<Dtype> >(static_cast<std::size_t>(m_labels_blobs_num - 1));
   }
 
-  std::string line;
+  std::string line, image_file;
   while (std::getline(infile, line))
   {
     Sample sample;
+
     std::istringstream iss(line);
 
-    iss >> sample.image_file;
+    for (int i=0; i<inImgNum; ++i)
+    {
+      iss >> image_file;
+      sample.image_files.push_back(image_file);
+    }
+
     BBox bbox;
     bbox.classes = std::vector<int>(static_cast<std::size_t>(m_labels_blobs_num),0);
     while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2)
@@ -98,7 +105,7 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   }
 
 
-  cv::Mat cv_img = ReadImageToCVMat(root_folder + samples[0].image_file,
+  cv::Mat cv_img = ReadImageToCVMat(root_folder + samples[0].image_files[0],
                                     new_height, new_width, is_color);
 
   CHECK(this->layer_param_.image_roi_data_param().pad()>=1);
@@ -110,7 +117,7 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
       cv::copyMakeBorder(cv_img, cv_img, 0, pad_h, 0, pad_w, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));
   }
 
-  CHECK(cv_img.data) << "Could not load " << samples[0].image_file;
+  CHECK(cv_img.data) << "Could not load " << samples[0].image_files[0];
   vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
   this->transformed_data_.Reshape(top_shape);
   // Reshape prefetch_data and top[0] according to the batch_size.
@@ -187,6 +194,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   ImageROIDataParameter image_roi_data_param = this->layer_param_.image_roi_data_param();
   uint32_t smallerDimensionSize = image_roi_data_param.smallerdimensionsize();
   uint32_t maxSize = image_roi_data_param.maxsize();
+  uint32_t inImgNum = image_roi_data_param.in_img_num();
 
   CHECK( batch_size==1 ) << "Currently implemented only for batch_size=1";
 
@@ -196,9 +204,17 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   // Load image
   timer.Start();
   CHECK_GT(samples_size, sample_id_);
-  cv::Mat cv_img = ReadImageToCVMat(root_folder + samples[sample_id_].image_file,
-                                    new_height, new_width, is_color);
-  CHECK(cv_img.data) << "Could not load " << samples[sample_id_].image_file;
+
+  cv::Mat cv_img, cv_img_slice;
+  for (int i=0; i<inImgNum; ++i)
+  {
+    cv_img_slice = ReadImageToCVMat(root_folder + samples[sample_id_].image_files[i],
+                              new_height, new_width, is_color);
+    CHECK(cv_img_slice.data) << "Could not load " << samples[sample_id_].image_files[i];
+    CHECK(cv_img.cols == cv_img_slice.cols && cv_img.rows == cv_img_slice.rows) << "Wrong resolution of " << samples[sample_id_].image_files[i];
+    cv::merge(cv_img_slice, cv_img);
+  }
+
   read_time += timer.MicroSeconds();
 
   m_unTransformer.transform( cv_img );

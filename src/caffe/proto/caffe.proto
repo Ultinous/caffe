@@ -1527,6 +1527,7 @@ message ImageROIDataParameter {
   optional uint32 pad = 4 [default = 1];
   optional float rnd_scale_min = 5;
   optional float rnd_scale_max = 6;
+  optional uint32 in_img_num = 7 [default = 1];
 }
 
 message ProposalTargetParameter {
