@@ -45,15 +45,16 @@ protected:
     auto blobRange = [](const Blob<Dtype>& blob) {
       return std::make_pair(blob.cpu_data(), blob.cpu_data() + blob.count());
     };
-    auto mutableBlobRange = [](Blob<Dtype>& blob) {
-      return std::make_pair(blob.mutable_cpu_data(), blob.mutable_cpu_data() + blob.count());
-    };
+    const auto baseRange = blobRange(mBaseBlob);
     const auto diffRange = blobRange(mDiffBlob);
-    const auto baseRange = mutableBlobRange(mBaseBlob);
-    boost::transform(baseRange, diffRange, baseRange.first, [this](const Dtype& a, const Dtype& b) {
-      return this->doForward(a, b);
-    });
-    top[0]->mutable_cpu_data()[0] = boost::accumulate(baseRange, Dtype(0.0)) / bottom[0]->shape(0);
+    Dtype result = 0.0;
+    for (const auto& it : boost::combine(baseRange, diffRange))
+    {
+      const auto base = boost::get<0>(it);
+      const auto difference = boost::get<1>(it);
+      result += this->doForward(base, difference);
+    }
+    top[0]->mutable_cpu_data()[0] = result / bottom[0]->shape(0);
   }
 
   void Backward_cpu(const vector<Blob<Dtype>*>& top, const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) override
@@ -78,30 +79,30 @@ protected:
       mDiffEst.backward(bottom, mDiffBlobBack);
 
       const auto scale = top[0]->cpu_diff()[0] / bottom[0]->shape(0);
-      const auto f1 = blobRange(mDiffBlob);
-      const auto f1d = blobDiffRange(mDiffBlobBack);
-      const auto f2 = blobRange(mBaseBlob);
-      const auto f2d = mutableBlobDiffRange(*bottom[0]);
+      const auto diffRange = blobRange(mDiffBlob);
+      const auto diffDerRange = blobDiffRange(mDiffBlobBack);
+      const auto baseRange = blobRange(mBaseBlob);
+      const auto baseDerRange = mutableBlobDiffRange(*bottom[0]);
 
       const auto stepSize = bottom[0]->shape(1);
-      auto outputIt = f2d.first;
-      auto f1dIt = f1d.first;
-      auto f2dIt = f2d.first;
-      for (const auto& fTuple : boost::combine(f1, f2))
+      auto outputIt = baseDerRange.first;
+      auto diffDerIt = diffDerRange.first;
+      auto baseDerIt = baseDerRange.first;
+      for (const auto& fTuple : boost::combine(baseRange, diffRange))
       {
-        const auto f1 = boost::get<0>(fTuple);
-        const auto f2 = boost::get<1>(fTuple);
-        const auto f1dRange = std::make_pair(f1dIt, f1dIt+stepSize);
-        const auto f2dRange = std::make_pair(f2dIt, f2dIt+stepSize);
-        const auto combined = boost::combine(f1dRange, f2dRange);
-        boost::transform(combined, outputIt, [this,&scale,f1,f2](const typename decltype(combined)::value_type& a) {
-          const auto f1d = boost::get<0>(a);
-          const auto f2d = boost::get<1>(a);
-          return scale * this->doBackward(f1, f1d, f2, f2d);
+        const auto base = boost::get<0>(fTuple);
+        const auto diff = boost::get<1>(fTuple);
+        const auto diffDerRangeLoc = std::make_pair(diffDerIt, diffDerIt+stepSize);
+        const auto baseDerRangeLoc = std::make_pair(baseDerIt, baseDerIt+stepSize);
+        const auto combined = boost::combine(baseDerRangeLoc, diffDerRangeLoc);
+        boost::transform(combined, outputIt, [this,&scale,diff,base](const typename decltype(combined)::value_type& a) {
+          const auto baseDer = boost::get<0>(a);
+          const auto diffDer = boost::get<1>(a);
+          return scale * this->doBackward(base, baseDer, diff, diffDer);
         });
 
-        f1dIt += stepSize;
-        f2dIt += stepSize;
+        diffDerIt += stepSize;
+        baseDerIt += stepSize;
         outputIt += stepSize;
       }
     }
@@ -115,19 +116,18 @@ private:
   Blob<Dtype> mBaseBlob;
 
   DiffEstimator mDiffEst;
-
   Blob<Dtype> mDiffBlob;
   Blob<Dtype> mDiffBlobBack;
 
-  inline Dtype doForward(const Dtype& a, const Dtype& b)
+  inline Dtype doForward(const Dtype& base, const Dtype& difference)
   {
-    return mAlpha*a*pow(b, mGamma);
+    return mAlpha*pow(difference, mGamma) * base;
   }
 
-  inline Dtype doBackward(const Dtype& f1, const Dtype& f1d, const Dtype& f2, const Dtype& f2d)
+  inline Dtype doBackward(const Dtype& base, const Dtype& baseDer, const Dtype& diff, const Dtype& diffDer)
   {
-    //return mAlpha * (mGamma * pow(f1, mGamma-1) * f1d * f2 + pow(f1, mGamma) * f2d);
-    return mAlpha * pow(f1, mGamma-1) * (mGamma * f1d * f2 + f1 * f2d);
+    //return mAlpha * (mGamma * pow(diff, mGamma-1) * diffDer * base + pow(diff, mGamma) * baseDer);
+    return mAlpha * pow(diff, mGamma-1) * (mGamma * diffDer * base + diff * baseDer);
   }
 };
 
@@ -151,7 +151,7 @@ struct SquaredDiff {
     const auto dataSize = input[0]->count(1);
 
     auto outputIt = output.first;
-    for (auto firstIt = firstInput.first, secondIt = secondInput.first; firstIt != firstInput.second; firstIt+=dataSize, secondIt+=dataSize, ++outputIt)
+    for (auto firstIt = firstInput.first, secondIt = secondInput.first; firstIt != firstInput.second; firstIt += dataSize, secondIt += dataSize, ++outputIt)
     {
       const auto first = std::make_pair(firstIt, firstIt+dataSize);
       const auto second = std::make_pair(secondIt, secondIt+dataSize);
@@ -181,7 +181,7 @@ struct SquaredDiff {
 
     const auto dataSize = input[0]->count(1);
     auto outputIt = output.first;
-    for (auto iter_1 = in_1.first, iter_2 = in_2.first; iter_1 != in_1.second; iter_1+=dataSize, iter_2+=dataSize, outputIt += dataSize)
+    for (auto iter_1 = in_1.first, iter_2 = in_2.first; iter_1 != in_1.second; iter_1 += dataSize, iter_2 += dataSize, outputIt += dataSize)
     {
       const auto first = std::make_pair(iter_1, iter_1+dataSize);
       const auto second = std::make_pair(iter_2, iter_2+dataSize);
