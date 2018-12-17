@@ -124,6 +124,7 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   const int batch_size = this->layer_param_.image_data_param().batch_size();
   CHECK_GT(batch_size, 0) << "Positive batch size required";
   top_shape[0] = batch_size;
+  top_shape[1] = cv_img.channels() * inImgNum;
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
     this->prefetch_[i].data_.Reshape(top_shape);
   }
@@ -205,32 +206,34 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   timer.Start();
   CHECK_GT(samples_size, sample_id_);
 
-  cv::Mat cv_img, cv_img_slice;
+  vector<cv::Mat> slices;
+  slices.reserve(inImgNum);
   for (int i=0; i<inImgNum; ++i)
   {
     if (i == 0)
     {
-      cv_img = ReadImageToCVMat(root_folder + samples[sample_id_].image_files[0], new_height, new_width, is_color);
-      CHECK(cv_img.data && cv_img.rows != 0 && cv_img.cols != 0) << "Could not load " << samples[sample_id_].image_files[0];
+      slices.push_back(ReadImageToCVMat(root_folder + samples[sample_id_].image_files[0], new_height, new_width, is_color));
+      CHECK(slices.back().data && slices.back().rows != 0 && slices.back().cols != 0) << "Could not load " << samples[sample_id_].image_files[0];
     }
     else
     {
-      cv_img_slice = ReadImageToCVMat(root_folder + samples[sample_id_].image_files[i], new_height, new_width, is_color);
-      CHECK(cv_img_slice.data) << "Could not load " << samples[sample_id_].image_files[i];
-      CHECK(cv_img.cols == cv_img_slice.cols && cv_img.rows == cv_img_slice.rows)
-      << "Resolution mismatch, expected " << cv_img.cols << "x" << cv_img.rows
-      << " got " << cv_img_slice.cols << "x" << cv_img_slice.rows
-      << " in " << samples[sample_id_].image_files[i];
-      cv::merge(cv_img_slice, cv_img);
-    }
+      slices.push_back(ReadImageToCVMat(root_folder + samples[sample_id_].image_files[i], new_height, new_width, is_color));
 
+      CHECK(slices.back().data) << "Could not load " << samples[sample_id_].image_files[i];
+      CHECK(slices[0].cols == slices.back().cols && slices[0].rows == slices.back().rows)
+      << "Resolution mismatch, expected " << slices[0].cols << "x" << slices[0].rows
+      << " got " << slices.back().cols << "x" << slices.back().rows
+      << " in " << samples[sample_id_].image_files[i];
+
+      m_unTransformer.transform( slices.back() );
+    }
   }
 
-  read_time += timer.MicroSeconds();
+  cv::Mat cv_img;
+  cv::merge(slices, cv_img);
+  vector<cv::Mat>().swap(slices);
 
-  m_unTransformer.transform( cv_img );
-  
-  //std::cout << "---- cv_img size: " << cv_img.rows << " " << cv_img.cols << std::endl;
+  read_time += timer.MicroSeconds();
 
   float scale = 1.0f;
 
