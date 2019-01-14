@@ -278,6 +278,24 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   
   bool mirror = image_roi_data_param.mirror() && ((rand()%2)==1);
 
+  int rotationNum = 0;
+  if ( image_roi_data_param.rotate() )
+  {
+    rotationNum = ( rand() % 4 );
+
+    switch( rotationNum ) {
+      case 1: //  90 degree
+        cv::rotate(cv_img, cv_img, cv::ROTATE_90_CLOCKWISE);
+        break;
+      case 2: // 180 degree
+        cv::rotate(cv_img, cv_img, cv::ROTATE_180);
+        break;
+      case 3: // 270 degree
+        cv::rotate(cv_img, cv_img, cv::ROTATE_90_COUNTERCLOCKWISE);
+        break;
+    }
+  }
+
   if( mirror )
   {
     cv::Mat cv_flipped;
@@ -291,7 +309,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   top_shape[0] = batch_size;
   batch->data_.Reshape(top_shape);
 
-  Dtype* prefetch_data = batch->data_.mutable_cpu_data();
+  Dtype* prefetch_data = batch->data_.mutable_cpu_data();   
 
   timer.Start();
   // Apply transformations (mirror, crop...) to the image
@@ -334,6 +352,57 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       Dtype temp = x1;
       x1 = cv_img.cols - x2;
       x2 = cv_img.cols - temp;
+    }
+
+    if ( rotationNum )
+    {
+      int h = cv_img.rows, w = cv_img.cols, x1_, y1_, x2_, y2_;
+      switch(rotationNum) {
+        case 1: //  90 degree
+          h = w+h;
+          w = h-w;
+          h = h-w;
+
+          x1_ = h-y2;
+          y1_ = x1;
+          x2_ = h-y1;
+          y2_ = x2;
+
+          x1 = x1_;
+          y1 = y1_;
+          x2 = x2_;
+          y2 = y2_;
+
+          break;
+        case 2: // 180 degree
+          x1_ = w-x2;
+          y1_ = h-y2;
+          x2_ = w-x1;
+          y2_ = h-y1;
+
+          x1 = x1_;
+          y1 = y1_;
+          x2 = x2_;
+          y2 = y2_;
+
+          break;
+        case 3: // 270 degree
+          h = w+h;
+          w = h-w;
+          h = h-w;
+
+          x1_ = y1;
+          y1_ = w-x2;
+          x2_ = y2;
+          y2_ = w-x1;
+
+          x1 = x1_;
+          y1 = y1_;
+          x2 = x2_;
+          y2 = y2_;
+
+          break;
+      }
     }
 
     //std::cout << "---- x1:" << x1 << " y1:" << y1<< " x2:" << x2 << " y2:" << y1 << " cls:" << cls << std::endl;
