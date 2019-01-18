@@ -19,6 +19,8 @@
 #include "caffe/util/rng.hpp"
 #include <iostream>
 
+//#include <boost/filesystem.hpp>
+
 namespace caffe {
 namespace ultinous {
 
@@ -246,7 +248,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       if((rand()%2)==1)
         scale = scale_min + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(scale_max-scale_max)));
   }
- 
+
   if( smallerDimensionSize > 0 )
   {
     float scale1 = static_cast<float>(smallerDimensionSize)
@@ -258,7 +260,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   {
     scale = static_cast<float>(maxSize) / static_cast<float>(std::max(cv_img.rows, cv_img.cols));
   }
-  
+
   if( scale != 1.0f)
   {
     cv::Mat cv_resized;
@@ -266,17 +268,24 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
     cv_img = cv_resized;
   }
-  
+
   CHECK(image_roi_data_param.pad()>=1);
   if(image_roi_data_param.pad()>1)
   {
-    int pad_h = ( image_roi_data_param.pad() - ( cv_img.rows % image_roi_data_param.pad() ) ) % image_roi_data_param.pad();    
-    int pad_w = ( image_roi_data_param.pad() - ( cv_img.cols % image_roi_data_param.pad() ) ) % image_roi_data_param.pad();   
+    int pad_h = ( image_roi_data_param.pad() - ( cv_img.rows % image_roi_data_param.pad() ) ) % image_roi_data_param.pad();
+    int pad_w = ( image_roi_data_param.pad() - ( cv_img.cols % image_roi_data_param.pad() ) ) % image_roi_data_param.pad();
     if( pad_h != 0 || pad_w != 0 )
-      cv::copyMakeBorder(cv_img, cv_img, 0, pad_h, 0, pad_w, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));   
+      cv::copyMakeBorder(cv_img, cv_img, 0, pad_h, 0, pad_w, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));
   }
-  
+
   bool mirror = image_roi_data_param.mirror() && ((rand()%2)==1);
+
+  if( mirror )
+  {
+    cv::Mat cv_flipped;
+    cv::flip(cv_img, cv_flipped, 1);
+    cv_img = cv_flipped;
+  }
 
   int rotationNum = 0;
   if ( image_roi_data_param.rotate() )
@@ -296,20 +305,13 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     }
   }
 
-  if( mirror )
-  {
-    cv::Mat cv_flipped;
-    cv::flip(cv_img, cv_flipped, 1);
-    cv_img = cv_flipped;
-  }
-
   vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
   this->transformed_data_.Reshape(top_shape);
   // Reshape batch according to the batch_size.
   top_shape[0] = batch_size;
   batch->data_.Reshape(top_shape);
 
-  Dtype* prefetch_data = batch->data_.mutable_cpu_data();   
+  Dtype* prefetch_data = batch->data_.mutable_cpu_data();
 
   timer.Start();
   // Apply transformations (mirror, crop...) to the image
@@ -337,7 +339,6 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   }
 
   Dtype* prefetch_bboxes = batch->bboxes_.mutable_cpu_data();
-
   for( int bboxIx = 0; bboxIx < samples[sample_id_].bboxes.size(); ++bboxIx )
   {
     BBox bbox = samples[sample_id_].bboxes[bboxIx];
@@ -350,22 +351,24 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     if( mirror )
     {
       Dtype temp = x1;
-      x1 = cv_img.cols - x2;
-      x2 = cv_img.cols - temp;
+      if( rotationNum==1 || rotationNum==3 ) {
+        x1 = cv_img.rows - x2;
+        x2 = cv_img.rows - temp;
+      } else {
+        x1 = cv_img.cols - x2;
+        x2 = cv_img.cols - temp;
+      }
     }
 
     if ( rotationNum )
     {
-      int h = cv_img.rows, w = cv_img.cols, x1_, y1_, x2_, y2_;
+      Dtype h = Dtype(cv_img.rows), w = Dtype(cv_img.cols);
+      Dtype x1_, y1_, x2_, y2_;
       switch(rotationNum) {
         case 1: //  90 degree
-          h = w+h;
-          w = h-w;
-          h = h-w;
-
-          x1_ = h-y2;
+          x1_ = w-y2;
           y1_ = x1;
-          x2_ = h-y1;
+          x2_ = w-y1;
           y2_ = x2;
 
           x1 = x1_;
@@ -387,14 +390,10 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
           break;
         case 3: // 270 degree
-          h = w+h;
-          w = h-w;
-          h = h-w;
-
           x1_ = y1;
-          y1_ = w-x2;
+          y1_ = h-x2;
           x2_ = y2;
-          y2_ = w-x1;
+          y2_ = h-x1;
 
           x1 = x1_;
           y1 = y1_;
@@ -404,8 +403,6 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
           break;
       }
     }
-
-    //std::cout << "---- x1:" << x1 << " y1:" << y1<< " x2:" << x2 << " y2:" << y1 << " cls:" << cls << std::endl;
 
     prefetch_bboxes[ 5*bboxIx ] = x1;
     prefetch_bboxes[ 5*bboxIx + 1 ] = y1;
@@ -417,7 +414,21 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     {
       batch->labels_[label_id-1].mutable_cpu_data()[bboxIx] = static_cast<Dtype>(bbox.classes[label_id]);
     }
+
+    //cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0));
   }
+
+  /*
+  std::string dirName("debug_images");
+  boost::filesystem::path path_folder(dirName);
+  if(!boost::filesystem::exists(path_folder))
+  {
+    boost::filesystem::create_directory(dirName);
+  }
+  static int serial = 0;
+  ++serial;
+  cv::imwrite(dirName+"/"+std::to_string(serial)+".png",cv_img);
+  */
 
   // go to the next iter
   sample_id_++;
