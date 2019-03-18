@@ -48,7 +48,7 @@ void FeatureRegistrationLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bo
 }
 
 #ifdef CPU_ONLY
-STUB_GPU(FeatureRegistrationLayer);
+//STUB_GPU(FeatureRegistrationLayer);
 #endif
 
 INSTANTIATE_CLASS(FeatureRegistrationLayer);
