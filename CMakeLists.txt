@@ -18,6 +18,7 @@ add_definitions(-DCAFFE_VERSION=${CAFFE_TARGET_VERSION})
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 
 set(CMAKE_CXX_STANDARD 11)
+list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
 
 include(ExternalProject)
 include(GNUInstallDirs)
@@ -121,4 +122,3 @@ caffe_print_configuration_summary()
 
 # ---[ Export configs generation
 caffe_generate_export_configs()
-

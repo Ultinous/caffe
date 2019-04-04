@@ -44,8 +44,12 @@ class CuDNNConvolutionLayer : public ConvolutionLayer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
   bool handles_setup_;
+#if !CUDNN_VERSION_MIN(7,0,0)
   cudnnHandle_t* handle_;
   cudaStream_t*  stream_;
+  cudaEvent_t start_event_;
+  cudaEvent_t* end_event_;
+#endif
 
   // algorithms for forward and backwards convolutions
   cudnnConvolutionFwdAlgo_t *fwd_algo_;
@@ -70,3 +74,4 @@ class CuDNNConvolutionLayer : public ConvolutionLayer<Dtype> {
 }  // namespace caffe
 
 #endif  // CAFFE_CUDNN_CONV_LAYER_HPP_
+

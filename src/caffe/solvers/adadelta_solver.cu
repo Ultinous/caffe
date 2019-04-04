@@ -18,7 +18,7 @@ template <typename Dtype>
 void adadelta_update_gpu(int N, Dtype* g, Dtype* h, Dtype* h2, Dtype momentum,
     Dtype delta, Dtype local_rate) {
   AdaDeltaUpdate<Dtype>  // NOLINT_NEXT_LINE(whitespace/operators)
-      <<<CAFFE_GET_BLOCKS(N), CAFFE_CUDA_NUM_THREADS>>>(
+      <<<CAFFE_GET_BLOCKS(N), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
       N, g, h, h2, momentum, delta, local_rate);
   CUDA_POST_KERNEL_CHECK;
 }

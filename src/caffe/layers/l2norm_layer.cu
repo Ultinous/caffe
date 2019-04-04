@@ -83,13 +83,13 @@ void L2NormLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   caffe_gpu_powx<Dtype>(bottom[0]->count(), square_data, Dtype(2.0), square_data);
   //sum cross channel
   kernel_channel_sum<Dtype><<<CAFFE_GET_BLOCKS(num * spatial_dim),
-      CAFFE_CUDA_NUM_THREADS>>>(num, channels, spatial_dim, square_data,
+      CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(num, channels, spatial_dim, square_data,
       norm_data);
   // square root
   caffe_gpu_powx<Dtype>(num * spatial_dim, norm_data, Dtype(0.5), norm_data);
   // divide
   kernel_channel_div<Dtype><<<CAFFE_GET_BLOCKS(num * spatial_dim),
-      CAFFE_CUDA_NUM_THREADS>>>(num, channels, spatial_dim, top_data,
+      CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(num, channels, spatial_dim, top_data,
       norm_data);
 }
 
@@ -113,18 +113,18 @@ void L2NormLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   // b_diff = t_diff / norm - dot(t_diff, t_data) / (norm)^2 * bottom_data
   // temp_dot_data = dot(t_diff, t_data)
   kernel_channel_dot<Dtype><<<CAFFE_GET_BLOCKS(num * spatial_dim),
-      CAFFE_CUDA_NUM_THREADS>>>(num, channels, spatial_dim, top_diff, top_data,
+      CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(num, channels, spatial_dim, top_diff, top_data,
       temp_dot_data);
   // temp_dot_data /= (norm)^2
   caffe_gpu_div<Dtype>(num * spatial_dim, temp_dot_data, norm_data, temp_dot_data);
   caffe_gpu_div<Dtype>(num * spatial_dim, temp_dot_data, norm_data, temp_dot_data);
   // bottom_diff = top_diff, bottom_diff /= norm
   kernel_channel_div<Dtype><<<CAFFE_GET_BLOCKS(num * spatial_dim),
-      CAFFE_CUDA_NUM_THREADS>>>(num, channels, spatial_dim, bottom_diff,
+      CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(num, channels, spatial_dim, bottom_diff,
       norm_data);
   // temp_data = bottom_data, temp_data *= temp_dot_data
   kernel_channel_mul<Dtype><<<CAFFE_GET_BLOCKS(num * spatial_dim),
-      CAFFE_CUDA_NUM_THREADS>>>(num, channels, spatial_dim, temp_data,
+      CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(num, channels, spatial_dim, temp_data,
       temp_dot_data);
   // bottom_diff += -temp_data
   caffe_gpu_axpy<Dtype>(top[0]->count(), Dtype(-1.0), temp_data,

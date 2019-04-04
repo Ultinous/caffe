@@ -1,3 +1,4 @@
+#ifdef USE_OPENCV
 #include <vector>
 
 #include <iomanip>
@@ -90,3 +91,4 @@ REGISTER_LAYER_CLASS(Imwrite);
 
 }  // namespace ultinous
 }  // namespace caffe
+#endif  // USE_OPENCV
