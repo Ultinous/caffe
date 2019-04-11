@@ -95,8 +95,7 @@ namespace ultinous {
     const auto datum_width = datum.width();
     // Check dimensions.
     CHECK_GT(datum_channels, 0);
-    CHECK_GE(datum_height, crop_size);
-    CHECK_GE(datum_width, crop_size);
+
     // Build BlobShape.
     const vector<int> shape = {
             1,
@@ -117,8 +116,7 @@ namespace ultinous {
       const auto img_width = cv_img.cols;
       // Check dimensions.
       CHECK_GT(img_channels, 0);
-      CHECK_GE(img_height, crop_size);
-      CHECK_GE(img_width, crop_size);
+
       // Build BlobShape.
       const vector<int> shape = {
               1,
@@ -180,8 +178,6 @@ namespace ultinous {
       const auto data_shape = transformed_data->shape();
       CHECK_GE(data_shape[0], 1);
       CHECK_EQ(data_shape[1], datum_channels);
-      CHECK_LE(data_shape[2], datum_height);
-      CHECK_LE(data_shape[3], datum_width);
 
       LOG_IF(WARNING, data_shape[0] > 1 && !crop_size) <<
         "Batch size is bigger than 1 while there is no crop. Every image of the batch should have the same resolution.";
