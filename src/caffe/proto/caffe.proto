@@ -440,6 +440,7 @@ message LayerParameter {
   optional CenterLossParameter center_loss_param = 5013;
   optional QueuePredictionDataParameter queue_prediction_data_param = 5014;
   optional CPMTransformationParameter cpm_transform_param = 5015;
+  optional CPMTargetParam cpm_target_param = 5016;
 }
 
 // Message that stores parameters used to apply transformation
@@ -514,6 +515,13 @@ message CPMTransformationParameter {
 
   optional float sigma_heat = 26 [default = 7.0];
   optional uint32 vec_distance_threshold = 28 [default = 1];
+}
+
+message CPMTargetParam {
+  optional float positive_threshold = 1 [default = 0.2];
+  optional uint32 target_pixel_count = 2 [default = 0];
+  optional float foreground_fraction = 3 [default = 0.5];
+  optional float hnm_threshold = 4 [default = 0.5];
 }
 
 // Message that stores parameters shared by loss layers
