@@ -80,15 +80,18 @@ void CPMTargetLayer<Dtype>::Forward_cpu(vector<Blob<Dtype> *> const &bottom, vec
 
       std::sort(background.begin(), background.end(), std::greater<std::tuple<Dtype, std::size_t>>());
 
-      for (std::size_t i = background.size()-1; i > 0; --i)
+      if (background.size() > 0)
       {
-        std::size_t j = rand() % (i + 1);
-        if (m_hnm_threshold < (static_cast<Dtype>(rand()) / RAND_MAX))
-          std::swap(background[i], background[j]);
-      }
+        for (std::size_t i = background.size()-1; i > 0; --i)
+        {
+          std::size_t j = rand() % (i + 1);
+          if (m_hnm_threshold < (static_cast<Dtype>(rand()) / RAND_MAX))
+            std::swap(background[i], background[j]);
+        }
 
-      if (target_bg_count < background.size())
-        background.erase(background.begin()+target_bg_count, background.end());
+        if (target_bg_count < background.size())
+          background.erase(std::next(background.begin(), target_bg_count), background.end());
+      }
 
       // LOG(INFO) << "target bg count " << target_bg_count;
       // LOG(INFO) << "num bg " << background.size();
