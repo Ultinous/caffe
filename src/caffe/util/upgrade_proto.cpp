@@ -92,11 +92,25 @@ void ReadNetParamsFromTextFileOrDie(const string& param_file,
   UpgradeNetAsNeeded(param_file, param);
 }
 
+void ReadNetParamsFromTextStreamOrDie(std::istream& param_stream, const string& name_to_log,
+  NetParameter* param) {
+  CHECK(ReadProtoFromTextStream(param_stream, param))
+    << "Failed to parse NetParameter stream: " << name_to_log;
+  UpgradeNetAsNeeded(name_to_log, param);
+}
+
 void ReadNetParamsFromBinaryFileOrDie(const string& param_file,
                                       NetParameter* param) {
   CHECK(ReadProtoFromBinaryFile(param_file, param))
       << "Failed to parse NetParameter file: " << param_file;
   UpgradeNetAsNeeded(param_file, param);
+}
+
+void ReadNetParamsFromBinaryStreamOrDie(std::istream& param_stream, const string& name_to_log,
+  NetParameter* param) {
+  CHECK(ReadProtoFromBinaryStream(param_stream, param))
+    << "Failed to parse NetParameter stream: " << name_to_log;
+  UpgradeNetAsNeeded(name_to_log, param);
 }
 
 bool NetNeedsV0ToV1Upgrade(const NetParameter& net_param) {
