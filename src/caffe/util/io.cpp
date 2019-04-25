@@ -48,9 +48,8 @@ bool ReadProtoFromTextFile(const char* filename, Message* proto) {
 }
 
 bool ReadProtoFromTextStream(std::istream& stream, Message* proto) {
-  IstreamInputStream* input = new IstreamInputStream(&stream);
-  bool success = google::protobuf::TextFormat::Parse(input, proto);
-  delete input;
+  IstreamInputStream input(&stream);
+  bool success = google::protobuf::TextFormat::Parse(&input, proto);
   return success;
 }
 
@@ -63,9 +62,8 @@ void WriteProtoToTextFile(const Message& proto, const char* filename) {
 }
 
 void WriteProtoToTextStream(const Message& proto, std::ostream& stream) {
-  OstreamOutputStream* output = new OstreamOutputStream(&stream);
-  CHECK(google::protobuf::TextFormat::Print(proto, output));
-  delete output;
+  OstreamOutputStream output(&stream);
+  CHECK(google::protobuf::TextFormat::Print(proto, &output));
 }
 
 bool ReadProtoFromBinaryFile(const char* filename, Message* proto) {
@@ -88,14 +86,11 @@ bool ReadProtoFromBinaryFile(const char* filename, Message* proto) {
 }
 
 bool ReadProtoFromBinaryStream(std::istream& stream, Message* proto) {
-  IstreamInputStream* raw_input = new IstreamInputStream(&stream);
-  CodedInputStream* coded_input = new CodedInputStream(raw_input);
-  coded_input->SetTotalBytesLimit(kProtoReadBytesLimit, 536870912);
+  IstreamInputStream raw_input(&stream);
+  CodedInputStream coded_input(&raw_input);
+  coded_input.SetTotalBytesLimit(kProtoReadBytesLimit, 536870912);
 
-  bool success = proto->ParseFromCodedStream(coded_input);
-
-  delete coded_input;
-  delete raw_input;
+  bool success = proto->ParseFromCodedStream(&coded_input);
   return success;
 }
 

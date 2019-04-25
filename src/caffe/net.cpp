@@ -47,7 +47,7 @@ Net<Dtype>::Net(std::istream& param_stream, const string& name_to_log, Phase pha
   ReadNetParamsFromTextStreamOrDie(param_stream, name_to_log, &param);
   // Set phase, stages and level
   param.mutable_state()->set_phase(phase);
-  if (stages != NULL) {
+  if (stages) {
     for (int i = 0; i < stages->size(); i++) {
       param.mutable_state()->add_stage((*stages)[i]);
     }
