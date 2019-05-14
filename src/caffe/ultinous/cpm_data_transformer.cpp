@@ -327,6 +327,21 @@ namespace ultinous {
     if (phase_ == TRAIN) {
       aug.randomize();
       img_aug = TransformImage(img, aug, cv::Scalar(128, 128, 128), meta.objpos); // TODO(zssanta): mean value
+      if (aug.grayscale)
+      {
+        cv::Mat gray;
+        cv::cvtColor(img_aug, gray, cv::COLOR_BGR2GRAY);
+        for (int i = 0; i < img_aug.rows; ++i)
+        {
+          for (int j = 0; j < img_aug.cols; ++j)
+          {
+            auto &rgb = img_aug.at<cv::Vec3b>(i, j);
+            rgb[0] = gray.at<unsigned char>(i, j);
+            rgb[1] = gray.at<unsigned char>(i, j);
+            rgb[2] = gray.at<unsigned char>(i, j);
+          }
+        }
+      }
       mask_miss_aug = TransformImage(mask_miss, aug, cv::Scalar(255), meta.objpos);
       TransformMetaJoints(meta, aug, img.size(), img_aug.size(), meta.objpos);
     } else {
@@ -413,8 +428,8 @@ namespace ultinous {
           {
             entryX[index] = (entryX[index]*cnt + BA_dir.x) / (cnt + 1);
             entryY[index] = (entryY[index]*cnt + BA_dir.y) / (cnt + 1);
-            count.at<uchar>(g_y, g_x) = boost::numeric_cast<uchar>(cnt + 1);
           }
+          count.at<uchar>(g_y, g_x) = boost::numeric_cast<uchar>(cnt + 1);
         }
       }
     }

@@ -67,6 +67,7 @@ namespace ultinous
         generate_croppad_offset();
         generate_do_mirror();
         generate_rotation_degree();
+        generate_force_grayscale();
       }
 
       bool flip = false;
@@ -81,6 +82,7 @@ namespace ultinous
       cv::Point2f cropOffset = cv::Point2f();
       cv::Size cropSize = cv::Size();
 
+      bool grayscale = false;
     private:
       void generate_scale_multiplier()
       {
@@ -109,6 +111,11 @@ namespace ultinous
       {
         rotation = param_.rotation();
         degree = (rotation)? (Rand() - 0.5f) * 2.f * param_.max_rotate_degree() : 0.0f;
+      }
+
+      void generate_force_grayscale()
+      {
+        grayscale = Rand() < param_.grayscale_prob();
       }
 
       int Rand(int n)

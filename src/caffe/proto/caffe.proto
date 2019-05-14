@@ -513,6 +513,9 @@ message CPMTransformationParameter {
   optional bool rotation = 12 [default = false];
   optional float max_rotate_degree = 13 [default = 5.0];
 
+  // Grayscale
+  optional float grayscale_prob = 14 [default = 0];
+
   optional float sigma_heat = 26 [default = 7.0];
   optional uint32 vec_distance_threshold = 28 [default = 1];
 }
