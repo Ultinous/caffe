@@ -466,6 +466,14 @@ message TransformationParameter {
   optional bool force_gray = 7 [default = false];
 }
 
+message CPMDatasetDB {
+  enum DB {
+    LMDB = 0;
+  }
+  optional string source = 1;
+  optional DB backend = 2 [default = LMDB];
+}
+
 // Message that stores parameters used to apply transformation
 // to the data layer's data
 message CPMTransformationParameter {
@@ -518,6 +526,8 @@ message CPMTransformationParameter {
 
   optional float sigma_heat = 26 [default = 7.0];
   optional uint32 vec_distance_threshold = 28 [default = 1];
+
+  optional CPMDatasetDB dataset_db = 40;
 }
 
 message CPMTargetParam {

@@ -12,10 +12,12 @@
 #include "caffe/util/benchmark.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/rng.hpp"
+#include "caffe/util/db.hpp"
 
 namespace caffe
 {
-namespace ultinous {
+namespace ultinous
+{
   template<class Result>
   Result *decode(const string &data, const std::size_t idx, Result *buffer, const std::size_t len = 1) {
     if (len) {
@@ -44,6 +46,28 @@ namespace ultinous {
     return res;
   }
 
+  SkeletonDatasets extractDatasets(const caffe::CPMDatasetDB& db)
+  {
+    CHECK_EQ(db.backend(), caffe::CPMDatasetDB::LMDB) << "Only LMDB backend is supported.";
+    auto src_db = std::shared_ptr<db::DB>(db::GetDB("lmdb"));
+    src_db->Open(db.source(), db::READ);
+    auto cursor = std::shared_ptr<db::Cursor>(src_db->NewCursor());
+
+    SkeletonDatasets output;
+    while (cursor->valid())
+    {
+      proto::skeleton::SkeletonDataset dataset;
+      dataset.ParseFromString(cursor->value());
+      auto &out_dataset = output[dataset.name()];
+      for (auto data : dataset.points())
+      {
+        out_dataset.push_back(proto::skeleton::SkeletonPointType(data));
+      }
+      cursor->Next();
+    }
+    return output;
+  }
+
   template<typename Dtype>
   CPMDataTransformer<Dtype>::CPMDataTransformer(const CPMTransformationParameter &param, Phase phase)
     : param_(param)
@@ -67,6 +91,12 @@ namespace ultinous {
         mean_values_.push_back(param_.mean_value(c));
       }
     }
+
+    if (param_.has_dataset_db())
+    {
+      datasets_ = extractDatasets(param_.dataset_db());
+    }
+
     InitRand();
   }
 
@@ -435,10 +465,44 @@ namespace ultinous {
     }
   }
 
+  struct EnumClassHash
+  {
+    using result_type = std::size_t;
+
+    template<typename T>
+    result_type operator()(T const& value) const noexcept
+    {
+      return static_cast<result_type>(value);
+    }
+  };
+
+  // TODO(zssanta): separate labels to multiple tops
   template<typename Dtype>
   void CPMDataTransformer<Dtype>::generateLabel(Dtype* transformed_label, const MetaData& meta, const cv::Mat& mask_miss) const
   {
     CHECK(transformed_label);
+
+    std::vector<proto::skeleton::SkeletonPointType> IND_TO_PROTO =
+    {
+      proto::skeleton::NOSE,
+      proto::skeleton::NECK,
+      proto::skeleton::RIGHT_SHOULDER,
+      proto::skeleton::RIGHT_ELBOW,
+      proto::skeleton::RIGHT_WRIST,
+      proto::skeleton::LEFT_SHOULDER,
+      proto::skeleton::LEFT_ELBOW,
+      proto::skeleton::LEFT_WRIST,
+      proto::skeleton::RIGHT_HIP,
+      proto::skeleton::RIGHT_KNEE,
+      proto::skeleton::RIGHT_ANKLE,
+      proto::skeleton::LEFT_HIP,
+      proto::skeleton::LEFT_KNEE,
+      proto::skeleton::LEFT_ANKLE,
+      proto::skeleton::RIGHT_EYE,
+      proto::skeleton::LEFT_EYE,
+      proto::skeleton::RIGHT_EAR,
+      proto::skeleton::LEFT_EAR,
+    };
 
     const auto stride = param_.stride();
     const int grid_x = mask_miss.cols / stride;
@@ -446,19 +510,63 @@ namespace ultinous {
     const auto np = getNumberOfOutput(param_.output_model());
     const auto channelOffset = grid_x * grid_y;
 
-    for (int g_x = 0; g_x < grid_x; ++g_x)
+    const auto numberOfKeypoints = getNumberOfKeypoints(param_.output_model());
+    const auto numberOfEdges = 19;
+
+
+    // TODO(zssanta): model dependent
+    int edges_u[19] = {2, 9,  10, 2,  12, 13, 2, 3, 4, 3,  2, 6, 7, 6,  2, 1,  1,  15, 16};
+    int edges_v[19] = {9, 10, 11, 12, 13, 14, 3, 4, 5, 17, 6, 7, 8, 18, 1, 15, 16, 17, 18};
+
+    const auto dataset = datasets_.find(meta.dataset);
+    if (dataset != datasets_.end())
     {
-      for (int g_y = 0; g_y < grid_y; ++g_y)
+      // weights
+      for (int g_x = 0; g_x < grid_x; ++g_x)
       {
-        for (int i = 0; i < 2*(np+1); ++i)
+        for (int g_y = 0; g_y < grid_y; ++g_y)
         {
-          const auto weight = (i<=np)? static_cast<float>(mask_miss.at<uchar>(g_y, g_x)) / 255.0f : 0.0f;
-          transformed_label[i*channelOffset + g_y*grid_x + g_x] = weight;
+          const auto maskMissValue = static_cast<float>(mask_miss.at<uchar>(g_y, g_x)) / 255.0f;
+          // vector fields
+          for (int i = 0; i < numberOfEdges; ++i)
+          {
+            const auto has_u = std::find(dataset->second.begin(), dataset->second.end(), IND_TO_PROTO[edges_u[i]-1]) != dataset->second.end();
+            const auto has_v = std::find(dataset->second.begin(), dataset->second.end(), IND_TO_PROTO[edges_v[i]-1]) != dataset->second.end();
+            const auto weight = (has_u && has_v)? maskMissValue : 0.0;
+            transformed_label[(i*2+0)*channelOffset + g_y*grid_x + g_x] = weight;
+            transformed_label[(i*2+1)*channelOffset + g_y*grid_x + g_x] = weight;
+          }
+          // heat maps
+          for (int i = 0; i < numberOfKeypoints; ++i)
+          {
+            const auto has_i = std::find(dataset->second.begin(), dataset->second.end(), IND_TO_PROTO[i]) != dataset->second.end();
+            const auto weight = (has_i)? maskMissValue : 0.0;
+            transformed_label[(2*numberOfEdges+i)*channelOffset + g_y*grid_x + g_x] = weight;
+          }
+          // heat map background
+          transformed_label[(2*numberOfEdges+numberOfKeypoints)*channelOffset + g_y*grid_x + g_x] = maskMissValue;
+          // init others
+          for (int i = np+1; i < 2*(np+1); ++i)
+            transformed_label[i*channelOffset + g_y*grid_x + g_x] = 0.0;
+        }
+      }
+    }
+    else
+    {
+      //LOG(WARNING) << "Unknow dataset given: " << meta.dataset;
+      for (int g_x = 0; g_x < grid_x; ++g_x)
+      {
+        for (int g_y = 0; g_y < grid_y; ++g_y)
+        {
+          for (int i = 0; i < 2*(np+1); ++i)
+          {
+            const auto weight = (i<=np)? static_cast<float>(mask_miss.at<uchar>(g_y, g_x)) / 255.0f : 0.0f;
+            transformed_label[i*channelOffset + g_y*grid_x + g_x] = weight;
+          }
         }
       }
     }
 
-    const auto numberOfEdges = 19;
     for (int i = 0; i < meta.joint_self.joints.size(); ++i)
     {
       if (meta.joint_self.isVisible[i] <= 1)
@@ -477,9 +585,6 @@ namespace ultinous {
       }
     }
 
-    // TODO(zssanta): model dependent
-    int edges_u[19] = {2, 9,  10, 2,  12, 13, 2, 3, 4, 3,  2, 6, 7, 6,  2, 1,  1,  15, 16};
-    int edges_v[19] = {9, 10, 11, 12, 13, 14, 3, 4, 5, 17, 6, 7, 8, 18, 1, 15, 16, 17, 18};
     for (int i = 0; i < numberOfEdges; ++i)
     {
       cv::Mat count = cv::Mat::zeros(grid_y, grid_x, CV_8UC1);

@@ -6,11 +6,14 @@
 
 #include "caffe/blob.hpp"
 #include <caffe/util/rng.hpp>
+#include <caffe/proto/skeleton_common.pb.h>
 
 namespace caffe
 {
 namespace ultinous
 {
+  using SkeletonDatasets = std::unordered_map<std::string, std::vector<proto::skeleton::SkeletonPointType>>;
+
   template<typename Dtype>
   class CPMDataTransformer
   {
@@ -220,6 +223,8 @@ namespace ultinous
     Phase phase_;
     Blob<Dtype> data_mean_;
     vector<Dtype> mean_values_;
+    
+    SkeletonDatasets datasets_;
   };
 } // namespace ultinous
 } // namespace caffe
