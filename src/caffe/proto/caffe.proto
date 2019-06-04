@@ -531,10 +531,16 @@ message CPMTransformationParameter {
 }
 
 message CPMTargetParam {
+  // Every pixel with larger value than this threshold will be considered positive.
   optional float positive_threshold = 1 [default = 0.2];
+  // Number of pixels the target layer should have.
   optional uint32 target_pixel_count = 2 [default = 0];
+  // Fraction of positive samples in the target layer.
   optional float foreground_fraction = 3 [default = 0.5];
-  optional float hnm_threshold = 4 [default = 0.5];
+  // Probability of random shuffle for background pixels.
+  optional float hnm_probability = 4 [default = 0.5];
+  // Fraction of the (ordered) background samples will be not considered during the training.
+  optional float noisy_bg_fraction = 5 [default = 0];
 }
 
 // Message that stores parameters shared by loss layers

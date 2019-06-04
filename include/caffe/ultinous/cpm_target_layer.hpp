@@ -42,7 +42,8 @@ private:
   Dtype m_positive_threshold;
   std::uint32_t m_target_pixel_count;
   Dtype m_foreground_fraction;
-  Dtype m_hnm_threshold;
+  Dtype m_hnm_probability;
+  Dtype m_noisy_bg_fraction;
 };
 
 } // namespace ultinous

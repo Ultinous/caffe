@@ -12,7 +12,8 @@ void CPMTargetLayer<Dtype>::LayerSetUp(vector<Blob<Dtype>*> const &bottom, vecto
   m_positive_threshold = m_param.positive_threshold();
   m_target_pixel_count = m_param.target_pixel_count();
   m_foreground_fraction = m_param.foreground_fraction();
-  m_hnm_threshold = m_param.hnm_threshold();
+  m_hnm_probability = m_param.hnm_probability();
+  m_noisy_bg_fraction = m_param.noisy_bg_fraction();
 }
 
 template<typename Dtype>
@@ -82,10 +83,16 @@ void CPMTargetLayer<Dtype>::Forward_cpu(vector<Blob<Dtype> *> const &bottom, vec
 
       if (background.size() > 0)
       {
-        for (std::size_t i = background.size()-1; i > 0; --i)
+        if (m_noisy_bg_fraction > 0)
         {
-          std::size_t j = rand() % (i + 1);
-          if (m_hnm_threshold < (static_cast<Dtype>(rand()) / RAND_MAX))
+          auto const noisy_size = static_cast<std::size_t>(background.size() * m_noisy_bg_fraction);
+          background.erase(background.begin(), std::next(background.begin(), noisy_size));
+        }
+
+        for (std::size_t i = background.size()-1; i > 0 && background.size() > 0; --i)
+        {
+          std::size_t j = caffe_rng_rand() % (i + 1);
+          if (m_hnm_probability < (static_cast<Dtype>(caffe_rng_rand()) / RAND_MAX))
             std::swap(background[i], background[j]);
         }
 
