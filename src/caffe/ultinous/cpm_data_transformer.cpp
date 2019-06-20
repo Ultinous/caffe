@@ -3,7 +3,6 @@
 #include <opencv2/imgproc.hpp>
 
 #include <opencv2/imgcodecs.hpp>
-#include <boost/format.hpp>
 #endif
 
 #include "caffe/ultinous/cpm_data_transformer.hpp"

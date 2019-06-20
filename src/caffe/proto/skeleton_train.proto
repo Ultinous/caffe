@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package caffe.ultinous.proto.skeleton;
+
+enum SkeletonPointType
+{
+    UNKNOWN_SKELETON_POINT = 0;
+    NOSE = 1;
+    NECK = 2;
+    RIGHT_SHOULDER = 3;
+    RIGHT_ELBOW = 4;
+    RIGHT_WRIST = 5;
+    LEFT_SHOULDER = 6;
+    LEFT_ELBOW = 7;
+    LEFT_WRIST = 8;
+    RIGHT_HIP = 9;
+    RIGHT_KNEE = 10;
+    RIGHT_ANKLE = 11;
+    LEFT_HIP = 12;
+    LEFT_KNEE = 13;
+    LEFT_ANKLE = 14;
+    RIGHT_EYE = 15;
+    LEFT_EYE = 16;
+    RIGHT_EAR = 17;
+    LEFT_EAR = 18;
+    PELVIS = 19;
+    CHEST = 20;
+    HEAD_TOP = 21;
+
+    // Generated Points
+    GEN_FIRST = 100; // Marker point 
+    GEN_NECK = 101; // Generated as the middle point of the line segment connecting the two shoulders
+    GEN_PELVIS = 102; // Generated as the middle point of the line segment connecting the two hips
+}
+
+message SkeletonPoint
+{
+    float x = 1;
+    float y = 2;
+    SkeletonPointType type = 3;
+}
+
+message SkeletonEdge
+{
+    SkeletonPointType u = 1;
+    SkeletonPointType v = 2;
+}
+
+message Skeleton
+{
+    repeated SkeletonPoint points = 1;
+}
+
+message SkeletonFile
+{
+    string filename = 1;
+    repeated Skeleton skeletons = 2;
+}
+
+message SkeletonDataset
+{
+    string name = 1;
+    repeated SkeletonPointType points = 2;
+    repeated SkeletonFile files = 3;
+}
+
+message SkeletonGraph
+{
+    repeated SkeletonPointType points = 1;
+    repeated SkeletonEdge edges = 2;
+}

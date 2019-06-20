@@ -6,7 +6,6 @@
 
 #include "caffe/blob.hpp"
 #include <caffe/util/rng.hpp>
-#include <caffe/proto/skeleton_common.pb.h>
 
 namespace caffe
 {

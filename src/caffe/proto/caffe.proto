@@ -1,5 +1,7 @@
 syntax = "proto2";
 
+import "skeleton_train.proto";
+
 package caffe;
 
 // Specifies the shape (dimensions) of a Blob.
