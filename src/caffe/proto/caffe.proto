@@ -1857,6 +1857,7 @@ message SkeletonTransformationParameter {
 
 message SkeletonHeatmapGenerator {
   optional float sigma = 1 [default = 7.0];
+  optional bool add_background_channel = 2 [default = true];
 }
 
 message SkeletonPAFGenerator {

@@ -376,10 +376,26 @@ struct HeatmapCreator
                 }
             }
         }
-        std::fill(output + points.size() * channelSize, output + points.size() * channelSize * 2, Dtype(0));
-        for (std::size_t i=0; i < points.size(); ++i)
+        if (params.add_background_channel())
         {
-            auto *data = output + (points.size()+i)*channelSize;
+            auto *data = output + points.size()*channelSize;
+            for (int g_y = 0; g_y < gridY; g_y++) {
+                for (int g_x = 0; g_x < gridX; g_x++) {
+                    Dtype maxVal = 0;
+                    for (std::size_t i = 0; i < points.size(); ++i)
+                    {
+                        maxVal = std::max(maxVal, output[i*channelSize + g_y * gridX + g_x]);
+                    }
+                    data[g_y * gridX + g_x] = std::max(1-maxVal, Dtype(0));
+                }
+            }
+        }
+        const auto labelCount = points.size() + static_cast<std::size_t>(params.add_background_channel());
+
+        std::fill(output + labelCount * channelSize, output + labelCount * channelSize * 2, Dtype(0));
+        for (std::size_t i=0; i < labelCount; ++i)
+        {
+            auto *data = output + (labelCount+i)*channelSize;
             for (int y = 0; y < mask.rows; ++y)
             {
                 for (int x = 0; x < mask.cols; ++x)
@@ -391,7 +407,7 @@ struct HeatmapCreator
             }
         }
 
-        return points.size() * 2;
+        return labelCount * 2;
     }
 
 private:
@@ -581,10 +597,13 @@ SkeletonDataLayer<Dtype>::~SkeletonDataLayer()
 template<typename Dtype>
 std::vector<int> SkeletonDataLayer<Dtype>::getLabelSize(const std::vector<int>& dataSize)
 {
-    const auto stride = this->layer_param_.skeleton_data_param().skeleton_transform_param().stride();
+    const auto &skeleton_param = this->layer_param_.skeleton_data_param();
+    const auto stride = skeleton_param.skeleton_transform_param().stride();
     auto result = dataSize;
+    const auto heatmapSize = ((skeleton_param.has_skeleton_heatmap_generator())? 
+        (output_points.size() + static_cast<std::size_t>(skeleton_param.skeleton_heatmap_generator().add_background_channel())) : 0);
     result[0] = 1;
-    result[1] = output_points.size() * 2 + output_edges.size() * 4;
+    result[1] = heatmapSize * 2 + output_edges.size() * 4;
     result[2] /= stride;
     result[3] /= stride;
     return result;
