@@ -58,7 +58,7 @@ namespace ultinous
       proto::skeleton::SkeletonDataset dataset;
       dataset.ParseFromString(cursor->value());
       auto &out_dataset = output[dataset.name()];
-      for (auto data : dataset.points())
+      for (auto data : dataset.available_types())
       {
         out_dataset.push_back(proto::skeleton::SkeletonPointType(data));
       }

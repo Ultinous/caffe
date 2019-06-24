@@ -51,6 +51,32 @@ protected:
     shared_ptr<db::Cursor> cursor_;        
 };
 
+template<
+    typename Image,
+    typename MetaData,
+    typename Mask = Image
+>
+struct SkeletonProtoDataSource
+    : public IGraphDataSource<Image, MetaData, Mask>
+{
+    SkeletonProtoDataSource(const SkeletonProtoDataParameter& param);
+
+    int batchSize() const override { return param_.batch_size(); }
+    void next() override;
+    void current(Image& img, MetaData& meta, Mask& mask) override;
+
+protected:
+    typename MetaData::Point getTargetPosition(const typename MetaData::SkeletonType&) const;
+
+    SkeletonProtoDataParameter param_;
+    std::size_t current_index_;
+    std::vector<MetaData> meta_datas_;
+    std::vector<std::string> filenames_;
+    std::string img_root_;
+    std::string mask_root_;
+};
+
+
 struct EnumClassHash
 {
     using result_type = std::size_t;

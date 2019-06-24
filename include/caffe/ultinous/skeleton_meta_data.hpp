@@ -13,7 +13,7 @@ enum class Visibility
 };
 
 template<typename PointType>
-struct Skeletons
+struct Skeleton
 {
     vector<PointType> joints;
     vector<Visibility> isVisible;
@@ -24,9 +24,9 @@ template<typename PointType>
 struct SkeletonMetaData
 {
     using Point = PointType;
-    using SkeletonType = Skeletons<PointType>;
+    using SkeletonType = Skeleton<PointType>;
 
-    std::string dataset;    
+    std::string dataset;
     std::size_t focusIndex;
 
     std::vector<PointType> targetPositions;

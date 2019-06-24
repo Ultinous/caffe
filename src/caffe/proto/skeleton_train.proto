@@ -35,9 +35,16 @@ enum SkeletonPointType
 
 message SkeletonPoint
 {
-    float x = 1;
-    float y = 2;
-    SkeletonPointType type = 3;
+    enum Visibility {
+        NON_VISIBLE = 0;
+        VISIBLE = 1;
+        AMBIGOUS = 2;
+    }
+
+    SkeletonPointType type = 1;
+    float x = 2;
+    float y = 3;
+    Visibility visible = 4;
 }
 
 message SkeletonEdge
@@ -55,13 +62,14 @@ message SkeletonFile
 {
     string filename = 1;
     repeated Skeleton skeletons = 2;
+    uint32 single_person_index = 3;
 }
 
 message SkeletonDataset
 {
     string name = 1;
-    repeated SkeletonPointType points = 2;
-    repeated SkeletonFile files = 3;
+    repeated SkeletonFile files = 2;
+    repeated SkeletonPointType available_types = 3;
 }
 
 message SkeletonGraph

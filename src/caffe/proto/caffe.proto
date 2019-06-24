@@ -1865,7 +1865,7 @@ message SkeletonPAFGenerator {
 
 message SkeletonDataParameter {
   optional DataParameter db_data_param = 1;
-  optional SkeletonProtoDataParameter skeleton_data_param = 2;
+  optional SkeletonProtoDataParameter skeleton_proto_data_param = 2;
   optional SkeletonTransformationParameter skeleton_transform_param = 3;
 
   optional ultinous.proto.skeleton.SkeletonGraph output_model = 10;  

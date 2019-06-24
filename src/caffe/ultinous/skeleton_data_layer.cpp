@@ -1,7 +1,9 @@
 #ifdef USE_OPENCV
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgcodecs.hpp>
 #endif
 
+#include "caffe/util/io.hpp"
 #include "caffe/ultinous/skeleton_data_layer.hpp"
 #include "caffe/util/benchmark.hpp"
 
@@ -258,6 +260,89 @@ void DBDataSource<Image, MetaData, Mask>::current(Image& img, MetaData& meta, Ma
     datumToSkeletonMeta(meta, datum);
 }
 
+
+template<
+    typename Image,
+    typename MetaData,
+    typename Mask
+>
+SkeletonProtoDataSource<Image, MetaData, Mask>::SkeletonProtoDataSource(const SkeletonProtoDataParameter& param)
+    : param_(param)
+    , current_index_(0)
+{
+    proto::skeleton::SkeletonDataset dataset;
+    ReadProtoFromBinaryFileOrDie(param_.source(), &dataset);
+    for (const auto file : dataset.files())
+    {
+        filenames_.push_back(file.filename());
+        MetaData meta;
+        meta.dataset = dataset.name();
+        meta.focusIndex = 0;
+        for (const auto skeleton : file.skeletons())
+        {
+            typename MetaData::SkeletonType out;
+            for (const auto point : skeleton.points())
+            {
+                out.joints.emplace_back(point.x(), point.y());
+                out.isVisible.emplace_back(
+                    (point.visible() == proto::skeleton::SkeletonPoint::NON_VISIBLE)? Visibility::NOT_AVAILABLE : Visibility::VISIBLE
+                );
+                out.jointType.emplace_back(point.type());
+            }
+            meta.targetPositions.emplace_back(getTargetPosition(out));
+            meta.targetSkeletons.emplace_back(std::move(out));
+            meta.targetScales.emplace_back(1);
+        }
+        meta_datas_.emplace_back(meta);
+    }
+
+    img_root_  = ((param.has_image_root_folder())? param.image_root_folder() : ".") + "/";
+    mask_root_ = ((param.has_mask_root_folder())? param.mask_root_folder() : ".") + "/";
+}
+
+template<
+    typename Image,
+    typename MetaData,
+    typename Mask
+>
+void SkeletonProtoDataSource<Image, MetaData, Mask>::next()
+{
+    ++current_index_;
+    if (current_index_ >= meta_datas_.size())
+    {
+        LOG_IF(INFO, Caffe::root_solver()) << "Restarting data prefetching from start.";
+        current_index_ = 0;
+    }
+}
+
+#ifdef USE_OPENCV
+template<
+    typename Image,
+    typename MetaData,
+    typename Mask
+>
+void SkeletonProtoDataSource<Image, MetaData, Mask>::current(Image& img, MetaData& meta, Mask& mask)
+{
+    img = ReadImageToCVMat(img_root_ + filenames_[current_index_], param_.is_color());
+    mask = cv::imread(mask_root_ + filenames_[current_index_], cv::IMREAD_GRAYSCALE);
+    meta = meta_datas_[current_index_];
+}
+#endif
+
+template<
+    typename Image,
+    typename MetaData,
+    typename Mask
+>
+typename MetaData::Point SkeletonProtoDataSource<Image, MetaData, Mask>::getTargetPosition(const typename MetaData::SkeletonType& skeleton) const
+{
+    const auto x = std::accumulate(skeleton.joints.begin(), skeleton.joints.end(), 0.0, 
+        [](const float a, const typename MetaData::Point b) { return a + b.x; }) / skeleton.joints.size();
+    const auto y = std::accumulate(skeleton.joints.begin(), skeleton.joints.end(), 0.0, 
+        [](const float a, const typename MetaData::Point b) { return a + b.y; }) / skeleton.joints.size();
+    return typename MetaData::Point(x, y);
+}
+
 template<
     typename Dtype,
     typename CoordinateType,
@@ -291,6 +376,7 @@ struct HeatmapCreator
                 }
             }
         }
+        std::fill(output + points.size() * channelSize, output + points.size() * channelSize * 2, Dtype(0));
         for (std::size_t i=0; i < points.size(); ++i)
         {
             auto *data = output + (points.size()+i)*channelSize;
@@ -376,6 +462,7 @@ struct PAFCreator
                 }
             }
         }
+        std::fill(output + 2*edges.size() * channelSize, output + 4*edges.size() * channelSize, Dtype(0));
         for (std::size_t i=0; i < edges.size(); ++i)
         {
             auto *data = output + (edges.size()*2+i*2)*channelSize;
@@ -456,6 +543,8 @@ SkeletonDataLayer<Dtype>::SkeletonDataLayer(const LayerParameter& param)
     auto &skeleton_data_param = this->layer_param_.skeleton_data_param();
     if (skeleton_data_param.has_db_data_param())
         this->data_source_.reset(new DBDataSource<ImageType, MetaData>(skeleton_data_param.db_data_param()));
+    else if (skeleton_data_param.has_skeleton_proto_data_param())
+        this->data_source_.reset(new SkeletonProtoDataSource<ImageType, MetaData>(skeleton_data_param.skeleton_proto_data_param()));
     else
         LOG(FATAL) << "No supported data source given!";
 
