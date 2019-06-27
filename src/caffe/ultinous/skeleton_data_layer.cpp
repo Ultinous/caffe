@@ -272,6 +272,7 @@ SkeletonProtoDataSource<Image, MetaData, Mask>::SkeletonProtoDataSource(const Sk
 {
     proto::skeleton::SkeletonDataset dataset;
     ReadProtoFromBinaryFileOrDie(param_.source(), &dataset);
+
     for (const auto file : dataset.files())
     {
         filenames_.push_back(file.filename());
@@ -285,7 +286,15 @@ SkeletonProtoDataSource<Image, MetaData, Mask>::SkeletonProtoDataSource(const Sk
             {
                 out.joints.emplace_back(point.x(), point.y());
                 out.isVisible.emplace_back(
-                    (point.visible() == proto::skeleton::SkeletonPoint::NON_VISIBLE)? Visibility::NOT_AVAILABLE : Visibility::VISIBLE
+                    [](const proto::skeleton::SkeletonPoint::Visibility _vis) 
+                    {
+                        switch (_vis)
+                        {
+                            case proto::skeleton::SkeletonPoint::VISIBLE  : return Visibility::VISIBLE;
+                            case proto::skeleton::SkeletonPoint::AMBIGOUS : return Visibility::OCCLUDED;
+                            default                                       : return Visibility::NOT_AVAILABLE;
+                        }
+                    }(point.visible())
                 );
                 out.jointType.emplace_back(point.type());
             }
