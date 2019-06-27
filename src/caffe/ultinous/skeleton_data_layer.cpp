@@ -736,7 +736,7 @@ void SkeletonDataLayer<Dtype>::load_batch(Batch<Dtype>* batch)
                 Skeleton s;
                 for (std::size_t i = 0; i < skel.joints.size(); ++i)
                 {
-                    if (skel.isVisible[i] == Visibility::VISIBLE && has_point.test(static_cast<std::size_t>(skel.jointType[i])))
+                    if (skel.isVisible[i] <= Visibility::VISIBLE && has_point.test(static_cast<std::size_t>(skel.jointType[i])))
                     {
                         s[skel.jointType[i]] = skel.joints[i];
                     }
