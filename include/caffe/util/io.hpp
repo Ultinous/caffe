@@ -55,6 +55,8 @@ inline bool ReadProtoFromTextFile(const string& filename, Message* proto) {
   return ReadProtoFromTextFile(filename.c_str(), proto);
 }
 
+bool ReadProtoFromTextStream(std::istream& stream, Message* proto);
+
 inline void ReadProtoFromTextFileOrDie(const char* filename, Message* proto) {
   CHECK(ReadProtoFromTextFile(filename, proto));
 }
@@ -67,12 +69,13 @@ void WriteProtoToTextFile(const Message& proto, const char* filename);
 inline void WriteProtoToTextFile(const Message& proto, const string& filename) {
   WriteProtoToTextFile(proto, filename.c_str());
 }
+void WriteProtoToTextStream(const Message& proto, std::ostream& stream);
 
 bool ReadProtoFromBinaryFile(const char* filename, Message* proto);
-
 inline bool ReadProtoFromBinaryFile(const string& filename, Message* proto) {
   return ReadProtoFromBinaryFile(filename.c_str(), proto);
 }
+bool ReadProtoFromBinaryStream(std::istream& stream, Message* proto);
 
 inline void ReadProtoFromBinaryFileOrDie(const char* filename, Message* proto) {
   CHECK(ReadProtoFromBinaryFile(filename, proto));

@@ -35,6 +35,12 @@ class NetTest : public MultiDeviceTest<TypeParam> {
       const vector<string>* stages = NULL) {
     NetParameter param;
     CHECK(google::protobuf::TextFormat::ParseFromString(proto, &param));
+
+    std::stringstream param_stream;
+    WriteProtoToTextStream(param, param_stream);
+    Net<Dtype> net(param_stream, "", phase, level, stages);
+    net.ToProto(&param);
+
     string param_file;
     MakeTempFilename(&param_file);
     WriteProtoToTextFile(param, param_file);
@@ -1321,6 +1327,12 @@ TYPED_TEST(NetTest, TestSharedWeightsResume) {
 
   // Write the net to a NetParameter, as in Solver::Snapshot.
   NetParameter net_param;
+  this->net_->ToProto(&net_param);
+
+  // Serialize to / deserialize from stream
+  std::stringstream param_stream;
+  net_param.SerializeToOstream(&param_stream);
+  this->net_->CopyTrainedLayersFromBinaryProto(param_stream, "");
   this->net_->ToProto(&net_param);
 
   // Reinitialize the net and copy parameters from net_param, as in

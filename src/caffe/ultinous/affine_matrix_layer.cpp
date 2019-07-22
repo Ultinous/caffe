@@ -326,7 +326,7 @@ void AffineMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top,
 }
 
 #ifdef CPU_ONLY
-STUB_GPU(AffineMatrixLayer);
+//STUB_GPU(AffineMatrixLayer);
 #endif
 
 INSTANTIATE_CLASS(AffineMatrixLayer);
