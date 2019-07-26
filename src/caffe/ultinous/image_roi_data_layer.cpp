@@ -19,7 +19,7 @@
 #include "caffe/util/rng.hpp"
 #include <iostream>
 
-//#include <boost/filesystem.hpp>
+#include "caffe/util/math_functions.hpp"
 
 namespace caffe {
 namespace ultinous {
@@ -39,6 +39,7 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   const bool is_color  = this->layer_param_.image_data_param().is_color();
   string root_folder = this->layer_param_.image_data_param().root_folder();
   uint32_t inImgNum = this->layer_param_.image_roi_data_param().in_img_num();
+  const bool noise( this->layer_param_.image_roi_data_param().add_noise() );
 
   CHECK((new_height == 0 && new_width == 0) ||
         (new_height > 0 && new_width > 0)) << "Current implementation requires "
@@ -106,7 +107,6 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     sample_id_ = skip;
   }
 
-
   cv::Mat cv_img = ReadImageToCVMat(root_folder + samples[0].image_files[0],
                                     new_height, new_width, is_color);
 
@@ -164,8 +164,29 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
       this->prefetch_[j].labels_[i].Reshape(labels_shape);
     }
   }
+  if (noise)
+  {
+    vector<int> noiseBlobShape(1);
+    noiseBlobShape[0] = 1000000;
+    this->noiseBlob.Reshape(noiseBlobShape);
+
+    std::random_device rd{};
+    static std::mt19937 gen{rd()};
+    static std::normal_distribution<Dtype> d(0,1);
+    std::generate(this->noiseBlob.mutable_cpu_data(), this->noiseBlob.mutable_cpu_data()+noiseBlobShape[0], [](){ return d(gen); });
+
+/*
+    if (Caffe::mode() == Caffe::GPU) {
+      caffe_gpu_rng_gaussian(const int n, const Dtype mu, const Dtype sigma, Dtype* r);
+    }
+    else
+    {
+      caffe_rng_gaussian(const int n, const Dtype mu, const Dtype sigma, Dtype* r);
+    }
+*/
 
 
+  }
 }
 
 template <typename Dtype>
@@ -198,11 +219,14 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   uint32_t smallerDimensionSize = image_roi_data_param.smallerdimensionsize();
   uint32_t maxSize = image_roi_data_param.maxsize();
   uint32_t inImgNum = image_roi_data_param.in_img_num();
+  const bool grey( image_roi_data_param.grey() );
+  const bool noise( image_roi_data_param.add_noise() );
+  const bool brightness( image_roi_data_param.brightness_manipulation() );
+  const bool contrast( image_roi_data_param.contrast_manipulation() );
 
   CHECK( batch_size==1 ) << "Currently implemented only for batch_size=1";
 
   const int samples_size = samples.size();
-
 
   // Load image
   timer.Start();
@@ -210,6 +234,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
   vector<cv::Mat> slices;
   slices.reserve(inImgNum);
+  int randomValue = rand();
   for (int i=0; i<inImgNum; ++i)
   {
     if (i == 0)
@@ -226,9 +251,16 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       << "Resolution mismatch, expected " << slices[0].cols << "x" << slices[0].rows
       << " got " << slices.back().cols << "x" << slices.back().rows
       << " in " << samples[sample_id_].image_files[i];
-
-      m_unTransformer.transform( slices.back() );
     }
+
+    if (grey && ((randomValue%2)==1))
+    {
+      cv::Mat cv_img_grey;
+      cvtColor(slices.back(), cv_img_grey, cv::COLOR_BGR2GRAY);
+      cvtColor(cv_img_grey, slices.back(), cv::COLOR_GRAY2BGR);
+    }
+
+    m_unTransformer.transform( slices.back() );
   }
 
   cv::Mat cv_img;
@@ -236,6 +268,26 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   vector<cv::Mat>().swap(slices);
 
   read_time += timer.MicroSeconds();
+
+/*
+  if ( image_roi_data_param.add_noise() )
+  {
+    float mean(image_roi_data_param.noise_mean());
+    float std(image_roi_data_param.noise_std());
+
+    auto channelCount = cv_img.channels();
+    std::vector<cv::Mat> channels(channelCount);
+    cv::split(cv_img, channels);
+    for (int i=0; i<channelCount; ++i)
+    {
+      //cv::Mat cv_tmp(cv_img.rows, cv_img.cols, cv::CV_8UC1);
+      cv::Mat noise = channels[i].clone();
+      cv::randn(noise, mean, std);
+      cv::add(channels[i], noise, channels[i]);
+    }
+    cv::merge(channels, cv_img);
+  }
+*/
 
   float scale = 1.0f;
 
@@ -320,6 +372,141 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
   trans_time += timer.MicroSeconds();
 
+  if (brightness || contrast)
+  {
+    Dtype* array;
+
+    if (Caffe::mode() == Caffe::GPU) {
+      array = this->transformed_data_.mutable_gpu_data();
+    }
+    else
+    {
+      array = this->transformed_data_.mutable_cpu_data();
+    }
+
+    size_t N = this->transformed_data_.num();
+    size_t C = this->transformed_data_.channels();
+    size_t H = this->transformed_data_.height();
+    size_t W = this->transformed_data_.width();
+
+    size_t imageSize = N*C*H*W;
+
+    std::random_device rd{};
+    std::mt19937 gen{rd()};
+    std::normal_distribution<Dtype> d;
+    Dtype alpha, beta;
+
+    if (brightness)
+    {
+      d = std::normal_distribution<Dtype>(0,25);
+      beta = d(gen);
+    }
+    if (contrast)
+    {
+      d = std::normal_distribution<Dtype>(1,0.2);
+      alpha = d(gen);
+    }
+
+    int randomValue = rand();
+
+    if (brightness && randomValue)
+    {
+      // brightness
+      if (Caffe::mode() == Caffe::GPU)
+      {
+        caffe_gpu_add_scalar(imageSize, beta, array);
+      }
+      else
+      {
+        caffe_add_scalar(imageSize, beta, array);
+      }
+    }
+    if (contrast)
+    {
+      // contrast
+      if (Caffe::mode() == Caffe::GPU)
+      {
+        caffe_gpu_scal(imageSize, alpha, array);
+      }
+      else
+      {
+        caffe_scal(imageSize, alpha, array);
+      }
+    }
+    if (brightness && !randomValue)
+    {
+      // brightness
+      if (Caffe::mode() == Caffe::GPU)
+      {
+        caffe_gpu_add_scalar(imageSize, beta, array);
+      }
+      else
+      {
+        caffe_add_scalar(imageSize, beta, array);
+      }
+    }
+
+  }
+
+  if (noise)
+  {
+    Dtype* array;
+    Dtype* noiseArray;
+
+    if (Caffe::mode() == Caffe::GPU) {
+      array = this->transformed_data_.mutable_gpu_data();
+      noiseArray = this->noiseBlob.mutable_gpu_data();
+    }
+    else
+    {
+      array = this->transformed_data_.mutable_cpu_data();
+      noiseArray = this->noiseBlob.mutable_cpu_data();
+    }
+
+    size_t noiseSize = this->noiseBlob.shape(0);
+
+    size_t N = this->transformed_data_.num();
+    size_t C = this->transformed_data_.channels();
+    size_t H = this->transformed_data_.height();
+    size_t W = this->transformed_data_.width();
+
+    size_t imageSize = N*C*H*W;
+
+    std::random_device rd{};
+    std::mt19937 gen{rd()};
+
+    std::uniform_int_distribution<int> d( 10, 20 );
+    Dtype alpha = (Dtype)d(gen);
+
+    d = std::uniform_int_distribution<int>(0,noiseSize/2);
+    size_t noiseBegin=d(gen), done=0, noiseEnd;
+
+    while (true)
+    {
+      noiseEnd = std::min( noiseSize-1, noiseBegin+imageSize-done-1 );
+
+      if (Caffe::mode() == Caffe::GPU) {
+        caffe::caffe_gpu_axpy<Dtype>(noiseEnd-noiseBegin+1, alpha, noiseArray+noiseBegin, array+done);
+      }
+      else
+      {
+        caffe::caffe_axpy<Dtype>(noiseEnd-noiseBegin+1, alpha, noiseArray+noiseBegin+noiseBegin, array+done);
+      }
+
+
+      if ( noiseEnd == noiseBegin+imageSize-done-1 )
+      {
+        break;
+      }
+      else
+      {
+        done += (noiseEnd-noiseBegin+1);
+        noiseBegin = 0;
+      }
+    }
+
+  }
+
   // info
   Dtype* prefetch_info = batch->info_.mutable_cpu_data();
   prefetch_info[0] = static_cast<Dtype>(cv_img.rows);
@@ -337,6 +524,36 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     bboxes_shape[1]=1;
     batch->labels_[label_id].Reshape(bboxes_shape);
   }
+
+
+
+  // TODO
+/*
+  Dtype* array( this->transformed_data_.mutable_cpu_data() );
+
+  size_t N = this->transformed_data_.num();
+  size_t C = this->transformed_data_.channels();
+  size_t H = this->transformed_data_.height();
+  size_t W = this->transformed_data_.width();
+
+  size_t imageSize = N*C*H*W;
+
+  std::vector<Dtype> converted(imageSize);
+  for (int n=0;n<N;++n)
+
+    for (int c=0;c<C;++c)
+      for (int h=0;h<H;++h)
+        for (int w=0;w<W;++w)
+        {
+          converted[n*H*W*C+h*W*C+w*C+c] = array[n*C*H*W+c*H*W+h*W+w];
+        }
+
+  array = converted.data();
+
+  cv::Mat cv_temp( this->transformed_data_.height(), this->transformed_data_.width(), CV_32FC3, array );
+*/
+
+
 
   Dtype* prefetch_bboxes = batch->bboxes_.mutable_cpu_data();
   for( int bboxIx = 0; bboxIx < samples[sample_id_].bboxes.size(); ++bboxIx )
@@ -415,10 +632,25 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       batch->labels_[label_id-1].mutable_cpu_data()[bboxIx] = static_cast<Dtype>(bbox.classes[label_id]);
     }
 
-    //cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0));
+    // TODO
+    //cv::rectangle(cv_temp, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0));
   }
 
-  /*
+  // TODO
+
+/*
+  std::string dirName("debug_images");
+  boost::filesystem::path path_folder(dirName);
+  if(!boost::filesystem::exists(path_folder))
+  {
+    boost::filesystem::create_directory(dirName);
+  }
+  static int serial = 0;
+  ++serial;
+  cv::imwrite(dirName+"/"+std::to_string(serial)+".png",cv_temp);
+*/
+
+/*
   std::string dirName("debug_images");
   boost::filesystem::path path_folder(dirName);
   if(!boost::filesystem::exists(path_folder))
@@ -428,7 +660,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   static int serial = 0;
   ++serial;
   cv::imwrite(dirName+"/"+std::to_string(serial)+".png",cv_img);
-  */
+*/
 
   // go to the next iter
   sample_id_++;

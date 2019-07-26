@@ -324,6 +324,7 @@ AnchorTargetLayer<Dtype>::hardNegativeMining(uint32_t num_bg, Dtype const *score
   );
 
   float hnm = anchorTargetParam_.hard_negative_mining();
+  float denoise = anchorTargetParam_.denoise();
 
   typedef std::pair<size_t, Dtype> IndexScorePair;
   typedef std::vector<IndexScorePair> IndexScorePairs;
@@ -347,6 +348,16 @@ AnchorTargetLayer<Dtype>::hardNegativeMining(uint32_t num_bg, Dtype const *score
     if (bg_inds[anchorIx].size() > num_bg_per_baseAnchor) {
       std::sort(bg_inds[anchorIx].begin(), bg_inds[anchorIx].end(),
                 [](IndexScorePair const &p1, IndexScorePair const &p2) { return p1.second > p2.second; });
+
+      if (denoise > 0.0f)
+      {
+        size_t anchorsToRemove( float( bg_inds[anchorIx].size() ) * denoise );
+
+        if (anchorsToRemove > 0)
+        {
+          bg_inds[anchorIx].erase( begin(bg_inds[anchorIx]), begin(bg_inds[anchorIx])+anchorsToRemove );
+        }
+      }
 
       for (size_t ix1 = bg_inds[anchorIx].size() - 1; ix1 > 0; --ix1) {
         size_t ix2 = rand() % (ix1 + 1);

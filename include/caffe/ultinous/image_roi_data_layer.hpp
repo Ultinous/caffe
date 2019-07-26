@@ -85,6 +85,8 @@ protected:
   Samples samples;
   int sample_id_;
   int m_labels_blobs_num;
+  Blob<Dtype> noiseBlob;
+
 
   UltinousTransformer m_unTransformer;
 };
