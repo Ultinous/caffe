@@ -307,7 +307,7 @@ void ProjectiveMatrixLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top
 }
 
 #ifdef CPU_ONLY
-STUB_GPU(ProjectiveMatrixLayer);
+//STUB_GPU(ProjectiveMatrixLayer);
 #endif
 
 INSTANTIATE_CLASS(ProjectiveMatrixLayer);

@@ -171,12 +171,14 @@ void caffe_gpu_axpby(const int N, const Dtype alpha, const Dtype* X,
 
 void caffe_gpu_memcpy(const size_t N, const void *X, void *Y);
 
+void caffe_gpu_memcpy_async(const size_t N, const void *X, void *Y, cudaStream_t str);
+
 template <typename Dtype>
 void caffe_gpu_set(const int N, const Dtype alpha, Dtype *X);
 
 inline void caffe_gpu_memset(const size_t N, const int alpha, void* X) {
 #ifndef CPU_ONLY
-  CUDA_CHECK(cudaMemset(X, alpha, N));  // NOLINT(caffe/alt_fn)
+  CUDA_CHECK(cudaMemsetAsync(X, alpha, N, Caffe::cuda_stream()));  // NOLINT(caffe/alt_fn)
 #else
   NO_GPU;
 #endif
@@ -267,13 +269,13 @@ __global__ void name##_kernel(const int n, const Dtype* x, Dtype* y) { \
 template <> \
 void caffe_gpu_##name<float>(const int n, const float* x, float* y) { \
   /* NOLINT_NEXT_LINE(whitespace/operators) */ \
-  name##_kernel<float><<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS>>>( \
+  name##_kernel<float><<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>( \
       n, x, y); \
 } \
 template <> \
 void caffe_gpu_##name<double>(const int n, const double* x, double* y) { \
   /* NOLINT_NEXT_LINE(whitespace/operators) */ \
-  name##_kernel<double><<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS>>>( \
+  name##_kernel<double><<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>( \
       n, x, y); \
 }
 

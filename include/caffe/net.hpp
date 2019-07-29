@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
@@ -26,6 +27,8 @@ class Net {
   explicit Net(const NetParameter& param);
   explicit Net(const string& param_file, Phase phase,
       const int level = 0, const vector<string>* stages = NULL);
+  explicit Net(std::istream& param_stream, const string& name_to_log, Phase phase,
+    const int level = 0, const vector<string>* stages = NULL);
   virtual ~Net() {}
 
   /// @brief Initialize a network with a NetParameter.
@@ -113,6 +116,7 @@ class Net {
   void CopyTrainedLayersFrom(const NetParameter& param);
   void CopyTrainedLayersFrom(const string trained_filename);
   void CopyTrainedLayersFromBinaryProto(const string trained_filename);
+  void CopyTrainedLayersFromBinaryProto(std::istream& trained_stream, const string& name_to_log);
   void CopyTrainedLayersFromHDF5(const string trained_filename);
   /// @brief Writes the net to a proto.
   void ToProto(NetParameter* param, bool write_diff = false) const;

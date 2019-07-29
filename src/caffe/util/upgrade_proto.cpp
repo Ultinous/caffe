@@ -2,6 +2,8 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/text_format.h>
 
+#include <boost/filesystem.hpp>
+
 #include <map>
 #include <string>
 
@@ -90,11 +92,25 @@ void ReadNetParamsFromTextFileOrDie(const string& param_file,
   UpgradeNetAsNeeded(param_file, param);
 }
 
+void ReadNetParamsFromTextStreamOrDie(std::istream& param_stream, const string& name_to_log,
+  NetParameter* param) {
+  CHECK(ReadProtoFromTextStream(param_stream, param))
+    << "Failed to parse NetParameter stream: " << name_to_log;
+  UpgradeNetAsNeeded(name_to_log, param);
+}
+
 void ReadNetParamsFromBinaryFileOrDie(const string& param_file,
                                       NetParameter* param) {
   CHECK(ReadProtoFromBinaryFile(param_file, param))
       << "Failed to parse NetParameter file: " << param_file;
   UpgradeNetAsNeeded(param_file, param);
+}
+
+void ReadNetParamsFromBinaryStreamOrDie(std::istream& param_stream, const string& name_to_log,
+  NetParameter* param) {
+  CHECK(ReadProtoFromBinaryStream(param_stream, param))
+    << "Failed to parse NetParameter stream: " << name_to_log;
+  UpgradeNetAsNeeded(name_to_log, param);
 }
 
 bool NetNeedsV0ToV1Upgrade(const NetParameter& net_param) {
@@ -1095,12 +1111,31 @@ bool UpgradeSolverAsNeeded(const string& param_file, SolverParameter* param) {
   return success;
 }
 
+// Replaces snapshot_prefix of SolverParameter if it is not specified
+// or is set to directory
+void UpgradeSnapshotPrefixProperty(const string& param_file,
+                                   SolverParameter* param) {
+  using boost::filesystem::path;
+  using boost::filesystem::is_directory;
+  if (!param->has_snapshot_prefix()) {
+    param->set_snapshot_prefix(path(param_file).replace_extension().string());
+    LOG(INFO) << "snapshot_prefix was not specified and is set to "
+                + param->snapshot_prefix();
+  } else if (is_directory(param->snapshot_prefix())) {
+    param->set_snapshot_prefix((path(param->snapshot_prefix()) /
+                               path(param_file).stem()).string());
+    LOG(INFO) << "snapshot_prefix was a directory and is replaced to "
+                + param->snapshot_prefix();
+  }
+}
+
 // Read parameters from a file into a SolverParameter proto message.
 void ReadSolverParamsFromTextFileOrDie(const string& param_file,
                                        SolverParameter* param) {
   CHECK(ReadProtoFromTextFile(param_file, param))
       << "Failed to parse SolverParameter file: " << param_file;
   UpgradeSolverAsNeeded(param_file, param);
+  UpgradeSnapshotPrefixProperty(param_file, param);
 }
 
 }  // namespace caffe

@@ -102,12 +102,12 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
 	const int num_threads = N;
 	for(int i=0; i<6; ++i) {
 		if(is_pre_defined_theta[i]) {
-			set_value_to_constant<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(
+			set_value_to_constant<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
 				num_threads, pre_defined_theta[i], 6, i, full_theta_data);
 			//std::cout << "Setting value " << pre_defined_theta[i] << " to "<< i <<
 			//	"/6 of full_theta_data" << std::endl;
 		} else {
-			copy_values<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(num_threads,
+			copy_values<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(num_threads,
 				6 - pre_defined_count, k, theta, 6, i, full_theta_data);
 			//std::cout << "Copying " << k << "/" << 6 - pre_defined_count << " of theta to "
 			//	<< i << "/6 of full_theta_data" << std::endl;
@@ -125,7 +125,7 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
 	const int nthreads = N * C * output_H_ * output_W_;
 
 	SpatialTransformerForwardGPU<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-	      CAFFE_CUDA_NUM_THREADS>>>(nthreads, N, C, output_H_, output_W_, H, W, input_grid_data, U, V);
+	      CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(nthreads, N, C, output_H_, output_W_, H, W, input_grid_data, U, V);
 }
 
 template <typename Dtype>
@@ -269,7 +269,7 @@ void SpatialTransformerLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& to
 	const int nthreads = N * C * output_H_ * output_W_;
 
 	SpatialTransformerBackwardGPU_dTheta<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-			CAFFE_CUDA_NUM_THREADS>>>(nthreads, C, output_H_, output_W_, H, W, input_grid_data,
+			CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(nthreads, C, output_H_, output_W_, H, W, input_grid_data,
 					dV, U, dTheta_tmp_diff);
 
 	Dtype* all_ones_2_data = all_ones_2.mutable_gpu_data();
@@ -288,7 +288,7 @@ void SpatialTransformerLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& to
 	const int num_threads = N;
 	for(int i=0; i<6; ++i) {
 		if(!is_pre_defined_theta[i]) {
-			copy_values<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(num_threads, 
+			copy_values<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(num_threads,
 				6, i, dFull_theta, 6 - pre_defined_count, k, dTheta);
 			//std::cout << "Copying " << i << "/6 of dFull_theta to " << k << "/" << 
 			//	6 - pre_defined_count << " of dTheta" << std::endl;
@@ -307,7 +307,7 @@ void SpatialTransformerLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& to
 		caffe_gpu_set(bottom[0]->count(), (Dtype)0., dU);
 		const int nthreads = N * C * output_H_ * output_W_;
 		SpatialTransformerBackwardGPU_dU<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-			CAFFE_CUDA_NUM_THREADS>>>(nthreads, C, W, H, output_H_, output_W_, input_grid_data, dV, dU);
+			CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(nthreads, C, W, H, output_H_, output_W_, input_grid_data, dV, dU);
 	}
 }
 

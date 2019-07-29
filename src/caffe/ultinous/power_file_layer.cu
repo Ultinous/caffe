@@ -32,7 +32,7 @@ void PowerFileLayer<Dtype>::Forward_gpu(
 	
 	const int nthreads = bottom[0]->count();
 	PowerFileForwardGPU<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-	     CAFFE_CUDA_NUM_THREADS>>>(nthreads, shift_.count(), input, shift, output);
+	     CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(nthreads, shift_.count(), input, shift, output);
 }
 
 template <typename Dtype>
@@ -56,7 +56,7 @@ void PowerFileLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
 	
 	const int nthreads = bottom[0]->count();
 	PowerFileBackwardGPU<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-	     CAFFE_CUDA_NUM_THREADS>>>(nthreads, output, input);
+	     CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(nthreads, output, input);
 }
 
 INSTANTIATE_LAYER_GPU_FUNCS(PowerFileLayer);

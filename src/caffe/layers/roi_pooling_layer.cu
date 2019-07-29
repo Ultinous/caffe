@@ -85,7 +85,7 @@ void ROIPoolingLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   int* argmax_data = max_idx_.mutable_gpu_data();
   int count = top[0]->count();
   // NOLINT_NEXT_LINE(whitespace/operators)
-  ROIPoolForward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
+  ROIPoolForward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
       count, bottom_data, spatial_scale_, channels_, height_, width_,
       pooled_height_, pooled_width_, bottom_rois, top_data, argmax_data);
   CUDA_POST_KERNEL_CHECK;
@@ -177,7 +177,7 @@ void ROIPoolingLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   caffe_gpu_set(count, Dtype(0.), bottom_diff);
   const int* argmax_data = max_idx_.gpu_data();
   // NOLINT_NEXT_LINE(whitespace/operators)
-  ROIPoolBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
+  ROIPoolBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
       count, top_diff, argmax_data, top[0]->num(), spatial_scale_, channels_,
       height_, width_, pooled_height_, pooled_width_, bottom_diff, bottom_rois);
   CUDA_POST_KERNEL_CHECK;
