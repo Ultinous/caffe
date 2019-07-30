@@ -1778,6 +1778,7 @@ message FocalLossParameter {
   // cross-categories weights to solve the imbalance problem
   optional float alpha = 3 [default = 0.25];
   optional float beta  = 4 [default = 1.0];
+}
 
 message QueuePredictionDataParameter {
   // Specify the data source.
