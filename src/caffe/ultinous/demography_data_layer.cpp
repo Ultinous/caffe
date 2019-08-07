@@ -47,7 +47,7 @@ void DemographyDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   int age, gender;
   while(infile >> imageName >> age >> gender)
   {
-    if( age >= m_maxAge ) age = m_maxAge;
+    if( age >= m_maxAge ) continue; //age = m_maxAge;
     m_files[age][gender].push_back( imageName );
     m_indices[age][gender] = 0;
   }
