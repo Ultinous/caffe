@@ -675,7 +675,11 @@ void SkeletonDataLayer<Dtype>::generatePoints(Skeleton& skeleton)
                     return midpointGenerator(_skeleton, 
                         proto::skeleton::SkeletonPointType::LEFT_SHOULDER, 
                         proto::skeleton::SkeletonPointType::RIGHT_SHOULDER);
-                default: return std::make_pair(false, typename Skeleton::mapped_type());
+              case proto::skeleton::SkeletonPointType::GEN_PELVIS:
+                    return midpointGenerator(_skeleton,
+                        proto::skeleton::SkeletonPointType::LEFT_HIP,
+                        proto::skeleton::SkeletonPointType::RIGHT_HIP);
+              default: return std::make_pair(false, typename Skeleton::mapped_type());
             }            
         }(skeleton, gen);
         if (result.first)
