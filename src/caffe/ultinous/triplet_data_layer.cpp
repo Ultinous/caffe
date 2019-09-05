@@ -111,7 +111,7 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
     }
   }
 
-  for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
+  for (int i = 0; i < this->prefetch_.size(); ++i) {
     this->prefetch_[i]->data_.Reshape(m_top_shape);
   }
   top[0]->Reshape(m_top_shape);
@@ -128,7 +128,7 @@ void TripletDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
     m_label_shape[0] *= 2;
 
   top[1]->Reshape(m_label_shape);
-  for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
+  for (int i = 0; i < this->prefetch_.size(); ++i) {
     this->prefetch_[i]->label_.Reshape(m_label_shape);
   }
 

@@ -36,7 +36,7 @@ void SimilarityLossLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 
   //std::cout << bottom[1]->cpu_data()[0] << " " << bottom[1]->cpu_data()[1] << std::endl;
 
-  ForwardKernel<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
+  ForwardKernel<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
       count, bottom[0]->gpu_data(), bottom[1]->gpu_data(), errors_.mutable_gpu_data(), sigma_, iteration );
   CUDA_POST_KERNEL_CHECK;
 
@@ -76,7 +76,7 @@ void SimilarityLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
 
   //Dtype loss = top[0]->cpu_data()[0];
 
-  BackwardKernel<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
+  BackwardKernel<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
       count, bottom[0]->gpu_data(), bottom[1]->gpu_data(), bottom[0]->mutable_gpu_diff(), sigma_, iteration );
   CUDA_POST_KERNEL_CHECK;
 

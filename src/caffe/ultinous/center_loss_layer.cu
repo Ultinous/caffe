@@ -45,7 +45,7 @@ void CenterLossLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   int nthreads = M_ * K_;
   Compute_distance_data_gpu<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-      CAFFE_CUDA_NUM_THREADS>>>(nthreads, K_, bottom[0]->gpu_data(), bottom[1]->gpu_data(),
+      CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(nthreads, K_, bottom[0]->gpu_data(), bottom[1]->gpu_data(),
                                 this->blobs_[0]->gpu_data(), distance_.mutable_gpu_data());
   Dtype dot;
   caffe_gpu_dot(M_ * K_, distance_.gpu_data(), distance_.gpu_data(), &dot);
@@ -60,7 +60,7 @@ void CenterLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   int nthreads = N_;
   caffe_gpu_set(N_ * K_, (Dtype)0., variation_sum_.mutable_gpu_data());
   Compute_center_diff_gpu<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-      CAFFE_CUDA_NUM_THREADS>>>(nthreads, M_, K_, bottom[1]->gpu_data(), distance_.gpu_data(),
+      CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(nthreads, M_, K_, bottom[1]->gpu_data(), distance_.gpu_data(),
                                 variation_sum_.mutable_gpu_data(), this->blobs_[0]->mutable_gpu_diff());
 
   if (propagate_down[0]) {

@@ -63,11 +63,11 @@ void LSTMUnitLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   Dtype* H = top[1]->mutable_gpu_data();
   const int X_count = bottom[1]->count();
   // NOLINT_NEXT_LINE(whitespace/operators)
-  LSTMActsForward<Dtype><<<CAFFE_GET_BLOCKS(X_count), CAFFE_CUDA_NUM_THREADS>>>(
+  LSTMActsForward<Dtype><<<CAFFE_GET_BLOCKS(X_count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
       X_count, hidden_dim_, X, X_acts);
   CUDA_POST_KERNEL_CHECK;
   // NOLINT_NEXT_LINE(whitespace/operators)
-  LSTMUnitForward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
+  LSTMUnitForward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
       count, hidden_dim_, C_prev, X_acts, cont, C, H);
   CUDA_POST_KERNEL_CHECK;
 }
@@ -138,13 +138,13 @@ void LSTMUnitLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   Dtype* C_prev_diff = bottom[0]->mutable_gpu_diff();
   Dtype* X_acts_diff = X_acts_.mutable_gpu_diff();
   LSTMUnitBackward<Dtype>  // NOLINT_NEXT_LINE(whitespace/operators)
-      <<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count, hidden_dim_,
+      <<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(count, hidden_dim_,
       C_prev, X_acts, C, H, cont, C_diff, H_diff, C_prev_diff, X_acts_diff);
   CUDA_POST_KERNEL_CHECK;
   const int X_count = bottom[1]->count();
   Dtype* X_diff = bottom[1]->mutable_gpu_diff();
   LSTMActsBackward<Dtype>  // NOLINT_NEXT_LINE(whitespace/operators)
-      <<<CAFFE_GET_BLOCKS(X_count), CAFFE_CUDA_NUM_THREADS>>>(
+      <<<CAFFE_GET_BLOCKS(X_count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
       X_count, hidden_dim_, X_acts, X_acts_diff, X_diff);
   CUDA_POST_KERNEL_CHECK;
 }

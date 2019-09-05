@@ -78,7 +78,7 @@ void DataAugmentLayer<Dtype>::Forward_gpu(
 
     const int nthreads = num * m_numOcclusions;
     DataAugmentDataAugmentOcclusionGPU<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-    CAFFE_CUDA_NUM_THREADS>>>(top[0]->mutable_gpu_data()
+    CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(top[0]->mutable_gpu_data()
     , num, channels, height, width, m_circles.gpu_data(), m_numOcclusions);
   }
 }
@@ -110,7 +110,7 @@ void DataAugmentLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   if( m_numOcclusions > 0 )
   {
     DataAugmentDataAugmentOcclusionGPU<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-    CAFFE_CUDA_NUM_THREADS>>>(bottom[0]->mutable_gpu_diff()
+    CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(bottom[0]->mutable_gpu_diff()
     , num, channels, height, width, m_circles.gpu_data(), m_numOcclusions);
   }
 }
