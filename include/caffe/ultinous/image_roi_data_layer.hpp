@@ -34,7 +34,7 @@ public:
 
   struct Sample
   {
-    std::string image_file;
+    std::vector<std::string> image_files;
     BBoxes bboxes;
   };
   typedef std::vector<Sample> Samples;
