@@ -224,7 +224,7 @@ int HeadPoseDataLayer<Dtype>::select_line_id_for_head_pose_direction()
         head_direction.z = lines_[i].second[8];
 
         //calculate distance
-        distances.push_back(pair<int,float> (cv::norm(p_rand - head_direction), i));
+        distances.push_back(pair<float,int> (cv::norm(p_rand - head_direction), i));
     }
 
 
@@ -233,7 +233,7 @@ int HeadPoseDataLayer<Dtype>::select_line_id_for_head_pose_direction()
 
     int result_index = round(uniform01(generator) * 100.0f);
 
-    return distances[result_index].first;
+    return distances[result_index].second;
 
 }
 
