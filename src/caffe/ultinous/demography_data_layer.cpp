@@ -31,7 +31,11 @@ void DemographyDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   m_maxAge = this->layer_param_.demography_data_param().max_age();
   m_intervalLength = this->layer_param_.demography_data_param().interval_length();
   m_additionalIntervals = this->layer_param_.demography_data_param().additional_intervals();
-  m_numIntervals = int(2*m_additionalIntervals + float(m_maxAge) / m_intervalLength);
+  m_scalar_age = this->layer_param_.demography_data_param().scalar_age(); // age treated as scalar or as distribution
+  if( m_scalar_age )
+    m_numIntervals = 1;
+  else
+    m_numIntervals = int(2*m_additionalIntervals + float(m_maxAge) / m_intervalLength);
   LOG(INFO) << "demography_data_layer numIntervals:" << m_numIntervals;
 
   //CHECK( 0 == (m_maxAge) % m_intervalLength );
@@ -131,7 +135,7 @@ void DemographyDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
         age = age2;
       else if( age2>=m_maxAge ) // if only age1 is valid
         age = age1;
-      else // if boath age1 and age2 are valid
+      else // if both age1 and age2 are valid
       {
         float prob = float(age - age1) / float(age2-age1);
         float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
@@ -165,18 +169,23 @@ void DemographyDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     int labelOffset = batch->label_.offset(item_id);  // item_id * (m_numIntervals+1)
 
     //std::cout << age;
-
-    for( int intervalIx = 0; intervalIx < m_numIntervals; ++intervalIx )
+    // TODO modify for scalar age
+    if( m_scalar_age )
     {
-      double x1 = (intervalIx-m_additionalIntervals)*m_intervalLength;
-      double x2 = x1 + m_intervalLength;
-      double sigma = this->layer_param_.demography_data_param().age_stddev();
-
-      prefetch_label[ labelOffset + intervalIx ] = ncdf( x2, age, sigma ) - ncdf( x1, age, sigma );
-      //std::cout << " " << prefetch_label[ labelOffset + intervalIx ];
+    	prefetch_label[ labelOffset ] = age;
     }
-
-    prefetch_label[ labelOffset + m_numIntervals ] = gender;
+    else{
+        for( int intervalIx = 0; intervalIx < m_numIntervals; ++intervalIx )
+        {
+          double x1 = (intervalIx-m_additionalIntervals)*m_intervalLength;
+          double x2 = x1 + m_intervalLength;
+          double sigma = this->layer_param_.demography_data_param().age_stddev();
+  
+          prefetch_label[ labelOffset + intervalIx ] = ncdf( x2, age, sigma ) - ncdf( x1, age, sigma );
+          //std::cout << " " << prefetch_label[ labelOffset + intervalIx ];
+        }
+    }
+    prefetch_label[ labelOffset + m_numIntervals ] = gender ;
     //std::cout << std::endl << std::endl;
   }
   batch_timer.Stop();
