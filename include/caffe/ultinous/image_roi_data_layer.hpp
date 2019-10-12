@@ -87,6 +87,10 @@ protected:
   int m_labels_blobs_num;
 
   UltinousTransformer m_unTransformer;
+
+  std::random_device m_rd;
+  std::mt19937 m_gen;
+  int m_batch_size;
 };
 
 }  // namespace ultinous

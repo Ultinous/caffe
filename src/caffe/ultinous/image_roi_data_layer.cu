@@ -6,46 +6,127 @@ namespace caffe {
 namespace ultinous {
 
 template <typename Dtype>
-void ImageROIDataLayer<Dtype>::Forward_gpu(
-    const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
+void ImageROIDataLayer<Dtype>::Forward_gpu
+  ( const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top )
+{
+  int batch_size = this->m_batch_size;
+
   Batch * batch = prefetch_full_.pop("Data layer prefetch queue empty");
-  
-  //std::cout << "---- ImageROIDataLayer<Dtype>::Forward_gpu" << std::endl;
-  
-  // Reshape to loaded data.
-  top[0]->ReshapeLike(batch->data_);
-  // Copy the data
-  caffe_copy(batch->data_.count(), batch->data_.gpu_data(),
-      top[0]->mutable_gpu_data());
 
-  //std::cout << "---- batch->data_.count()" << batch->data_.count() << std::endl;
-  
+//  TODO
+//  std::cout << "\nSTART\n\n";
+//  std::cout << batch_size << "\n\n";
+//
+//  std::cout << "top shape:\n";
+//  std::cout << "data:\n";
+//  for ( auto e : top[0]->shape() )
+//    std::cout << e << ' ';
+//  std::cout << '\n';
+//
+//  std::cout << "info:\n";
+//  for ( auto e : top[1]->shape() )
+//    std::cout << e << ' ';
+//  std::cout << '\n';
+//
+//  std::cout << "box:\n";
+//  for ( auto e : top[2]->shape() )
+//    std::cout << e << ' ';
+//  std::cout << "\n\n";
+
+
+
+
+
+  // Reshape to loaded image.
+  top[0]->Reshape(std::vector<int>({ batch_size, batch->data_.shape(1), batch->data_.shape(2), batch->data_.shape(3) }));
+
   // Reshape to image info.
-  top[1]->ReshapeLike(batch->info_);
-  // Copy info.
-  caffe_copy(batch->info_.count(), batch->info_.gpu_data(),
-      top[1]->mutable_gpu_data());
+  top[1]->Reshape(std::vector<int>({ batch_size, batch->info_.shape(1) }));
 
-  //std::cout << "---- batch->info_.count()" << batch->info_.count() << std::endl;
+  int dData=0, dInfo=0;
+  int cData=0, cInfo=0;
 
-  // Reshape to image info.
-  top[2]->ReshapeLike(batch->bboxes_);
-  // Copy bbox.
-  caffe_copy(batch->bboxes_.count(), batch->bboxes_.gpu_data(),
-      top[2]->mutable_gpu_data());
+  std::vector<Dtype> boxes;
 
-  for(int i = 0; i<m_labels_blobs_num-1; ++i)
+  for (int i=0; i<batch_size; ++i)
   {
-    top[3+i]->ReshapeLike(batch->labels_[i]);
-    caffe_copy(batch->labels_[i].count(), batch->labels_[i].gpu_data(),
-      top[3+i]->mutable_gpu_data());
-  }
-  //std::cout << "---- batch->bboxes_.count()" << batch->bboxes_.count() << std::endl;
+    if (dData != 0)
+      batch = prefetch_full_.pop("Data layer prefetch queue empty");
 
-  // Ensure the copy is synchronous wrt the host, so that the next batch isn't
-  // copied in meanwhile.
-  CUDA_CHECK(cudaStreamSynchronize(cudaStreamDefault));
-  prefetch_free_.push(batch);
+//    TODO
+//    std::cout << "batch shape:\n";
+//    std::cout << "data:\n";
+//    for ( auto e : batch->data_.shape() )
+//      std::cout << e << ' ';
+//    std::cout << '\n';
+//
+//    std::cout << "info:\n";
+//    for ( auto e : batch->info_.shape() )
+//      std::cout << e << ' ';
+//    std::cout << '\n';
+//
+//    std::cout << "box:\n";
+//    for ( auto e : batch->bboxes_.shape() )
+//      std::cout << e << ' ';
+//    std::cout << "\n\n";
+
+    cData =   batch->data_.count();
+    cInfo =   batch->info_.count();
+
+    // Copy the data
+    caffe_copy( cData, batch->data_.gpu_data(), top[0]->mutable_gpu_data() + dData );
+    DLOG(INFO) << "Prefetch copied";
+
+    // Copy info.
+    caffe_copy( cInfo, batch->info_.gpu_data(), top[1]->mutable_gpu_data() + dInfo );
+
+    for (int j=0; j < batch->bboxes_.count(); j++)
+      boxes.push_back( batch->bboxes_.cpu_data()[j] );
+
+    if (i == batch_size-1)
+    {
+      // Reshape to bounding boxes.
+      top[2]->Reshape(std::vector<int>({ (int)(boxes.size() / batch->bboxes_.shape(1)), batch->bboxes_.shape(1) }));
+      // Copy bbox.
+      caffe_copy( boxes.size(), boxes.data(), top[2]->mutable_cpu_data() );
+    }
+    else
+    {
+      dData += cData;
+      dInfo += cInfo;
+    }
+
+    // Ensure the copy is synchronous wrt the host, so that the next batch isn't
+    // copied in meanwhile.
+    CUDA_CHECK(cudaStreamSynchronize(cudaStreamDefault));
+    prefetch_free_.push(batch);
+
+//    TODO
+//    std::cout << "top shape:\n";
+//    std::cout << "data:\n";
+//    for ( auto e : top[0]->shape() )
+//      std::cout << e << ' ';
+//    std::cout << '\n';
+//
+//    std::cout << "info:\n";
+//    for ( auto e : top[1]->shape() )
+//      std::cout << e << ' ';
+//    std::cout << '\n';
+//
+//    std::cout << "box:\n";
+//    for ( auto e : top[2]->shape() )
+//      std::cout << e << ' ';
+//    std::cout << "\n\n";
+
+
+  }
+
+//  TODO
+//  std::cout << "END\n\n";
+//  LOG(INFO) << top[0]->shape_string();
+//  LOG(INFO) << top[1]->shape_string();
+//  LOG(INFO) << top[2]->shape_string();
+
 }
 
 INSTANTIATE_LAYER_GPU_FORWARD(ImageROIDataLayer);

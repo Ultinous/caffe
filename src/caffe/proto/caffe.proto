@@ -1553,6 +1553,8 @@ message ImageROIDataParameter {
   optional float rnd_scale_min = 5;
   optional float rnd_scale_max = 6;
   optional uint32 in_img_num = 7 [default = 1];
+  optional uint32 crop_height = 8;
+  optional uint32 crop_width = 9;
 }
 
 message ProposalTargetParameter {
