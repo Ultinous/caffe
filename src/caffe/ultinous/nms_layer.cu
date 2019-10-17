@@ -5,6 +5,10 @@ namespace caffe
 namespace ultinous
 {
 
+#define BLOCK_DIM_X 32
+#define BLOCK_DIM_Y 16
+
+
 template<typename Dtype, uint R>
 static
 __global__ void nmsFilterKernel(Dtype *dst, Dtype const *src, int const width, int const height, int const channels)
@@ -18,10 +22,10 @@ __global__ void nmsFilterKernel(Dtype *dst, Dtype const *src, int const width, i
   int const ind = blockIdx.z / channels;
   int const channelStart = ind * width * height * channels + c * width * height;
 
-  int const shmHeight = blockDim.y + 2 * R;
-  int const shmWidth = blockDim.x + 2 * R;
+  int const shmHeight = BLOCK_DIM_Y + 2 * R;
+  int const shmWidth = BLOCK_DIM_X + 2 * R;
 
-  extern __shared__ float shm[];
+  __shared__ Dtype shm[shmWidth * shmHeight];
 
 #pragma unroll
   for(int j = threadIdx.y; j < shmHeight; j += blockDim.y)
@@ -53,8 +57,7 @@ __global__ void nmsFilterKernel(Dtype *dst, Dtype const *src, int const width, i
     dst[channelStart + y * width + x] = (val == maxVal)? val : 0.f;
 }
 
-#define BLOCK_DIM_X 16
-#define BLOCK_DIM_Y 32
+
 
 template <typename Dtype, uint R>
 static inline
@@ -75,9 +78,7 @@ void nmsFilterKernelWrapper(Blob<Dtype> const *src, Blob<Dtype> *dst)
     , static_cast<unsigned int>(channels_ * num_)
   );
 
-  size_t shmInBytes = (2 * R + BLOCK_DIM_Y) * (2 * R + BLOCK_DIM_X) * sizeof(float);
-
-  nmsFilterKernel<Dtype, R><<<grid, block, shmInBytes, Caffe::cuda_stream()>>>(dst_data, src_data, width_, height_, channels_);
+  nmsFilterKernel<Dtype, R><<<grid, block, 0, Caffe::cuda_stream()>>>(dst_data, src_data, width_, height_, channels_);
 }
 
 

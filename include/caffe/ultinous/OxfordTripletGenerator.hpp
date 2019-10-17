@@ -160,14 +160,14 @@ private:
 
     typename ImageIndices::iterator indexMatrixIt = m_indexMatrix.begin( );
 
-    ClassIndex anchorClassIndex; // In shuffledModel
+    //ClassIndex anchorClassIndex; // In shuffledModel
     ClassIndex anchorClass;
     ImageIndex anchor, positive, negative;
 
     typename OxfordTripletGenerator<Dtype>::PositivePairList::iterator ppIt=m_positivePairList.begin();
     for( size_t i = 0; i < N; ++i, ++ppIt )
     {
-      anchorClassIndex = ppIt->m_classIndex;
+      //anchorClassIndex = ppIt->m_classIndex;
       anchor = ppIt->m_anchor;
       positive = ppIt->m_positive;
       anchorClass = m_icm.getImageClass(anchor);

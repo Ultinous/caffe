@@ -42,10 +42,12 @@ protected:
 
 private:
 	inline Dtype abs(Dtype x) {
-		if(x < 0) return -x; return x;
+		if(x < 0) return -x;
+		return x;
 	}
 	inline Dtype max(Dtype x, Dtype y) {
-		if(x < y) return y; return x;
+		if(x < y) return y;
+		return x;
 	}
 
 	Dtype transform_forward_cpu(const Dtype* pic, Dtype px, Dtype py);
