@@ -59,9 +59,9 @@ protected:
 
   int feat_stride_;
   int allowed_border_;
-  int batch_size;
-  int width;
-  int height;
+  int batch_size_;
+  int width_;
+  int height_;
 
   AnchorTargetParameter const &anchorTargetParam_;
 };

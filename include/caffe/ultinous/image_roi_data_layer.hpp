@@ -21,14 +21,11 @@ public:
   class Batch {
     public:
     Blob<Dtype> data_, info_, bboxes_;
-    std::vector< Blob<Dtype> > labels_;
   };
 
   struct BBox
   {
     int x1, y1, x2, y2;
-    std::vector<int> classes;
-
   };
   typedef std::vector<BBox> BBoxes;
 
@@ -68,6 +65,14 @@ public:
     return 0;
   }
 
+private:
+  inline cv::Mat readMultiChannelImage(uint32_t inImgNum, const string& root_folder, int new_height, int new_width, bool is_color);
+  inline bool doRandomCrop(
+    BBoxes& boxes, const int crop_height, const int crop_width, int& crop_x, int& crop_y, cv::Mat& cv_img,
+    int& pad_x, int& pad_y, int& source_height, int& source_width,
+    int& source_x1, int& source_x2, int& source_y1, int& source_y2
+  );
+
  protected:
   virtual void InternalThreadEntry();
   virtual void ShuffleImages();
@@ -84,13 +89,13 @@ protected:
   shared_ptr<Caffe::RNG> prefetch_rng_;
   Samples samples;
   int sample_id_;
-  int m_labels_blobs_num;
 
   UltinousTransformer m_unTransformer;
 
   std::random_device m_rd;
   std::mt19937 m_gen;
-  int m_batch_size;
+  uint32_t m_batch_size;
+  std::vector<uint32_t> m_mean_values;
 };
 
 }  // namespace ultinous
