@@ -14,6 +14,9 @@
 namespace caffe {
 namespace ultinous {
 
+enum Dir:int { n,e,s,w,ne,se,sw,nw };
+enum Gain:int { vertical,horizontal };
+
 template <typename Dtype>
 class ImageROIDataLayer : public BaseDataLayer<Dtype>, public InternalThread {
 public:
@@ -66,11 +69,16 @@ public:
   }
 
 private:
-  inline cv::Mat readMultiChannelImage(uint32_t inImgNum, const string& root_folder, int new_height, int new_width, bool is_color);
+  inline cv::Mat readMultiChannelImage(uint32_t inImgNum, int new_height, int new_width, bool is_color, const string& root_folder);
+  inline std::map<Gain, int> getGain(
+    std::vector<size_t>& excludeIndices,
+    std::vector<int> vx1, std::vector<int> vy1, std::vector<int> vx2, std::vector<int> vy2
+  );
   inline bool doRandomCrop(
-    BBoxes& boxes, const int crop_height, const int crop_width, int& crop_x, int& crop_y, cv::Mat& cv_img,
+    BBoxes& boxes, int& crop_x, int& crop_y, cv::Mat& cv_img,
     int& pad_x, int& pad_y, int& source_height, int& source_width,
-    int& source_x1, int& source_x2, int& source_y1, int& source_y2
+    int& source_x1, int& source_x2, int& source_y1, int& source_y2,
+    const int crop_height, const int crop_width
   );
 
  protected:

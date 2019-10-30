@@ -34,14 +34,14 @@ template <typename Dtype>
 void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top)
 {
-  ImageDataParameter image_data_param = this->layer_param_.image_data_param();
+  const ImageDataParameter& image_data_param = this->layer_param_.image_data_param();
   int new_height = image_data_param.new_height();
   int new_width = image_data_param.new_width();
   const bool is_color = image_data_param.is_color();
   const string root_folder = image_data_param.root_folder();
   m_batch_size = image_data_param.batch_size();
 
-  ImageROIDataParameter image_roi_data_param = this->layer_param_.image_roi_data_param();
+  const ImageROIDataParameter& image_roi_data_param = this->layer_param_.image_roi_data_param();
   const uint32_t inImgNum = image_roi_data_param.in_img_num();
   bool randomScale = (image_roi_data_param.has_rnd_scale_min() || image_roi_data_param.has_rnd_scale_max());
   bool randomCrop = ( image_roi_data_param.has_crop_height() && image_roi_data_param.has_crop_width() );
@@ -141,7 +141,6 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   for (int i = 0; i < this->PREFETCH_COUNT; ++i)
     this->prefetch_[i].data_.Reshape(top_shape);
 
-
   // Set im_info shape
   vector<int> info_shape(2);
   info_shape[0] = m_batch_size;
@@ -174,22 +173,22 @@ template <typename Dtype>
 void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 {
 //  TODO
-//  std::string name;
-//  {
-//    using namespace std::chrono;
-//    milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-//    std::stringstream ss;
-//    ss << ms.count();
-//    name = ss.str();
-//  }
+ // std::string name;
+ // {
+ //   using namespace std::chrono;
+ //   milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+ //   std::stringstream ss;
+ //   ss << ms.count();
+ //   name = ss.str();
+ // }
 
-  ImageDataParameter image_data_param = this->layer_param_.image_data_param();
+  const ImageDataParameter& image_data_param = this->layer_param_.image_data_param();
   const int new_height = image_data_param.new_height();
   const int new_width = image_data_param.new_width();
   const bool is_color = image_data_param.is_color();
   string root_folder = image_data_param.root_folder();
 
-  ImageROIDataParameter image_roi_data_param = this->layer_param_.image_roi_data_param();
+  const ImageROIDataParameter& image_roi_data_param = this->layer_param_.image_roi_data_param();
   bool randomScale = (image_roi_data_param.has_rnd_scale_min() || image_roi_data_param.has_rnd_scale_max());
   bool randomCrop = (image_roi_data_param.has_crop_height() && image_roi_data_param.has_crop_width());
   uint32_t smallerDimensionSize = image_roi_data_param.smallerdimensionsize();
@@ -223,12 +222,12 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     timer.Start();
     CHECK_GT(samples_size, sample_id_);
 
-    cv::Mat cv_img = readMultiChannelImage(inImgNum, root_folder, new_height, new_width, is_color);
+    cv::Mat cv_img = readMultiChannelImage(inImgNum, new_height, new_width, is_color, root_folder);
 
 //    TODO
-//    cv::Mat cv_tmp = cv_img.clone();
-//    for (auto it=samples[sample_id_].bboxes.begin(); it!=samples[sample_id_].bboxes.end(); ++it)
-//      cv::rectangle(cv_tmp, cv::Point(it->x1, it->y1), cv::Point(it->x2, it->y2), cv::Scalar(0, 255, 0));
+   // cv::Mat cv_tmp = cv_img.clone();
+   // for (auto it=samples[sample_id_].bboxes.begin(); it!=samples[sample_id_].bboxes.end(); ++it)
+   //   cv::rectangle(cv_tmp, cv::Point(it->x1, it->y1), cv::Point(it->x2, it->y2), cv::Scalar(0, 255, 0));
 
     read_time += timer.MicroSeconds();
 
@@ -240,8 +239,9 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     int source_y2=(randomCrop ? crop_height-1 : source_height - 1);
     if (randomCrop)
       skip = doRandomCrop(
-        boxes, crop_height, crop_width, crop_x, crop_y, cv_img, pad_x, pad_y,
-        source_height, source_width, source_x1, source_x2, source_y1, source_y2
+        boxes, crop_x, crop_y, cv_img, pad_x, pad_y,
+        source_height, source_width, source_x1, source_x2, source_y1, source_y2,
+        crop_height, crop_width
       );
 
     if (!skip)
@@ -388,7 +388,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
           Dtype x2 = static_cast<Dtype>(bbox.x2);
           Dtype y2 = static_cast<Dtype>(bbox.y2);
 
-//          cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0));//TODO
+          // cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0));//TODO
 
           prefetch_bboxes[5 * bboxIx] = x1;
           prefetch_bboxes[5 * bboxIx + 1] = y1;
@@ -397,16 +397,12 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
           prefetch_bboxes[5 * bboxIx + 4] = 1;
         }
 
-//        cv::imwrite("debug/"+name+"_crop.jpg", cv_img);//TODO
-//        cv::imwrite("debug/"+name+".jpg", cv_tmp);//TODO
+       // cv::imwrite("debug/"+name+"_crop.jpg", cv_img);//TODO
+       // cv::imwrite("debug/"+name+".jpg", cv_tmp);//TODO
 
         done = true;
       }
-//      else
-//        std::cout << "image skip reason 2\n";//TODO
-    }
-//    else
-//      std::cout << "image skip reason 1\n";//TODO
+    } // if (!skip)
 
     // go to the next iter
     sample_id_++;
@@ -510,7 +506,7 @@ void ImageROIDataLayer<Dtype>::InternalThreadEntry()
 }
 
 template <typename Dtype>
-inline cv::Mat ImageROIDataLayer<Dtype>::readMultiChannelImage(uint32_t inImgNum, const string& root_folder, int new_height, int new_width, bool is_color)
+inline cv::Mat ImageROIDataLayer<Dtype>::readMultiChannelImage(uint32_t inImgNum, int new_height, int new_width, bool is_color, const string& root_folder)
 {
   vector<cv::Mat> slices;
   slices.reserve(inImgNum);
@@ -540,10 +536,36 @@ inline cv::Mat ImageROIDataLayer<Dtype>::readMultiChannelImage(uint32_t inImgNum
 }
 
 template <typename Dtype>
+inline std::map<Gain, int> ImageROIDataLayer<Dtype>::getGain(
+  std::vector<size_t>& excludeIndices,
+  std::vector<int> vx1, std::vector<int> vy1, std::vector<int> vx2, std::vector<int> vy2
+){
+  std::sort( excludeIndices.begin(), excludeIndices.end(), std::greater<size_t>() );
+
+  for (size_t index : excludeIndices)
+  {
+    vx1.erase(vx1.begin() + index);
+    vx2.erase(vx2.begin() + index);
+    vy1.erase(vy1.begin() + index);
+    vy2.erase(vy2.begin() + index);
+  }
+
+  int x1 = *std::min_element(vx1.begin(),vx1.end());
+  int y1 = *std::min_element(vy1.begin(),vy1.end());
+  int x2 = *std::max_element(vx2.begin(),vx2.end());
+  int y2 = *std::max_element(vy2.begin(),vy2.end());
+
+  std::map<Gain, int> gain = {{Gain::vertical, y2-y1+1}, {Gain::horizontal, x2-x1+1}};
+
+  return gain;
+}
+
+template <typename Dtype>
 inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
-  BBoxes& boxes, const int crop_height, const int crop_width, int& crop_x, int& crop_y, cv::Mat& cv_img,
+  BBoxes& boxes, int& crop_x, int& crop_y, cv::Mat& cv_img,
   int& pad_x, int& pad_y, int& source_height, int& source_width,
-  int& source_x1, int& source_x2, int& source_y1, int& source_y2
+  int& source_x1, int& source_x2, int& source_y1, int& source_y2,
+  const int crop_height, const int crop_width
 ){
   std::uniform_int_distribution<> dis;
   bool skip = true;
@@ -635,106 +657,122 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
 
       int h = y2-y1+1, w = x2-x1+1;
 
-      bool vertical = h > crop_height;
+      bool vertical   = h > crop_height;
       bool horizontal = w > crop_width;
-
-//          TODO
-//          std::cout << '\n';
-//          std::cout << root_folder + samples[sample_id_].image_files.back() << '\n';
-//          std::cout << name << '\n';
-//          std::cout << "orig: " << cv_img.cols << 'x' << cv_img.rows << '\n';
-//          std::cout << "new:  " << crop_width << 'x' << crop_height << '\n';
-//          std::cout << "bb:   " << x1 << ' ' << x2 << ' ' << y1 << ' ' << y2 << '\n';
-//          std::cout << "v: " << vertical << " h: " << horizontal << '\n';
 
       if (vertical || horizontal)
       {
-        std::vector<size_t> n,e,s,w, indicesToRemove;
+        std::vector<size_t> indicesToRemove;
+        std::vector<Dir> satisfiers;
+        std::map<Dir, std::vector<size_t>> directions;
+        std::map<Dir, int> gains;
+
+        for (int i=0; i<4; ++i) // iterate n,e,s,w
+          directions.emplace(std::make_pair(Dir(i), std::vector<size_t>()));
+
         for (int i = 0; i < vx1.size(); ++i)
         {
           if (vx1[i] == x1)
-            w.push_back(i);
+            directions[Dir::w].push_back(i);
           if (vy1[i] == y1)
-            n.push_back(i);
+            directions[Dir::n].push_back(i);
           if (vx2[i] == x2)
-            e.push_back(i);
+            directions[Dir::e].push_back(i);
           if (vy2[i] == y2)
-            s.push_back(i);
+            directions[Dir::s].push_back(i);
         }
-
-//            TODO
-//            std::cout << "n: ";
-//            for (auto el : n)
-//              std::cout << el << ' ';
-//            std::cout << "\ne: ";
-//            for (auto el : e)
-//              std::cout << el << ' ';
-//            std::cout << "\ns: ";
-//            for (auto el : s)
-//              std::cout << el << ' ';
-//            std::cout << "\nw: ";
-//            for (auto el : w)
-//              std::cout << el << ' ';
-//            std::cout << '\n';
 
         if (vertical && horizontal)
         {
-          std::sort(n.begin(), n.end());
-          std::sort(e.begin(), e.end());
-          std::sort(s.begin(), s.end());
-          std::sort(w.begin(), w.end());
+          for (int i=4; i<8; ++i) // iterate ne,se,sw,nw
+            directions.emplace(std::make_pair(Dir(i), std::vector<size_t>()));
 
           std::vector<size_t> u;
-          std::set_union(n.begin(), n.end(), e.begin(), e.end(), std::back_inserter(u));
-          std::vector<size_t> ne = u;
+          std::set_union(
+            directions[Dir::n].begin(), directions[Dir::n].end(), directions[Dir::e].begin(), directions[Dir::e].end(),
+            std::back_inserter(u));
+          directions[Dir::ne] = u;
 
           u.clear();
-          std::set_union(s.begin(), s.end(), e.begin(), e.end(), std::back_inserter(u));
-          std::vector<size_t> se = u;
+          std::set_union(
+            directions[Dir::s].begin(), directions[Dir::s].end(), directions[Dir::e].begin(), directions[Dir::e].end(),
+            std::back_inserter(u));
+          directions[Dir::se] = u;
 
           u.clear();
-          std::set_union(s.begin(), s.end(), w.begin(), w.end(), std::back_inserter(u));
-          std::vector<size_t> sw = u;
+          std::set_union(
+            directions[Dir::s].begin(), directions[Dir::s].end(), directions[Dir::w].begin(), directions[Dir::w].end(),
+            std::back_inserter(u));
+          directions[Dir::sw] = u;
 
           u.clear();
-          std::set_union(n.begin(), n.end(), w.begin(), w.end(), std::back_inserter(u));
-          std::vector<size_t> nw = u;
+          std::set_union(
+            directions[Dir::n].begin(), directions[Dir::n].end(), directions[Dir::w].begin(), directions[Dir::w].end(),
+            std::back_inserter(u));
+          directions[Dir::nw] = u;
 
-          int d = rand() % 4;
+          for (int i=0; i<4; ++i) // iterate n,e,s,w
+            directions.erase(Dir(i));
 
-          if (d == 0)
-            indicesToRemove.insert( indicesToRemove.end(), ne.begin(), ne.end() );
-          else if (d == 1)
-            indicesToRemove.insert( indicesToRemove.end(), se.begin(), se.end() );
-          else if (d == 2)
-            indicesToRemove.insert( indicesToRemove.end(), sw.begin(), sw.end() );
-          else if (d == 3)
-            indicesToRemove.insert( indicesToRemove.end(), nw.begin(), nw.end() );
+          for (auto direction : directions)
+          {
+            auto gain = getGain(direction.second,vx1,vy1,vx2,vy2);
+            gains[direction.first] = gain[Gain::vertical] * gain[Gain::horizontal];
+            if ( h - gain[Gain::vertical] <= crop_height && w - gain[Gain::horizontal] <= crop_width )
+              satisfiers.push_back(direction.first);
+          }
         }
         else if (vertical)
         {
-          if ( s.size()==0 || (n.size()!=0 && rand()%2) )
-            indicesToRemove.insert( indicesToRemove.end(), n.begin(), n.end() );
-          else
-            indicesToRemove.insert( indicesToRemove.end(), s.begin(), s.end() );
+          directions.erase(Dir::w);
+          directions.erase(Dir::e);
+          for (auto direction : directions)
+          {
+            gains[direction.first] = getGain(direction.second,vx1,vy1,vx2,vy2)[Gain::vertical];
+            if ( h - gains[direction.first] <= crop_height )
+              satisfiers.push_back(direction.first);
+          }
         }
         else if (horizontal)
         {
-          if ( w.size()==0 || (e.size()!=0 && rand()%2) )
-            indicesToRemove.insert( indicesToRemove.end(), e.begin(), e.end() );
+          directions.erase(Dir::n);
+          directions.erase(Dir::s);
+          for (auto direction : directions)
+          {
+            gains[direction.first] = getGain(direction.second,vx1,vy1,vx2,vy2)[Gain::horizontal];
+            if ( w - gains[direction.first] <= crop_width )
+              satisfiers.push_back(direction.first);
+          }
+        }
+
+        if (satisfiers.size() > 1)
+        {
+          Dir key;
+          if (satisfiers.size() == 1)
+            key = satisfiers[0];
           else
-            indicesToRemove.insert( indicesToRemove.end(), w.begin(), w.end() );
+            key = satisfiers[ rand() % satisfiers.size() ];
+
+          indicesToRemove = directions[key];
+        }
+        else
+        {
+          auto maxGainPairIterator = std::max_element(
+            std::begin(gains), std::end(gains),
+            [] (const std::pair< Dir, int > & p1, const std::pair< Dir, int > & p2) {
+              return p1.second < p2.second;
+            });
+          int maxGain = maxGainPairIterator->second;
+
+          std::vector<Dir> maxKeys;
+          for (auto gain : gains)
+            if (gain.second == maxGain)
+              maxKeys.push_back(gain.first);
+          Dir maxKey = maxKeys[ rand() % maxKeys.size() ];
+          indicesToRemove = directions[maxKey];
         }
 
         std::sort( indicesToRemove.begin(), indicesToRemove.end(), std::greater<size_t>() );
-
-//            TODO
-//            std::cout << "to remove from " << vx1.size() << ": ";
-//            for (auto e : indicesToRemove)
-//            {
-//              std::cout << e << ' ';
-//            }
-//            std::cout << '\n';
 
         for (size_t index : indicesToRemove)
         {
@@ -763,7 +801,6 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
       {
         dis = std::uniform_int_distribution<>(crop_min_y, crop_max_y);
         crop_y = dis(this->m_gen);
-//            std::cout << "crop0 y: " << crop_min_y << ' ' << crop_max_y << '\n';//TODO
       }
 
       if (crop_min_x == crop_max_x)
@@ -772,11 +809,7 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
       {
         dis = std::uniform_int_distribution<>(crop_min_x, crop_max_x);
         crop_x = dis(this->m_gen);
-//            std::cout << "crop0 x: " << crop_min_x << ' ' << crop_max_x << '\n';//TODO
       }
-
-//          std::cout << "crop1: " << crop_x << ' ' << crop_x+crop_width << ' ' << crop_y << ' ' << crop_y+crop_height << '\n';//TODO
-
 
       if (dy > 0)
       {
@@ -799,8 +832,6 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
         it->y1 -= crop_y;
         it->y2 -= crop_y;
       }
-
-//          std::cout << "crop2: " << cv_img.cols << 'x' << cv_img.rows << '\n';//TODO
     }
   }
 
