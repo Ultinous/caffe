@@ -100,8 +100,6 @@ protected:
 
   UltinousTransformer m_unTransformer;
 
-  std::random_device m_rd;
-  std::mt19937 m_gen;
   uint32_t m_batch_size;
   std::vector<uint32_t> m_mean_values;
 };

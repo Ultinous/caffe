@@ -111,9 +111,6 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   {
     new_height = crop_height;
     new_width = crop_width;
-
-    this->m_gen = std::mt19937(this->m_rd());
-    srand(time(0));
   }
 
   cv::Mat cv_img = ReadImageToCVMat(root_folder + samples[0].image_files[0],
@@ -173,14 +170,14 @@ template <typename Dtype>
 void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 {
 //  TODO
- // std::string name;
- // {
- //   using namespace std::chrono;
- //   milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
- //   std::stringstream ss;
- //   ss << ms.count();
- //   name = ss.str();
- // }
+//  std::string name;
+//  {
+//    using namespace std::chrono;
+//    milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+//    std::stringstream ss;
+//    ss << ms.count();
+//    name = ss.str();
+//  }
 
   const ImageDataParameter& image_data_param = this->layer_param_.image_data_param();
   const int new_height = image_data_param.new_height();
@@ -225,9 +222,9 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     cv::Mat cv_img = readMultiChannelImage(inImgNum, new_height, new_width, is_color, root_folder);
 
 //    TODO
-   // cv::Mat cv_tmp = cv_img.clone();
-   // for (auto it=samples[sample_id_].bboxes.begin(); it!=samples[sample_id_].bboxes.end(); ++it)
-   //   cv::rectangle(cv_tmp, cv::Point(it->x1, it->y1), cv::Point(it->x2, it->y2), cv::Scalar(0, 255, 0));
+//    cv::Mat cv_tmp = cv_img.clone();
+//    for (auto it=samples[sample_id_].bboxes.begin(); it!=samples[sample_id_].bboxes.end(); ++it)
+//      cv::rectangle(cv_tmp, cv::Point(it->x1, it->y1), cv::Point(it->x2, it->y2), cv::Scalar(0, 255, 0));
 
     read_time += timer.MicroSeconds();
 
@@ -254,8 +251,9 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         float scale_min = image_roi_data_param.has_rnd_scale_min() ? image_roi_data_param.rnd_scale_min() : 1;
         float scale_max = image_roi_data_param.has_rnd_scale_max() ? image_roi_data_param.rnd_scale_max() : 1;
         CHECK(scale_max - scale_min > 0);
-        if ((rand() % 2) == 1)
-          scale = scale_min + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (scale_max - scale_min)));
+
+        if ((caffe_rng_rand() % 2) == 1)
+          caffe_rng_uniform(1, scale_min, scale_max, &scale);
       }
 
       if (smallerDimensionSize > 0)
@@ -288,7 +286,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
           cv::copyMakeBorder(cv_img, cv_img, 0, pad_h, 0, pad_w, cv::BORDER_CONSTANT, cv::Scalar(127,127,127));
       }
 
-      bool mirror = image_roi_data_param.mirror() && ((rand() % 2) == 1);
+      bool mirror = image_roi_data_param.mirror() && ((caffe_rng_rand() % 2) == 1);
 
       if (mirror)
       {
@@ -388,7 +386,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
           Dtype x2 = static_cast<Dtype>(bbox.x2);
           Dtype y2 = static_cast<Dtype>(bbox.y2);
 
-          // cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0));//TODO
+//          cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0));//TODO
 
           prefetch_bboxes[5 * bboxIx] = x1;
           prefetch_bboxes[5 * bboxIx + 1] = y1;
@@ -397,8 +395,8 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
           prefetch_bboxes[5 * bboxIx + 4] = 1;
         }
 
-       // cv::imwrite("debug/"+name+"_crop.jpg", cv_img);//TODO
-       // cv::imwrite("debug/"+name+".jpg", cv_tmp);//TODO
+//        cv::imwrite("debug/"+name+"_crop.jpg", cv_img);//TODO
+//        cv::imwrite("debug/"+name+".jpg", cv_tmp);//TODO
 
         done = true;
       }
@@ -567,7 +565,6 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
   int& source_x1, int& source_x2, int& source_y1, int& source_y2,
   const int crop_height, const int crop_width
 ){
-  std::uniform_int_distribution<> dis;
   bool skip = true;
 
   int dy = crop_height - source_height;
@@ -577,18 +574,12 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
     if (dx == 0)
       pad_x = 0;
     else
-    {
-      dis = std::uniform_int_distribution<>(0, dx);
-      pad_x = dis(this->m_gen);
-    }
+      pad_x = caffe_rng_rand() % (dx+1);
 
     if (dy == 0)
       pad_y = 0;
     else
-    {
-      dis = std::uniform_int_distribution<>(0, dy);
-      pad_y = dis(this->m_gen);
-    }
+      pad_y = caffe_rng_rand() % (dy+1);
 
     source_x1 = pad_x;
     source_y1 = pad_y;
@@ -751,7 +742,7 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
           if (satisfiers.size() == 1)
             key = satisfiers[0];
           else
-            key = satisfiers[ rand() % satisfiers.size() ];
+            key = satisfiers[ caffe_rng_rand() % satisfiers.size() ];
 
           indicesToRemove = directions[key];
         }
@@ -768,7 +759,7 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
           for (auto gain : gains)
             if (gain.second == maxGain)
               maxKeys.push_back(gain.first);
-          Dir maxKey = maxKeys[ rand() % maxKeys.size() ];
+          Dir maxKey = maxKeys[ caffe_rng_rand() % maxKeys.size() ];
           indicesToRemove = directions[maxKey];
         }
 
@@ -798,18 +789,12 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
       if (crop_min_y == crop_max_y)
         crop_y = crop_min_y;
       else
-      {
-        dis = std::uniform_int_distribution<>(crop_min_y, crop_max_y);
-        crop_y = dis(this->m_gen);
-      }
+        crop_y = crop_min_y + (caffe_rng_rand() % (crop_max_y-crop_min_y+1));
 
       if (crop_min_x == crop_max_x)
         crop_x = crop_min_x;
       else
-      {
-        dis = std::uniform_int_distribution<>(crop_min_x, crop_max_x);
-        crop_x = dis(this->m_gen);
-      }
+        crop_x = crop_min_x + (caffe_rng_rand() % (crop_max_x-crop_min_x+1));
 
       if (dy > 0)
       {
