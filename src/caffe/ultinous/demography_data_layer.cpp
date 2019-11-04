@@ -187,7 +187,7 @@ void DemographyDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
           double sigma = this->layer_param_.demography_data_param().age_stddev();
           double ncdf_age = ncdf( x, age, sigma );
           prefetch_label[ labelOffset + intervalIx ] = ncdf_age;
-          prefetch_label[ labelOffset + intervalIx + m_numIntervals ] = 1.0-ncdf_age;
+          prefetch_label[ labelOffset + intervalIx + m_numIntervals/2 ] = 1.0-ncdf_age;
         }
     }
     else{ // distribution
