@@ -31,12 +31,18 @@ void DemographyDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   m_maxAge = this->layer_param_.demography_data_param().max_age();
   m_intervalLength = this->layer_param_.demography_data_param().interval_length();
   m_additionalIntervals = this->layer_param_.demography_data_param().additional_intervals();
-  m_scalar_age = this->layer_param_.demography_data_param().scalar_age(); // age treated as scalar or as distribution
-  if( m_scalar_age )
+  m_age_handling = this->layer_param_.demography_data_param().age_handling(); // age treated as scalar or as distribution or as softranking
+
+  if( m_age_handling == DemographyDataParam_AgeType_SCALAR ) // scalar age
     m_numIntervals = 1;
-  else
+  else if ( m_age_handling == DemographyDataParam_AgeType_SOFTRANKING ){
+    CHECK(m_intervalLength==1.0);
+    m_numIntervals = 2 * int(2*m_additionalIntervals + float(m_maxAge) / m_intervalLength);
+  }
+  else // in case of soft ranking and distribution
     m_numIntervals = int(2*m_additionalIntervals + float(m_maxAge) / m_intervalLength);
   LOG(INFO) << "demography_data_layer numIntervals:" << m_numIntervals;
+  LOG(INFO) << "demography_data_layer age_handling:" << m_age_handling;
 
   //CHECK( 0 == (m_maxAge) % m_intervalLength );
 
@@ -170,11 +176,21 @@ void DemographyDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
 
     //std::cout << age;
     // TODO modify for scalar age
-    if( m_scalar_age )
+    if( m_age_handling == DemographyDataParam_AgeType_SCALAR )
     {
     	prefetch_label[ labelOffset ] = age;
     }
-    else{
+    else if( m_age_handling == DemographyDataParam_AgeType_SOFTRANKING ){ // soft ranking
+        for( int intervalIx = 0; intervalIx < m_numIntervals/2; ++intervalIx )
+        {
+          double x = (intervalIx-m_additionalIntervals)*m_intervalLength;
+          double sigma = this->layer_param_.demography_data_param().age_stddev();
+          double ncdf_age = ncdf( x, age, sigma );
+          prefetch_label[ labelOffset + intervalIx ] = ncdf_age;
+          prefetch_label[ labelOffset + intervalIx + m_numIntervals ] = 1.0-ncdf_age;
+        }
+    }
+    else{ // distribution
         for( int intervalIx = 0; intervalIx < m_numIntervals; ++intervalIx )
         {
           double x1 = (intervalIx-m_additionalIntervals)*m_intervalLength;

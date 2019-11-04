@@ -59,7 +59,8 @@ class DemographyDataLayer : public BasePrefetchingDataLayer<Dtype> {
   float m_intervalLength;
   int m_additionalIntervals;
   int m_numIntervals;
-  bool m_scalar_age; // true if age should be treated as scalar number, false if as a distribution
+  DemographyDataParam_AgeType m_age_handling;
+  // SCALAR if age should be treated as scalar number, DISTRIBUTION if as a distribution, SOFTRANKING if as described in softranking - label encoding paper
 
   ultinous::UltinousTransformer m_unTransformer;
 };

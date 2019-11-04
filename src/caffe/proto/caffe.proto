@@ -1779,11 +1779,17 @@ message ImResizeParameter {
 }
 
 message DemographyDataParam {
+  enum AgeType {
+    DISTRIBUTION = 0;
+    SCALAR = 1;
+    SOFTRANKING = 2;
+  }
   optional double age_stddev = 1 [default = 5.0];
   optional int32 max_age = 2 [default = 100];
   optional float interval_length = 3 [default = 5.0];
   optional int32 additional_intervals = 4 [default = 2];
-  optional bool scalar_age = 5 [default = false]; // true if age should be a scalar, otherwise it is treated as distribution
+  //optional bool scalar_age = 5 [default = false]; // true if age should be a scalar, otherwise it is treated as distribution
+  optional AgeType age_handling = 5 [default = DISTRIBUTION];
 }
 
 
