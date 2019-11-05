@@ -38,10 +38,10 @@ void ImageROIDataLayer<Dtype>::Forward_gpu
 
 
   // Reshape to loaded image.
-  top[0]->Reshape(std::vector<int>({ batch_size, batch->data_.shape(1), batch->data_.shape(2), batch->data_.shape(3) }));
+  top[0]->Reshape({ batch_size, batch->data_.shape(1), batch->data_.shape(2), batch->data_.shape(3) });
 
   // Reshape to image info.
-  top[1]->Reshape(std::vector<int>({ batch_size, batch->info_.shape(1) }));
+  top[1]->Reshape({ batch_size, batch->info_.shape(1) });
 
   int dData=0, dInfo=0;
   int cData=0, cInfo=0;
@@ -86,7 +86,7 @@ void ImageROIDataLayer<Dtype>::Forward_gpu
     if (i == batch_size-1)
     {
       // Reshape to bounding boxes.
-      top[2]->Reshape(std::vector<int>({ (int)(boxes.size() / batch->bboxes_.shape(1)), batch->bboxes_.shape(1) }));
+      top[2]->Reshape({ (int)(boxes.size() / batch->bboxes_.shape(1)), batch->bboxes_.shape(1) });
       // Copy bbox.
       caffe_copy( boxes.size(), boxes.data(), top[2]->mutable_cpu_data() );
     }

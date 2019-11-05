@@ -388,11 +388,11 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
 //          cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0));//TODO
 
-          prefetch_bboxes[5 * bboxIx] = x1;
-          prefetch_bboxes[5 * bboxIx + 1] = y1;
-          prefetch_bboxes[5 * bboxIx + 2] = x2;
-          prefetch_bboxes[5 * bboxIx + 3] = y2;
-          prefetch_bboxes[5 * bboxIx + 4] = 1;
+          prefetch_bboxes[batch->bboxes_.offset( bboxIx, 0 )] = x1;
+          prefetch_bboxes[batch->bboxes_.offset( bboxIx, 1 )] = y1;
+          prefetch_bboxes[batch->bboxes_.offset( bboxIx, 2 )] = x2;
+          prefetch_bboxes[batch->bboxes_.offset( bboxIx, 3 )] = y2;
+          prefetch_bboxes[batch->bboxes_.offset( bboxIx, 4 )] = 1;
         }
 
 //        cv::imwrite("debug/"+name+"_crop.jpg", cv_img);//TODO
@@ -832,10 +832,10 @@ void ImageROIDataLayer<Dtype>::Forward_cpu
   Batch * batch = prefetch_full_.pop("Data layer prefetch queue empty");
 
   // Reshape to loaded image.
-  top[0]->Reshape(std::vector<int>({ batch_size, batch->data_.shape(1), batch->data_.shape(2), batch->data_.shape(3) }));
+  top[0]->Reshape({ batch_size, batch->data_.shape(1), batch->data_.shape(2), batch->data_.shape(3) });
 
   // Reshape to image info.
-  top[1]->Reshape(std::vector<int>({ batch_size, batch->info_.shape(1) }));
+  top[1]->Reshape({ batch_size, batch->info_.shape(1) });
 
   int dData=0, dInfo=0;
   int cData=0, cInfo=0;
@@ -863,7 +863,7 @@ void ImageROIDataLayer<Dtype>::Forward_cpu
     if (i == batch_size-1)
     {
       // Reshape to bounding boxes.
-      top[2]->Reshape(std::vector<int>({ (int)(boxes.size() / batch->bboxes_.shape(1)), batch->bboxes_.shape(1) }));
+      top[2]->Reshape({ (int)(boxes.size() / batch->bboxes_.shape(1)), batch->bboxes_.shape(1) });
       // Copy bbox.
       caffe_copy( boxes.size(), boxes.data(), top[2]->mutable_cpu_data() );
     }
