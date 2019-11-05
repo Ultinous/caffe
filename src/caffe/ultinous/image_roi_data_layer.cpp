@@ -52,6 +52,8 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     crop_width = image_roi_data_param.crop_width();
   }
 
+  CHECK( !(m_batch_size>1 && !randomCrop) )
+    << "Batch size > 1 requires random cropping.";
   CHECK( !(randomCrop && randomScale) )
     << "Can not randomly crop and resize at the same time.";
   CHECK( (new_height == 0 && new_width == 0) || (new_height > 0 && new_width > 0) )
@@ -141,7 +143,7 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   // Set im_info shape
   vector<int> info_shape(2);
   info_shape[0] = m_batch_size;
-  info_shape[1] = 8;
+  info_shape[1] = 7;
   top[1]->Reshape(info_shape);
 
   info_shape[0] = 1;
@@ -230,14 +232,11 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
     bool skip = false;
     int crop_x=0, crop_y=0, pad_x=0, pad_y=0;
-    int source_width = cv_img.cols, source_height = cv_img.rows;
-    int source_x1=0, source_y1=0;
-    int source_x2=(randomCrop ? crop_width-1 : source_width-1);
-    int source_y2=(randomCrop ? crop_height-1 : source_height - 1);
+    int source_x1=0, source_y1=0, source_x2=0, source_y2=0;
     if (randomCrop)
       skip = doRandomCrop(
         boxes, crop_x, crop_y, cv_img, pad_x, pad_y,
-        source_height, source_width, source_x1, source_x2, source_y1, source_y2,
+        source_x1, source_x2, source_y1, source_y2,
         crop_height, crop_width
       );
 
@@ -310,6 +309,12 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
       trans_time += timer.MicroSeconds();
 
+      if (!randomCrop)
+      {
+        source_x2 = cv_img.cols - 1;
+        source_y2 = cv_img.rows - 1;
+      }
+
       // info
       if (mirror)
       {
@@ -321,43 +326,39 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       Dtype *prefetch_info = batch->info_.mutable_cpu_data();
       prefetch_info[0] = static_cast<Dtype>(cv_img.rows);
       prefetch_info[1] = static_cast<Dtype>(cv_img.cols);
-      prefetch_info[2] = static_cast<Dtype>(scale);
-      prefetch_info[3] = static_cast<Dtype>(source_x1);
-      prefetch_info[4] = static_cast<Dtype>(source_y1);
-      prefetch_info[5] = static_cast<Dtype>(source_x2);
-      prefetch_info[6] = static_cast<Dtype>(source_y2);
+      prefetch_info[2] = static_cast<Dtype>(source_x1);
+      prefetch_info[3] = static_cast<Dtype>(source_y1);
+      prefetch_info[4] = static_cast<Dtype>(source_x2);
+      prefetch_info[5] = static_cast<Dtype>(source_y2);
 
       // bboxes
       BBoxes finalBoxes;
       for (BBox bbox : boxes)
       {
-        if (randomCrop)
-        {
-          if (bbox.x1 >= bbox.x2 || bbox.y1 >= bbox.y2)
-            continue;
+        if (bbox.x1 >= bbox.x2 || bbox.y1 >= bbox.y2)
+          continue;
 
 //          if (bbox.x2-bbox.x1+1 > 512 || bbox.y2-bbox.y1+1 > 512)
 //            continue;
 
-          if (mirror)
-          {
-            Dtype temp = bbox.x1;
-            bbox.x1 = cv_img.cols - bbox.x2 - 1;
-            bbox.x2 = cv_img.cols - temp - 1;
-          }
+        if (mirror)
+        {
+          Dtype temp = bbox.x1;
+          bbox.x1 = cv_img.cols - bbox.x2 - 1;
+          bbox.x2 = cv_img.cols - temp - 1;
+        }
 
 //          int bw=std::min( (int)ceil((bbox.x2-bbox.x1+1)*0.6), 128 ), bh=std::min( (int)ceil((bbox.y2-bbox.y1+1)*0.6), 128 );
-          int bw=ceil((bbox.x2-bbox.x1+1)*0.6), bh=ceil((bbox.y2-bbox.y1+1)*0.6);
+        int bw=ceil((bbox.x2-bbox.x1+1)*0.6), bh=ceil((bbox.y2-bbox.y1+1)*0.6);
 
-          if (bbox.x1 < -bw + source_x1)
-            continue;
-          if (bbox.y1 < -bh + source_y1)
-            continue;
-          if (bbox.x2 > source_x2 + bw)
-            continue;
-          if (bbox.y2 > source_y2 + bh)
-            continue;
-        }
+        if (bbox.x1 < -bw + source_x1)
+          continue;
+        if (bbox.y1 < -bh + source_y1)
+          continue;
+        if (bbox.x2 > source_x2 + bw)
+          continue;
+        if (bbox.y2 > source_y2 + bh)
+          continue;
 
         bbox.x1 *= scale;
         bbox.y1 *= scale;
@@ -369,7 +370,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
       if (finalBoxes.size() > 0)
       {
-        prefetch_info[7] = finalBoxes.size();
+        prefetch_info[6] = finalBoxes.size();
 
         vector<int> bboxes_shape(2);
         bboxes_shape[0] = finalBoxes.size();
@@ -560,12 +561,14 @@ inline std::map<Gain, int> ImageROIDataLayer<Dtype>::getGain(
 
 template <typename Dtype>
 inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
-  BBoxes& boxes, int& crop_x, int& crop_y, cv::Mat& cv_img,
-  int& pad_x, int& pad_y, int& source_height, int& source_width,
+  BBoxes& boxes, int& crop_x, int& crop_y, cv::Mat& cv_img, int& pad_x, int& pad_y,
   int& source_x1, int& source_x2, int& source_y1, int& source_y2,
   const int crop_height, const int crop_width
 ){
   bool skip = true;
+
+  int source_height = cv_img.rows;
+  int source_width = cv_img.cols;
 
   int dy = crop_height - source_height;
   int dx = crop_width - source_width;

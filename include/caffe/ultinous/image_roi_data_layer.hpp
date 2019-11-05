@@ -75,8 +75,7 @@ private:
     std::vector<int> vx1, std::vector<int> vy1, std::vector<int> vx2, std::vector<int> vy2
   );
   inline bool doRandomCrop(
-    BBoxes& boxes, int& crop_x, int& crop_y, cv::Mat& cv_img,
-    int& pad_x, int& pad_y, int& source_height, int& source_width,
+    BBoxes& boxes, int& crop_x, int& crop_y, cv::Mat& cv_img, int& pad_x, int& pad_y,
     int& source_x1, int& source_x2, int& source_y1, int& source_y2,
     const int crop_height, const int crop_width
   );

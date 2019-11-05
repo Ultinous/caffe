@@ -123,6 +123,8 @@ void ImageROIDataLayer<Dtype>::Forward_gpu
 
 //  TODO
 //  std::cout << "END\n\n";
+
+//  TODO
 //  LOG(INFO) << top[0]->shape_string();
 //  LOG(INFO) << top[1]->shape_string();
 //  LOG(INFO) << top[2]->shape_string();
