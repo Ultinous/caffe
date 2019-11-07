@@ -135,8 +135,6 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   top_shape[0] = m_batch_size;
   top_shape[1] = cv_img.channels() * inImgNum;
   top[0]->Reshape(top_shape);
-
-  top_shape[0] = 1;
   for (int i = 0; i < this->PREFETCH_COUNT; ++i)
     this->prefetch_[i].data_.Reshape(top_shape);
 
@@ -145,8 +143,6 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   info_shape[0] = m_batch_size;
   info_shape[1] = 7;
   top[1]->Reshape(info_shape);
-
-  info_shape[0] = 1;
   for (int i = 0; i < this->PREFETCH_COUNT; ++i)
     this->prefetch_[i].info_.Reshape(info_shape);
 
@@ -154,7 +150,6 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   bboxes_shape[0] = 1;
   bboxes_shape[1] = 5;
   top[2]->Reshape(bboxes_shape);
-
   for (int i = 0; i < this->PREFETCH_COUNT; ++i)
     this->prefetch_[i].bboxes_.Reshape(bboxes_shape);
 }
@@ -209,8 +204,9 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   double trans_time = 0;
 
   const int samples_size = samples.size();
-  bool done = false;
-  while ( !done )
+  int batch_index = 0;
+  BBoxes accumulatedBoxes;
+  while ( batch_index < m_batch_size )
   {
     CPUTimer timer;
 
@@ -294,21 +290,6 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         cv_img = cv_flipped;
       }
 
-      vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
-      this->transformed_data_.Reshape(top_shape);
-      // Reshape batch.
-      top_shape[0] = 1;
-      batch->data_.Reshape(top_shape);
-
-      Dtype *prefetch_data = batch->data_.mutable_cpu_data();
-
-      timer.Start();
-      // Apply transformations (mirror, crop...) to the image
-      int offset = batch->data_.offset(0); // (item_id)
-      this->transformed_data_.set_cpu_data(prefetch_data + offset);
-      this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
-      trans_time += timer.MicroSeconds();
-
       if (!randomCrop)
       {
         source_x2 = cv_img.cols - 1;
@@ -322,14 +303,6 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         source_x1 = cv_img.cols - source_x2 - 1;
         source_x2 = cv_img.cols - temp - 1;
       }
-
-      Dtype *prefetch_info = batch->info_.mutable_cpu_data();
-      prefetch_info[0] = static_cast<Dtype>(cv_img.rows);
-      prefetch_info[1] = static_cast<Dtype>(cv_img.cols);
-      prefetch_info[2] = static_cast<Dtype>(source_x1);
-      prefetch_info[3] = static_cast<Dtype>(source_y1);
-      prefetch_info[4] = static_cast<Dtype>(source_x2);
-      prefetch_info[5] = static_cast<Dtype>(source_y2);
 
       // bboxes
       BBoxes finalBoxes;
@@ -370,36 +343,51 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
       if (finalBoxes.size() > 0)
       {
-        prefetch_info[6] = finalBoxes.size();
-
-        vector<int> bboxes_shape(2);
-        bboxes_shape[0] = finalBoxes.size();
-        bboxes_shape[1] = 5;
-        batch->bboxes_.Reshape(bboxes_shape);
-
-        Dtype *prefetch_bboxes = batch->bboxes_.mutable_cpu_data();
-
-        for (int bboxIx = 0; bboxIx < finalBoxes.size(); ++bboxIx)
+        vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
+        if (batch_index == 0)
         {
-          BBox bbox = finalBoxes[bboxIx];
-          Dtype x1 = static_cast<Dtype>(bbox.x1);
-          Dtype y1 = static_cast<Dtype>(bbox.y1);
-          Dtype x2 = static_cast<Dtype>(bbox.x2);
-          Dtype y2 = static_cast<Dtype>(bbox.y2);
-
-//          cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0));//TODO
-
-          prefetch_bboxes[batch->bboxes_.offset( bboxIx, 0 )] = x1;
-          prefetch_bboxes[batch->bboxes_.offset( bboxIx, 1 )] = y1;
-          prefetch_bboxes[batch->bboxes_.offset( bboxIx, 2 )] = x2;
-          prefetch_bboxes[batch->bboxes_.offset( bboxIx, 3 )] = y2;
-          prefetch_bboxes[batch->bboxes_.offset( bboxIx, 4 )] = 1;
+          // Reshape batch.
+          top_shape[0] = m_batch_size;
+          batch->data_.Reshape(top_shape);
+          top_shape[0] = 1;
         }
+        this->transformed_data_.Reshape(top_shape);
 
-//        cv::imwrite("debug/"+name+"_crop.jpg", cv_img);//TODO
-//        cv::imwrite("debug/"+name+".jpg", cv_tmp);//TODO
+        Dtype *prefetch_data = batch->data_.mutable_cpu_data();
 
-        done = true;
+        timer.Start();
+        // Apply transformations (mirror, crop...) to the image
+        int offset = batch->data_.offset(batch_index);
+        this->transformed_data_.set_cpu_data(prefetch_data + offset);
+        this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
+        trans_time += timer.MicroSeconds();
+
+        Dtype *prefetch_info = batch->info_.mutable_cpu_data();
+        prefetch_info[batch->info_.offset( batch_index, 0 )] = static_cast<Dtype>(cv_img.rows);
+        prefetch_info[batch->info_.offset( batch_index, 1 )] = static_cast<Dtype>(cv_img.cols);
+        prefetch_info[batch->info_.offset( batch_index, 2 )] = static_cast<Dtype>(source_x1);
+        prefetch_info[batch->info_.offset( batch_index, 3 )] = static_cast<Dtype>(source_y1);
+        prefetch_info[batch->info_.offset( batch_index, 4 )] = static_cast<Dtype>(source_x2);
+        prefetch_info[batch->info_.offset( batch_index, 5 )] = static_cast<Dtype>(source_y2);
+        prefetch_info[batch->info_.offset( batch_index, 6 )] = static_cast<Dtype>(finalBoxes.size());
+
+        std::copy(finalBoxes.begin(), finalBoxes.end(), std::back_inserter(accumulatedBoxes));
+
+//        TODO
+//        for (int bboxIx = 0; bboxIx < finalBoxes.size(); ++bboxIx)
+//        {
+//          BBox bbox = finalBoxes[bboxIx];
+//          Dtype x1 = static_cast<Dtype>(bbox.x1);
+//          Dtype y1 = static_cast<Dtype>(bbox.y1);
+//          Dtype x2 = static_cast<Dtype>(bbox.x2);
+//          Dtype y2 = static_cast<Dtype>(bbox.y2);
+//
+//          cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0));//TODO
+//        }
+//        cv::imwrite("debug/"+name+"_"+batch_index+"_crop.jpg", cv_img);//TODO
+//        cv::imwrite("debug/"+name+_+batch_index+".jpg", cv_tmp);//TODO
+
+        batch_index += 1;
       }
     } // if (!skip)
 
@@ -413,7 +401,27 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       if (image_data_param.shuffle())
         ShuffleImages();
     }
-  } // loop: while not done
+  } // loop: while ( batch_index < m_batch_size )
+
+  vector<int> bboxes_shape(2);
+  bboxes_shape[0] = accumulatedBoxes.size();
+  bboxes_shape[1] = 5;
+  batch->bboxes_.Reshape(bboxes_shape);
+  Dtype *prefetch_bboxes = batch->bboxes_.mutable_cpu_data();
+  for (int bboxIx = 0; bboxIx < accumulatedBoxes.size(); ++bboxIx)
+  {
+    BBox bbox = accumulatedBoxes[bboxIx];
+    Dtype x1 = static_cast<Dtype>(bbox.x1);
+    Dtype y1 = static_cast<Dtype>(bbox.y1);
+    Dtype x2 = static_cast<Dtype>(bbox.x2);
+    Dtype y2 = static_cast<Dtype>(bbox.y2);
+
+    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 0 )] = x1;
+    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 1 )] = y1;
+    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 2 )] = x2;
+    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 3 )] = y2;
+    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 4 )] = 1;
+  }
 
   batch_timer.Stop();
   DLOG(INFO) << "Prefetch batch: " << batch_timer.MilliSeconds() << " ms.";
@@ -866,61 +874,32 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
   return skip;
 }
 
-template <typename Dtype>
-void ImageROIDataLayer<Dtype>::Forward_cpu
-(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top)
-{
-  int batch_size = m_batch_size;
+  template <typename Dtype>
+  void ImageROIDataLayer<Dtype>::Forward_cpu(
+      const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
+    Batch* batch = prefetch_full_.pop("Data layer prefetch queue empty");
 
-  Batch * batch = prefetch_full_.pop("Data layer prefetch queue empty");
-
-  // Reshape to loaded image.
-  top[0]->Reshape({ batch_size, batch->data_.shape(1), batch->data_.shape(2), batch->data_.shape(3) });
-
-  // Reshape to image info.
-  top[1]->Reshape({ batch_size, batch->info_.shape(1) });
-
-  int dData=0, dInfo=0;
-  int cData=0, cInfo=0;
-
-  std::vector<Dtype> boxes;
-
-  for (int i=0; i<batch_size; ++i)
-  {
-    if (dData != 0)
-      batch = prefetch_full_.pop("Data layer prefetch queue empty");
-
-    cData = batch->data_.count();
-    cInfo = batch->info_.count();
-
+    // Reshape to loaded image.
+    top[0]->ReshapeLike(batch->data_);
     // Copy the data
-    caffe_copy( cData, batch->data_.cpu_data(), top[0]->mutable_cpu_data() + dData );
+    caffe_copy(batch->data_.count(), batch->data_.cpu_data(),
+               top[0]->mutable_cpu_data());
     DLOG(INFO) << "Prefetch copied";
 
+    // Reshape to image info.
+    top[1]->ReshapeLike(batch->info_);
     // Copy info.
-    caffe_copy( cInfo, batch->info_.cpu_data(), top[1]->mutable_cpu_data() + dInfo );
+    caffe_copy(batch->info_.count(), batch->info_.cpu_data(),
+               top[1]->mutable_cpu_data());
 
-    for (int j=0; j < batch->bboxes_.count(); j++)
-      boxes.push_back( batch->bboxes_.cpu_data()[j] );
-
-    if (i == batch_size-1)
-    {
-      // Reshape to bounding boxes.
-      top[2]->Reshape({ (int)(boxes.size() / batch->bboxes_.shape(1)), batch->bboxes_.shape(1) });
-      // Copy bbox.
-      caffe_copy( boxes.size(), boxes.data(), top[2]->mutable_cpu_data() );
-    }
-    else
-    {
-      dData += cData;
-      dInfo += cInfo;
-    }
+    // Reshape to image info.
+    top[2]->ReshapeLike(batch->bboxes_);
+    // Copy bbox.
+    caffe_copy(batch->bboxes_.count(), batch->bboxes_.cpu_data(),
+               top[2]->mutable_cpu_data());
 
     prefetch_free_.push(batch);
-
   }
-
-}
 
 
 

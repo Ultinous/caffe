@@ -89,9 +89,6 @@ private:
   virtual void ShuffleImages();
   virtual void load_batch(Batch* batch);
 
-
-
-
 protected:
   Batch prefetch_[PREFETCH_COUNT];
   BlockingQueue<Batch*> prefetch_free_;
