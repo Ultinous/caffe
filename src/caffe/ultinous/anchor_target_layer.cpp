@@ -348,25 +348,8 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
 
     // subsample positive labels if we have too many
     int num_fg = RPN_FG_FRACTION * RPN_BATCHSIZE;
-    std::vector<size_t> fg_inds;
-    fg_inds.reserve(num_fg);
 
-
-    for (int i = 0; i < base_anchors_.size() * height; ++i)
-    for (int j = 0; j < width; ++j)
-    {
-      int index = top_labels->offset( batch_index, 0, i, j );
-      if (labels[index] == 1)
-        fg_inds.push_back(index);
-    }
-
-    if (RPN_BATCHSIZE > 0 && fg_inds.size() > num_fg)
-    {
-      std::random_shuffle(fg_inds.begin(), fg_inds.end());
-      std::for_each(fg_inds.begin() + num_fg, fg_inds.end(), [labels](size_t ix) { labels[ix] = -1; });
-    }
-    else
-      num_fg = fg_inds.size();
+    num_fg = randomMining(num_fg, top_labels, labels, width, height, 1, batch_index, RPN_BATCHSIZE);
 
     int num_bg = (RPN_BATCHSIZE > 0)
                  ? (RPN_BATCHSIZE - num_fg)
@@ -375,7 +358,7 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
     // subsample negative labels if we have too many,
     Dtype const *scores = bottom_scores->cpu_data();
     if (anchorTargetParam_.hard_negative_mining() == 0.0f)
-      num_bg = randomNegativeMining(num_bg, top_labels, labels, width, height, batch_index);
+      num_bg = randomMining(num_bg, top_labels, labels, width, height, 0, batch_index, RPN_BATCHSIZE);
     else
       num_bg = hardNegativeMining(num_bg, bottom_scores, scores, top_labels, labels, width, height, batch_index);
 
@@ -545,30 +528,30 @@ AnchorTargetLayer<Dtype>::hardNegativeMining(uint32_t num_bg, Blob<Dtype> const 
 }
 
 template<typename Dtype>
-uint32_t
-AnchorTargetLayer<Dtype>::randomNegativeMining(uint32_t num_bg, Blob<Dtype> *top_labels, Dtype *labels,
-                                               uint32_t width, uint32_t height,
-                                               const int batch_index)
+uint32_t AnchorTargetLayer<Dtype>::randomMining(uint32_t num, Blob<Dtype> *top_labels, Dtype *labels,
+                                                uint32_t width, uint32_t height,
+                                                const int comparisonValue, const int batch_index, const int RPN_BATCHSIZE)
 {
-  std::vector<size_t> bg_inds;
-  bg_inds.reserve(num_bg);
+  std::vector<size_t> inds;
+  inds.reserve(num);
 
   for (int i = 0; i < base_anchors_.size() * height; ++i)
-  for (int j = 0; j < width; ++j)
-  {
-    int index = top_labels->offset( batch_index, 0, i, j );
-    if (labels[index] == 0)
-      bg_inds.push_back(index);
-  }
+    for (int j = 0; j < width; ++j)
+    {
+      int index = top_labels->offset( batch_index, 0, i, j );
+      if (labels[index] == comparisonValue)
+        inds.push_back(index);
+    }
 
-  if (bg_inds.size() > num_bg) {
-    std::random_shuffle(bg_inds.begin(), bg_inds.end());
-    std::for_each(bg_inds.begin() + num_bg, bg_inds.end(), [labels](size_t ix) { labels[ix] = -1; });
+  if ((RPN_BATCHSIZE > 0 || !comparisonValue) && inds.size() > num)
+  {
+    std::random_shuffle(inds.begin(), inds.end());
+    std::for_each(inds.begin() + num, inds.end(), [labels](size_t ix) { labels[ix] = -1; });
   }
   else
-    num_bg = bg_inds.size();
+    num = inds.size();
 
-  return num_bg;
+  return num;
 }
 
 template<typename Dtype>

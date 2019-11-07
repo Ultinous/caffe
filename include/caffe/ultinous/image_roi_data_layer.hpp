@@ -17,6 +17,10 @@ namespace ultinous {
 enum Dir:int { n,e,s,w,ne,se,sw,nw };
 enum Gain:int { vertical,horizontal };
 
+void copyMakeBorderWrapper(const cv::Mat &src, cv::Mat &dst,
+                           int top, int bottom, int left, int right,
+                           const std::vector<double> color);
+
 template <typename Dtype>
 class ImageROIDataLayer : public BaseDataLayer<Dtype>, public InternalThread {
 public:
@@ -100,7 +104,7 @@ protected:
   UltinousTransformer m_unTransformer;
 
   uint32_t m_batch_size;
-  std::vector<uint32_t> m_mean_values;
+  std::vector<double> m_mean_values;
 };
 
 }  // namespace ultinous

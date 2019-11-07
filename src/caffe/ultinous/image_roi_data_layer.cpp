@@ -124,7 +124,7 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     int pad_h = ( image_roi_data_param.pad() - ( cv_img.rows % image_roi_data_param.pad() ) ) % image_roi_data_param.pad();
     int pad_w = ( image_roi_data_param.pad() - ( cv_img.cols % image_roi_data_param.pad() ) ) % image_roi_data_param.pad();
     if( pad_h != 0 || pad_w != 0 )
-      cv::copyMakeBorder(cv_img, cv_img, 0, pad_h, 0, pad_w, cv::BORDER_CONSTANT, cv::Scalar(0,0,0));
+      copyMakeBorderWrapper(cv_img, cv_img, 0, pad_h, 0, pad_w, {0,0,0});
   }
 
   CHECK(cv_img.data) << "Could not load " << samples[0].image_files[0];
@@ -282,7 +282,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         int pad_w =
           (image_roi_data_param.pad() - (cv_img.cols % image_roi_data_param.pad())) % image_roi_data_param.pad();
         if (pad_h != 0 || pad_w != 0)
-          cv::copyMakeBorder(cv_img, cv_img, 0, pad_h, 0, pad_w, cv::BORDER_CONSTANT, cv::Scalar(127,127,127));
+          copyMakeBorderWrapper(cv_img, cv_img, 0, pad_h, 0, pad_w, m_mean_values);
       }
 
       bool mirror = image_roi_data_param.mirror() && ((caffe_rng_rand() % 2) == 1);
@@ -435,7 +435,7 @@ ImageROIDataLayer<Dtype>::ImageROIDataLayer(
   auto transform_param = this->layer_param_.transform_param();
   if ( transform_param.mean_value_size() > 0 )
     for (int c = 0; c < transform_param.mean_value_size(); ++c)
-      m_mean_values.push_back(transform_param.mean_value(c));
+      m_mean_values.push_back(static_cast<double>(transform_param.mean_value(c)));
 }
 
 template <typename Dtype>
@@ -502,6 +502,47 @@ void ImageROIDataLayer<Dtype>::InternalThreadEntry()
   if (Caffe::mode() == Caffe::GPU)
     CUDA_CHECK(cudaStreamDestroy(stream));
 #endif
+}
+
+void copyMakeBorderWrapper(const cv::Mat &src, cv::Mat &dst,
+                           int top, int bottom, int left, int right,
+                           const std::vector<double> color)
+{
+  const int height=src.rows+bottom+top, width=src.cols+left+right, channels=src.channels(),
+                   colorSize=static_cast<int>(color.size());
+
+  CHECK(channels%colorSize == 0) << "Supplied image is incompatible with supplied scalar.";
+  if (channels <= 4 && channels == colorSize)
+  {
+    std::vector<double> paddedColor(4,0);
+    std::copy(color.begin(), color.end(), paddedColor.begin());
+    const cv::Scalar scalar(cv::Vec<double,4>(paddedColor.data()));
+
+    cv::copyMakeBorder(src, dst, top, bottom, left, right, cv::BORDER_CONSTANT, scalar);
+  }
+  else
+  {
+    cv::Mat tmp = cv::Mat(height,width,CV_8UC(channels));
+    size_t colorIndex = 0;
+    for (int channel=0; channel<channels; ++channel)
+    {
+      for (int y=0; y<height; y++)
+      {
+        // get pointer to the first byte to be changed in this row
+        unsigned char *p_row = tmp.ptr(y) + channel;
+        unsigned char *row_end = p_row + width*channels;
+        for (; p_row != row_end; p_row += channels)
+          *p_row = color[colorIndex];
+      }
+
+      colorIndex = (colorIndex==colorSize ? 0 : colorIndex+1);
+    }
+
+    src.copyTo(tmp(cv::Rect(left,top,src.cols,src.rows)));
+    dst = tmp;
+  }
+
+  return;
 }
 
 template <typename Dtype>
@@ -591,8 +632,7 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
 
     if (dx != 0 || dy != 0)
     {
-      cv::copyMakeBorder(cv_img, cv_img, pad_y, dy - pad_y, pad_x, dx - pad_x, cv::BORDER_CONSTANT,
-                         cv::Scalar(127,127,127));
+      copyMakeBorderWrapper(cv_img, cv_img, pad_y, dy - pad_y, pad_x, dx - pad_x, m_mean_values);
 
       for (auto it=boxes.begin(); it!=boxes.end(); ++it)
       {
@@ -611,12 +651,12 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
     if (dy > 0)
     {
       pad_y = dy;
-      cv::copyMakeBorder(cv_img, cv_img, pad_y, pad_y, 0, 0, cv::BORDER_CONSTANT, cv::Scalar(127,127,127));
+      copyMakeBorderWrapper(cv_img, cv_img, pad_y, pad_y, 0, 0, m_mean_values);
     }
     else if (dx > 0)
     {
       pad_x = dx;
-      cv::copyMakeBorder(cv_img, cv_img, 0, 0, pad_x, pad_x, cv::BORDER_CONSTANT, cv::Scalar(127,127,127));
+      copyMakeBorderWrapper(cv_img, cv_img, 0, 0, pad_x, pad_x, m_mean_values);
     }
     for (auto it=boxes.begin(); it!=boxes.end(); ++it)
     {
