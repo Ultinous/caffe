@@ -189,13 +189,13 @@ const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
 
 
                 bottom[0]->mutable_cpu_diff()[9*i +0]= fdx11;
-                bottom[0]->mutable_cpu_diff()[9*i +1]= fdx12;
-                bottom[0]->mutable_cpu_diff()[9*i +2]= fdx13;
-                bottom[0]->mutable_cpu_diff()[9*i +3]= fdx21;
+                bottom[0]->mutable_cpu_diff()[9*i +3]= fdx12;
+                bottom[0]->mutable_cpu_diff()[9*i +6]= fdx13;
+                bottom[0]->mutable_cpu_diff()[9*i +1]= fdx21;
                 bottom[0]->mutable_cpu_diff()[9*i +4]= fdx22;
-                bottom[0]->mutable_cpu_diff()[9*i +5]= fdx23;
-                bottom[0]->mutable_cpu_diff()[9*i +6]= fdx31;
-                bottom[0]->mutable_cpu_diff()[9*i +7]= fdx32;
+                bottom[0]->mutable_cpu_diff()[9*i +7]= fdx23;
+                bottom[0]->mutable_cpu_diff()[9*i +2]= fdx31;
+                bottom[0]->mutable_cpu_diff()[9*i +5]= fdx32;
                 bottom[0]->mutable_cpu_diff()[9*i +8]= fdx33;
 
             }
