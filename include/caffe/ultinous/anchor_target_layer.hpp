@@ -50,13 +50,13 @@ protected:
 
   Overlaps bbox_overlaps(Boxes &boxes, Boxes &query_boxes);
 
-  uint32_t hardNegativeMining(uint32_t num, Blob<Dtype> const *bottom_scores, Dtype const *scores,
-                              Blob<Dtype> *top_labels, Dtype *labels, uint32_t width, uint32_t height,
-                              const int batch_index);
+  int hardNegativeMining(int num, Blob<Dtype> const *bottom_scores, Dtype const *scores,
+                         Blob<Dtype> *top_labels, Dtype *labels, int width, int height,
+                         int batch_index);
 
-  uint32_t randomMining(uint32_t num_bg, Blob<Dtype> *top_labels, Dtype *labels,
-                        uint32_t width, uint32_t height,
-                        const int comparisonValue, const int batch_index, const int RPN_BATCHSIZE);
+  int randomMining(int num_bg, Blob<Dtype> *top_labels, Dtype *labels,
+                   int width, int height,
+                   int batch_index, int RPN_BATCHSIZE, int comparisonValue);
 
   std::vector<Anchor> base_anchors_;
 

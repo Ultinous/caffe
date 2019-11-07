@@ -38,11 +38,11 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   int new_height = image_data_param.new_height();
   int new_width = image_data_param.new_width();
   const bool is_color = image_data_param.is_color();
-  const string root_folder = image_data_param.root_folder();
+  const string &root_folder = image_data_param.root_folder();
   m_batch_size = image_data_param.batch_size();
 
   const ImageROIDataParameter& image_roi_data_param = this->layer_param_.image_roi_data_param();
-  const uint32_t inImgNum = image_roi_data_param.in_img_num();
+  const int inImgNum = image_roi_data_param.in_img_num();
   bool randomScale = (image_roi_data_param.has_rnd_scale_min() || image_roi_data_param.has_rnd_scale_max());
   bool randomCrop = ( image_roi_data_param.has_crop_height() && image_roi_data_param.has_crop_width() );
   int crop_height=0, crop_width=0;
@@ -102,8 +102,7 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   sample_id_ = 0;
   if (image_data_param.rand_skip())
   {
-    unsigned int skip = caffe_rng_rand() %
-        image_data_param.rand_skip();
+    unsigned int skip = caffe_rng_rand() % image_data_param.rand_skip();
     LOG(INFO) << "Skipping first " << skip << " data points.";
     CHECK_GT(samples.size(), skip) << "Not enough points to skip";
     sample_id_ = skip;
@@ -157,8 +156,7 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
 template <typename Dtype>
 void ImageROIDataLayer<Dtype>::ShuffleImages()
 {
-  caffe::rng_t* prefetch_rng =
-    static_cast<caffe::rng_t*>(prefetch_rng_->generator());
+  auto prefetch_rng = static_cast<caffe::rng_t*>(prefetch_rng_->generator());
   shuffle(samples.begin(), samples.end(), prefetch_rng);
 }
 
@@ -180,14 +178,14 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   const int new_height = image_data_param.new_height();
   const int new_width = image_data_param.new_width();
   const bool is_color = image_data_param.is_color();
-  string root_folder = image_data_param.root_folder();
+  const string &root_folder = image_data_param.root_folder();
 
   const ImageROIDataParameter& image_roi_data_param = this->layer_param_.image_roi_data_param();
   bool randomScale = (image_roi_data_param.has_rnd_scale_min() || image_roi_data_param.has_rnd_scale_max());
   bool randomCrop = (image_roi_data_param.has_crop_height() && image_roi_data_param.has_crop_width());
-  uint32_t smallerDimensionSize = image_roi_data_param.smallerdimensionsize();
-  uint32_t maxSize = image_roi_data_param.maxsize();
-  uint32_t inImgNum = image_roi_data_param.in_img_num();
+  int smallerDimensionSize = image_roi_data_param.smallerdimensionsize();
+  int maxSize = image_roi_data_param.maxsize();
+  int inImgNum = image_roi_data_param.in_img_num();
   int crop_height=0, crop_width=0;
   if (randomCrop)
   {
@@ -411,10 +409,10 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   for (int bboxIx = 0; bboxIx < accumulatedBoxes.size(); ++bboxIx)
   {
     BBox bbox = accumulatedBoxes[bboxIx];
-    Dtype x1 = static_cast<Dtype>(bbox.x1);
-    Dtype y1 = static_cast<Dtype>(bbox.y1);
-    Dtype x2 = static_cast<Dtype>(bbox.x2);
-    Dtype y2 = static_cast<Dtype>(bbox.y2);
+    auto x1 = static_cast<Dtype>(bbox.x1);
+    auto y1 = static_cast<Dtype>(bbox.y1);
+    auto x2 = static_cast<Dtype>(bbox.x2);
+    auto y2 = static_cast<Dtype>(bbox.y2);
 
     prefetch_bboxes[batch->bboxes_.offset( bboxIx, 0 )] = x1;
     prefetch_bboxes[batch->bboxes_.offset( bboxIx, 1 )] = y1;
@@ -428,7 +426,6 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   DLOG(INFO) << "     Read time: " << read_time / 1000 << " ms.";
   DLOG(INFO) << "Transform time: " << trans_time / 1000 << " ms.";
 }
-
 
 template <typename Dtype>
 ImageROIDataLayer<Dtype>::ImageROIDataLayer(
@@ -514,7 +511,7 @@ void ImageROIDataLayer<Dtype>::InternalThreadEntry()
 
 void copyMakeBorderWrapper(const cv::Mat &src, cv::Mat &dst,
                            int top, int bottom, int left, int right,
-                           const std::vector<double> color)
+                           const std::vector<double> &color)
 {
   const int height=src.rows+bottom+top, width=src.cols+left+right, channels=src.channels(),
                    colorSize=static_cast<int>(color.size());
@@ -549,12 +546,10 @@ void copyMakeBorderWrapper(const cv::Mat &src, cv::Mat &dst,
     src.copyTo(tmp(cv::Rect(left,top,src.cols,src.rows)));
     dst = tmp;
   }
-
-  return;
 }
 
 template <typename Dtype>
-inline cv::Mat ImageROIDataLayer<Dtype>::readMultiChannelImage(uint32_t inImgNum, int new_height, int new_width, bool is_color, const string& root_folder)
+inline cv::Mat ImageROIDataLayer<Dtype>::readMultiChannelImage(int inImgNum, int new_height, int new_width, bool is_color, const string& root_folder)
 {
   vector<cv::Mat> slices;
   slices.reserve(inImgNum);
@@ -588,7 +583,7 @@ inline std::map<Gain, int> ImageROIDataLayer<Dtype>::getGain(
   std::vector<size_t>& excludeIndices,
   std::vector<int> vx1, std::vector<int> vy1, std::vector<int> vx2, std::vector<int> vy2
 ){
-  std::sort( excludeIndices.begin(), excludeIndices.end(), std::greater<size_t>() );
+  std::sort( excludeIndices.begin(), excludeIndices.end() );
 
   for (size_t index : excludeIndices)
   {
@@ -623,15 +618,9 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
   int dx = crop_width - source_width;
   if (dy >= 0 && dx >= 0)
   {
-    if (dx == 0)
-      pad_x = 0;
-    else
-      pad_x = caffe_rng_rand() % (dx+1);
+    pad_x = ( dx==0 ? 0 : caffe_rng_rand()%(dx + 1) );
 
-    if (dy == 0)
-      pad_y = 0;
-    else
-      pad_y = caffe_rng_rand() % (dy+1);
+    pad_y = ( dy==0 ? 0 : caffe_rng_rand()%(dy + 1) );
 
     source_x1 = pad_x;
     source_y1 = pad_y;
@@ -686,7 +675,7 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
     int x1,x2,y1,y2;
     while (true)
     {
-      if (vx1.size() == 0)
+      if (vx1.empty())
         break;
 
       x1 = *std::min_element(vx1.begin(),vx1.end());
@@ -712,7 +701,7 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
         for (int i=0; i<4; ++i) // iterate n,e,s,w
           directions.emplace(std::make_pair(Dir(i), std::vector<size_t>()));
 
-        for (int i = 0; i < vx1.size(); ++i)
+        for (size_t i = 0; i < vx1.size(); ++i)
         {
           if (vx1[i] == x1)
             directions[Dir::w].push_back(i);
@@ -760,7 +749,7 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
           {
             auto gain = getGain(direction.second,vx1,vy1,vx2,vy2);
             gains[direction.first] = gain[Gain::vertical] * gain[Gain::horizontal];
-            if ( h - gain[Gain::vertical] <= crop_height && w - gain[Gain::horizontal] <= crop_width )
+            if ( gain[Gain::vertical] <= crop_height && gain[Gain::horizontal] <= crop_width )
               satisfiers.push_back(direction.first);
           }
         }
@@ -771,7 +760,7 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
           for (auto direction : directions)
           {
             gains[direction.first] = getGain(direction.second,vx1,vy1,vx2,vy2)[Gain::vertical];
-            if ( h - gains[direction.first] <= crop_height )
+            if ( gains[direction.first] <= crop_height )
               satisfiers.push_back(direction.first);
           }
         }
@@ -782,12 +771,12 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
           for (auto direction : directions)
           {
             gains[direction.first] = getGain(direction.second,vx1,vy1,vx2,vy2)[Gain::horizontal];
-            if ( w - gains[direction.first] <= crop_width )
+            if ( gains[direction.first] <= crop_width )
               satisfiers.push_back(direction.first);
           }
         }
 
-        if (satisfiers.size() > 1)
+        if ( !satisfiers.empty() )
         {
           Dir key;
           if (satisfiers.size() == 1)
@@ -799,22 +788,21 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
         }
         else
         {
-          auto maxGainPairIterator = std::max_element(
-            std::begin(gains), std::end(gains),
-            [] (const std::pair< Dir, int > & p1, const std::pair< Dir, int > & p2) {
-              return p1.second < p2.second;
-            });
-          int maxGain = maxGainPairIterator->second;
+          const int minGain = std::min_element(
+              std::begin(gains), std::end(gains),
+              [] (const std::pair< Dir, int > & p1, const std::pair< Dir, int > & p2) {
+                return p1.second < p2.second;
+              })->second;
 
-          std::vector<Dir> maxKeys;
+          std::vector<Dir> minKeys;
           for (auto gain : gains)
-            if (gain.second == maxGain)
-              maxKeys.push_back(gain.first);
-          Dir maxKey = maxKeys[ caffe_rng_rand() % maxKeys.size() ];
-          indicesToRemove = directions[maxKey];
+            if (gain.second == minGain)
+              minKeys.push_back(gain.first);
+          Dir minKey = minKeys[ caffe_rng_rand() % minKeys.size() ];
+          indicesToRemove = directions[minKey];
         }
 
-        std::sort( indicesToRemove.begin(), indicesToRemove.end(), std::greater<size_t>() );
+        std::sort( indicesToRemove.begin(), indicesToRemove.end() );
 
         for (size_t index : indicesToRemove)
         {

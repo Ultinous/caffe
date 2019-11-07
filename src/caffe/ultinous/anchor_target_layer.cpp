@@ -301,11 +301,11 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
     float RPN_FG_FRACTION = anchorTargetParam_.fg_fraction();
     int RPN_BATCHSIZE = anchorTargetParam_.batchsize();
 
-    CHECK(anchorTargetParam_.bbox_inside_weights().size() == 4 || anchorTargetParam_.bbox_inside_weights().size() == 0);
+    CHECK(anchorTargetParam_.bbox_inside_weights().size() == 4 || anchorTargetParam_.bbox_inside_weights().empty());
     std::vector<Dtype> RPN_BBOX_INSIDE_WEIGHTS;
     for (auto w : anchorTargetParam_.bbox_inside_weights())
       RPN_BBOX_INSIDE_WEIGHTS.push_back(w);
-    if (anchorTargetParam_.bbox_inside_weights().size() == 0)
+    if (anchorTargetParam_.bbox_inside_weights().empty())
       RPN_BBOX_INSIDE_WEIGHTS = std::vector<Dtype>(4, 1.0);
 
     Dtype RPN_POSITIVE_WEIGHT = anchorTargetParam_.positive_weight();
@@ -321,8 +321,7 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
     }
 
     //fg label: for each gt, anchor with highest overlap
-    for (size_t i = 0; i < gt_argmax_overlaps.size(); ++i) {
-      int anchorIx = gt_argmax_overlaps[i];
+    for (int anchorIx : gt_argmax_overlaps) {
       Shift anchorShift = anchors_shifts[anchorIx];
       labels[top_labels->offset(batch_index) + anchor_base_indices[anchorIx] * (width * height) + anchorShift.y * width + anchorShift.x] = 1;
     }
@@ -349,7 +348,7 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
     // subsample positive labels if we have too many
     int num_fg = RPN_FG_FRACTION * RPN_BATCHSIZE;
 
-    num_fg = randomMining(num_fg, top_labels, labels, width, height, 1, batch_index, RPN_BATCHSIZE);
+    num_fg = randomMining(num_fg, top_labels, labels, width, height, batch_index, RPN_BATCHSIZE, 1);
 
     int num_bg = (RPN_BATCHSIZE > 0)
                  ? (RPN_BATCHSIZE - num_fg)
@@ -358,7 +357,7 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
     // subsample negative labels if we have too many,
     Dtype const *scores = bottom_scores->cpu_data();
     if (anchorTargetParam_.hard_negative_mining() == 0.0f)
-      num_bg = randomMining(num_bg, top_labels, labels, width, height, 0, batch_index, RPN_BATCHSIZE);
+      num_bg = randomMining(num_bg, top_labels, labels, width, height, batch_index, RPN_BATCHSIZE, 0);
     else
       num_bg = hardNegativeMining(num_bg, bottom_scores, scores, top_labels, labels, width, height, batch_index);
 
@@ -462,9 +461,9 @@ void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
 }
 
 template<typename Dtype>
-uint32_t
-AnchorTargetLayer<Dtype>::hardNegativeMining(uint32_t num_bg, Blob<Dtype> const *bottom_scores, Dtype const *scores,
-                                             Blob<Dtype> *top_labels, Dtype *labels, uint32_t width, uint32_t height,
+int
+AnchorTargetLayer<Dtype>::hardNegativeMining(int num_bg, Blob<Dtype> const *bottom_scores, Dtype const *scores,
+                                             Blob<Dtype> *top_labels, Dtype *labels, int width, int height,
                                              const int batch_index)
 {
   int num_bg_per_baseAnchor = static_cast<int>(
@@ -495,7 +494,7 @@ AnchorTargetLayer<Dtype>::hardNegativeMining(uint32_t num_bg, Blob<Dtype> const 
       bg_inds[anchorIx].push_back(std::make_pair(labelIx, score));
     }
   }
-
+  
   num_bg = 0;
   for (size_t anchorIx = 0; anchorIx < base_anchors_.size(); ++anchorIx) {
     if (bg_inds[anchorIx].size() > num_bg_per_baseAnchor) {
@@ -510,10 +509,11 @@ AnchorTargetLayer<Dtype>::hardNegativeMining(uint32_t num_bg, Blob<Dtype> const 
       }
 
       for (size_t ix1 = bg_inds[anchorIx].size() - 1; ix1 > 0; --ix1) {
-        size_t ix2 = rand() % (ix1 + 1);
+        size_t ix2 = caffe_rng_rand() % (ix1 + 1);
 
-        bool bSwap = hnm < (static_cast<float>(rand()) / RAND_MAX);
-        if (bSwap)
+        int r;
+        caffe_rng_bernoulli(1, 1 - hnm, &r);
+        if (r)
           std::swap(bg_inds[anchorIx][ix1], bg_inds[anchorIx][ix2]);
       }
 
@@ -528,9 +528,9 @@ AnchorTargetLayer<Dtype>::hardNegativeMining(uint32_t num_bg, Blob<Dtype> const 
 }
 
 template<typename Dtype>
-uint32_t AnchorTargetLayer<Dtype>::randomMining(uint32_t num, Blob<Dtype> *top_labels, Dtype *labels,
-                                                uint32_t width, uint32_t height,
-                                                const int comparisonValue, const int batch_index, const int RPN_BATCHSIZE)
+int AnchorTargetLayer<Dtype>::randomMining(int num, Blob<Dtype> *top_labels, Dtype *labels,
+                                           int width, int height,
+                                           const int batch_index, const int RPN_BATCHSIZE, const int comparisonValue)
 {
   std::vector<size_t> inds;
   inds.reserve(num);

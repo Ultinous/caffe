@@ -19,7 +19,7 @@ enum Gain:int { vertical,horizontal };
 
 void copyMakeBorderWrapper(const cv::Mat &src, cv::Mat &dst,
                            int top, int bottom, int left, int right,
-                           const std::vector<double> color);
+                           const std::vector<double> &color);
 
 template <typename Dtype>
 class ImageROIDataLayer : public BaseDataLayer<Dtype>, public InternalThread {
@@ -73,7 +73,7 @@ public:
   }
 
 private:
-  inline cv::Mat readMultiChannelImage(uint32_t inImgNum, int new_height, int new_width, bool is_color, const string& root_folder);
+  inline cv::Mat readMultiChannelImage(int inImgNum, int new_height, int new_width, bool is_color, const string& root_folder);
   inline std::map<Gain, int> getGain(
     std::vector<size_t>& excludeIndices,
     std::vector<int> vx1, std::vector<int> vy1, std::vector<int> vx2, std::vector<int> vy2
@@ -81,7 +81,7 @@ private:
   inline bool doRandomCrop(
     BBoxes& boxes, int& crop_x, int& crop_y, cv::Mat& cv_img, int& pad_x, int& pad_y,
     int& source_x1, int& source_x2, int& source_y1, int& source_y2,
-    const int crop_height, const int crop_width
+    int crop_height, int crop_width
   );
 
  protected:
@@ -100,7 +100,7 @@ protected:
 
   UltinousTransformer m_unTransformer;
 
-  uint32_t m_batch_size;
+  int m_batch_size;
   std::vector<double> m_mean_values;
 };
 
