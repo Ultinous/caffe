@@ -175,7 +175,7 @@ const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
                               + 2.0f*x22*y22*y22 + 2.0f*x21*y12*y22 + 2.0f*y22*x23*y32 + 2.0f*x22*y23*y23
                               + 2.0f*x21*y13*y23 + 2.0f*y23*x23*y33;
 
-                float fdx23 = 2.0f*x23*y31*y31 + 2.0f*x12*y11*y13 + 2.0f*x22*y21*y31 - 2.0f*y32 + 2.0f*x23*y32*y32
+                float fdx23 = 2.0f*x23*y31*y31 + 2.0f*x21*y11*y13 + 2.0f*x22*y21*y31 - 2.0f*y32 + 2.0f*x23*y32*y32
                               + 2.0f*x21*y12*y32 + 2.0f*x22*y22*y32 + 2.0f*x23*y33*y33 + 2.0f*x21*y13*y33 + 2.0f*x22*y23*y33;
 
                 float fdx31 = 2.0f*x31*y11*y11 + 2.0f*y11*x32*y21 + 2.0f*y11*x33*y31 + 2.0f*x31*y12*y12 + 2.0f*y12*x32*y22
