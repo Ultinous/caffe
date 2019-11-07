@@ -128,6 +128,7 @@ const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
             Dtype* _diff = bottom[0]->mutable_cpu_diff();
 
             int num = bottom[0]->num();
+            float scale = top_diff[0] / static_cast<float>(num);
 
             for(int i=0; i< num; i++)
             {
@@ -189,15 +190,15 @@ const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
 
 
 
-                bottom[0]->mutable_cpu_diff()[9*i +0]=  fdx11;
-                bottom[0]->mutable_cpu_diff()[9*i +1]=  fdx12;
-                bottom[0]->mutable_cpu_diff()[9*i +2]=  fdx13;
-                bottom[0]->mutable_cpu_diff()[9*i +3]=  fdx21;
-                bottom[0]->mutable_cpu_diff()[9*i +4]=  fdx22;
-                bottom[0]->mutable_cpu_diff()[9*i +5]=  fdx23;
-                bottom[0]->mutable_cpu_diff()[9*i +6]=  fdx31;
-                bottom[0]->mutable_cpu_diff()[9*i +7]=  fdx32;
-                bottom[0]->mutable_cpu_diff()[9*i +8]=  fdx33;
+                bottom[0]->mutable_cpu_diff()[9*i +0]=  scale * fdx11;
+                bottom[0]->mutable_cpu_diff()[9*i +1]=  scale * fdx12;
+                bottom[0]->mutable_cpu_diff()[9*i +2]=  scale * fdx13;
+                bottom[0]->mutable_cpu_diff()[9*i +3]=  scale * fdx21;
+                bottom[0]->mutable_cpu_diff()[9*i +4]=  scale * fdx22;
+                bottom[0]->mutable_cpu_diff()[9*i +5]=  scale * fdx23;
+                bottom[0]->mutable_cpu_diff()[9*i +6]=  scale * fdx31;
+                bottom[0]->mutable_cpu_diff()[9*i +7]=  scale * fdx32;
+                bottom[0]->mutable_cpu_diff()[9*i +8]=  scale * fdx33;
 
             }
 
