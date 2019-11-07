@@ -159,15 +159,15 @@ const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
                                + 2.0f*y12*x31*y32 + 2.0f*x11*y13*y13 + 2.0f*y13*x21*y23
                                + 2.0f*y13*x31*y33;
 
-                float fdx12 =  - 2.0f*y21 + 2.0f*x21*y21*y21 + 2.0f*x11*y11*y21 + 2.0f*y21*x31*y31
+                float fdx21 =  - 2.0f*y21 + 2.0f*x21*y21*y21 + 2.0f*x11*y11*y21 + 2.0f*y21*x31*y31
                                + 2.0f*x21*y22*y22 + 2.0f*x11*y12*y22 + 2.0f*y22*x31*y32 + 2.0f*x21*y23*y23
                                + 2.0f*x11*y13*y23 + 2.0f*y23*x31*y33;
 
-                float fdx13 =  - 2.0f*y31 + 2.0f*x31*y31*y31 + 2.0f*x11*y11*y31 + 2.0f*x21*y21*y31
+                float fdx31 =  - 2.0f*y31 + 2.0f*x31*y31*y31 + 2.0f*x11*y11*y31 + 2.0f*x21*y21*y31
                                + 2.0f*x31*y32*y32 + 2.0f*x11*y12*y32 + 2.0f*x21*y22*y32 + 2.0f*x31*y33*y33
                                + 2.0f*x11*y13*y33 + 2.0*x21*y23*y33;
 
-                float fdx21 = 2.0f*x12*y11*y11 + 2.0f*y11*x22*y21 + 2.0f*y11*x32*y31 - 2.0f*y12
+                float fdx12 = 2.0f*x12*y11*y11 + 2.0f*y11*x22*y21 + 2.0f*y11*x32*y31 - 2.0f*y12
                               + 2.0f*x12*y12*y12 + 2.0f*y12*x22*y22 + 2.0f*y12*x32*y32 + 2.0f*x12*y13*y13
                               + 2.0f*y13*x22*y23 + 2.0f*y13*x32*y33;
 
@@ -175,13 +175,13 @@ const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
                               + 2.0f*x22*y22*y22 + 2.0f*x12*y12*y22 + 2.0f*y22*x32*y32 + 2.0f*x22*y23*y23
                               + 2.0f*x12*y13*y23 + 2.0f*y23*x32*y33;
 
-                float fdx23 = 2.0f*x32*y31*y31 + 2.0f*x12*y11*y13 + 2.0f*x22*y21*y31 - 2.0f*y32 + 2.0f*x32*y32*y32
+                float fdx32 = 2.0f*x32*y31*y31 + 2.0f*x12*y11*y13 + 2.0f*x22*y21*y31 - 2.0f*y32 + 2.0f*x32*y32*y32
                               + 2.0f*x12*y12*y32 + 2.0f*x22*y22*y32 + 2.0f*x32*y33*y33 + 2.0f*x12*y13*y33 + 2.0f*x22*y23*y33;
 
-                float fdx31 = 2.0f*x13*y11*y11 + 2.0f*y11*x23*y21 + 2.0f*y11*x33*y31 + 2.0f*x13*y12*y12 + 2.0f*y12*x23*y22
+                float fdx13 = 2.0f*x13*y11*y11 + 2.0f*y11*x23*y21 + 2.0f*y11*x33*y31 + 2.0f*x13*y12*y12 + 2.0f*y12*x23*y22
                               + 2.0f*y12*x33*y32 - 2.0f*y13 + 2.0f*x13*y13*y13 + 2.0f*y13*x23*y23 + 2.0f*y13*x33*y33;
 
-                float fdx32 = 2.0f*x23*y21*y21 + 2.0f*x13*y11*y21 + 2.0f*y21*x33*y31 + 2.0f*x23*y22*y22 + 2.0*x13*y12*y22
+                float fdx23 = 2.0f*x23*y21*y21 + 2.0f*x13*y11*y21 + 2.0f*y21*x33*y31 + 2.0f*x23*y22*y22 + 2.0*x13*y12*y22
                               + 2.0f*y22*x33*y32 - 2.0f*y23 + 2.0f*x23*y23*y23 + 2.0f*x13*y13*y23 + 2.0*y23*x33*y33;
 
                 float fdx33 = 2.0f*x33*y31*y31 + 2.0f*x13*y11*y31 + 2.0f*x23*y21*y31 + 2.0f*x33*y32*y32 + 2.0f*x13*y12*y32
