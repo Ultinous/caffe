@@ -79,7 +79,7 @@ private:
     std::vector<int> vx1, std::vector<int> vy1, std::vector<int> vx2, std::vector<int> vy2
   );
   inline bool doRandomCrop(
-    BBoxes& boxes, int& crop_x, int& crop_y, cv::Mat& cv_img, int& pad_x, int& pad_y,
+    cv::Mat& cv_img, BBoxes& boxes,
     int& source_x1, int& source_x2, int& source_y1, int& source_y2,
     int crop_height, int crop_width
   );
@@ -98,10 +98,8 @@ protected:
   Samples samples;
   int sample_id_;
 
-  UltinousTransformer m_unTransformer;
-
-  int m_batch_size;
-  std::vector<double> m_mean_values;
+  int batch_size_;
+  std::vector<double> mean_values_;
 };
 
 }  // namespace ultinous
