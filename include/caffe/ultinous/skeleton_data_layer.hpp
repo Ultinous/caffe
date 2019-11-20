@@ -1,7 +1,9 @@
 #pragma once
 
 #ifdef USE_OPENCV
+
 #include <opencv2/core/core.hpp>
+
 #endif
 
 #include <bitset>
@@ -18,118 +20,137 @@ namespace caffe
 namespace ultinous
 {
 template<
-    typename Image,
-    typename MetaData,
-    typename Mask = Image
+  typename Image,
+  typename MetaData,
+  typename Mask = Image
 >
-struct IGraphDataSource
-{
-    virtual ~IGraphDataSource() = default;
+struct IGraphDataSource {
+  virtual ~IGraphDataSource() = default;
 
-    virtual int batchSize() const = 0;
-    virtual void current(Image&, MetaData&, Mask&) = 0;
-    virtual void next() = 0;
+  virtual int batchSize() const = 0;
+
+  virtual void current(Image &, MetaData &, Mask &) = 0;
+
+  virtual void next() = 0;
 };
 
 template<
-    typename Image,
-    typename MetaData,
-    typename Mask = Image
+  typename Image,
+  typename MetaData,
+  typename Mask = Image
 >
 struct DBDataSource
-    : public IGraphDataSource<Image, MetaData, Mask>
-{
-    DBDataSource(const DataParameter& param);
+  : public IGraphDataSource<Image, MetaData, Mask> {
+  DBDataSource(const DataParameter &param);
 
-    int batchSize() const override { return param_.batch_size(); }
-    void next() override;
-    void current(Image& img, MetaData& meta, Mask& mask) override;
+  int batchSize() const override { return param_.batch_size(); }
+
+  void next() override;
+
+  void current(Image &img, MetaData &meta, Mask &mask) override;
 
 protected:
-    DataParameter param_;
-    shared_ptr<db::DB> db_;
-    shared_ptr<db::Cursor> cursor_;        
+  DataParameter param_;
+  shared_ptr<db::DB> db_;
+  shared_ptr<db::Cursor> cursor_;
 };
 
 template<
-    typename Image,
-    typename MetaData,
-    typename Mask = Image
+  typename Image,
+  typename MetaData,
+  typename Mask = Image
 >
 struct SkeletonProtoDataSource
-    : public IGraphDataSource<Image, MetaData, Mask>
-{
-    SkeletonProtoDataSource(const SkeletonProtoDataParameter& param);
+  : public IGraphDataSource<Image, MetaData, Mask> {
+  SkeletonProtoDataSource(const SkeletonProtoDataParameter &param);
 
-    int batchSize() const override { return param_.batch_size(); }
-    void next() override;
-    void current(Image& img, MetaData& meta, Mask& mask) override;
+  int batchSize() const override { return param_.batch_size(); }
+
+  void next() override;
+
+  void current(Image &img, MetaData &meta, Mask &mask) override;
 
 protected:
-    typename MetaData::Point getTargetPosition(const typename MetaData::SkeletonType&) const;
+  typename MetaData::Point getTargetPosition(const typename MetaData::SkeletonType &) const;
 
-    SkeletonProtoDataParameter param_;
-    std::size_t current_index_;
-    std::vector<MetaData> meta_datas_;
-    std::vector<std::string> filenames_;
-    std::string img_root_;
-    std::string mask_root_;
+  SkeletonProtoDataParameter param_;
+  std::size_t current_index_;
+  std::vector<MetaData> meta_datas_;
+  std::vector<std::string> filenames_;
+  std::string img_root_;
+  std::string mask_root_;
 };
 
 
-struct EnumClassHash
-{
-    using result_type = std::size_t;
+struct EnumClassHash {
+  using result_type = std::size_t;
 
-    template<typename T>
-    result_type operator()(T const& value) const noexcept
-    {
-        return static_cast<result_type>(value);
-    }
+  template<typename T>
+  result_type operator()(T const &value) const noexcept {
+    return static_cast<result_type>(value);
+  }
+};
+
+template<typename Dtype, typename CoordinateType>
+struct ILabelGenerator
+{
+  using SkeletonPointType = caffe::ultinous::proto::skeleton::SkeletonPointType;
+  using Skeleton = std::unordered_map<SkeletonPointType, CoordinateType, EnumClassHash>;
+  using Skeletons = std::vector<Skeleton>;
+  using UP = std::unique_ptr<ILabelGenerator>;
+
+  virtual ~ILabelGenerator() = default;
+  virtual std::vector<int> getLabelShape(const std::vector<int>& img_shape) const = 0;
+  virtual size_t generate(Dtype* output, const Skeletons& skeletons, const int width, const int height) = 0;
 };
 
 template<typename Dtype>
-class SkeletonDataLayer : public BasePrefetchingDataLayer<Dtype>
-{
+class SkeletonDataLayer : public BasePrefetchingDataLayer<Dtype> {
 public:
-    explicit SkeletonDataLayer(const LayerParameter&);
-    ~SkeletonDataLayer() override;
+  explicit SkeletonDataLayer(const LayerParameter &);
 
-    void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) override;
+  ~SkeletonDataLayer() override;
 
-    inline const char* type() const override { return "SkeletonDataLayer"; }
-    inline int ExactNumBottomBlobs() const override { return 0; }
-    inline int ExactNumTopBlobs() const override { return 2; }
+  void DataLayerSetUp(const vector<Blob<Dtype> *> &bottom, const vector<Blob<Dtype> *> &top) override;
+
+  inline const char *type() const override { return "SkeletonDataLayer"; }
+
+  inline int ExactNumBottomBlobs() const override { return 0; }
+
+  inline int ExactNumTopBlobs() const override { return 2; }
 
 protected:
-    using PointType = proto::skeleton::SkeletonPointType;
-    using Edge = std::pair<PointType, PointType>;
-    using Edges = std::vector<Edge>;
+  using PointType = proto::skeleton::SkeletonPointType;
+  using Edge = std::pair<PointType, PointType>;
+  using Edges = std::vector<Edge>;
 #ifdef USE_OPENCV
-    using ImageType = cv::Mat;
-    using CoordinateType = cv::Point_<Dtype>;
-    using MetaData = SkeletonMetaData<CoordinateType>;
+  using ImageType = cv::Mat;
+  using CoordinateType = cv::Point_<Dtype>;
+  using MetaData = SkeletonMetaData<CoordinateType>;
 #endif
-    using Skeleton = std::unordered_map<PointType, CoordinateType, EnumClassHash>;
-    using Skeletons = std::vector<Skeleton>;
+  using Skeleton = std::unordered_map<PointType, CoordinateType, EnumClassHash>;
+  using Skeletons = std::vector<Skeleton>;
 
 
-    void load_batch(Batch<Dtype>* batch) override;
-    std::vector<int> getLabelSize(const std::vector<int>& dataSize);
-    void generatePoints(Skeleton&);
+  void load_batch(Batch<Dtype> *batch) override;
 
-    std::vector<PointType> output_points;
-    std::vector<PointType> generated_output_points;
-    std::vector<Edge> output_edges;
-    std::bitset<proto::skeleton::SkeletonPointType_ARRAYSIZE> has_point;
+  std::vector<int> getLabelSize(const std::vector<int> &dataSize);
 
-    Blob<Dtype> transformed_label_;
-    std::shared_ptr<IGraphDataSource<ImageType, MetaData>> data_source_;
-    std::shared_ptr<SkeletonDataTransformer<Dtype>> data_transformer_;
+  void generatePoints(Skeleton &);
+
+  std::vector<PointType> output_points;
+  std::vector<PointType> generated_output_points;
+  std::vector<Edge> output_edges;
+  std::bitset<proto::skeleton::SkeletonPointType_ARRAYSIZE> has_point;
+
+  Blob<Dtype> transformed_label_;
+  std::shared_ptr<IGraphDataSource<ImageType, MetaData>> data_source_;
+  std::shared_ptr<SkeletonDataTransformer<Dtype>> data_transformer_;
+  std::vector<typename ILabelGenerator<Dtype, CoordinateType>::UP> label_generators_;
 
 #ifdef USE_OPENCV
-    cv::Mat bufferRGB_;
-    cv::Mat bufferMask_;
+  cv::Mat bufferRGB_;
+  cv::Mat bufferMask_;
 #endif
 };
 } // namespace ultinous
