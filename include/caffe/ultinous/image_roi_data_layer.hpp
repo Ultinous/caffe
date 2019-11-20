@@ -27,7 +27,7 @@ public:
 
   class Batch {
     public:
-    Blob<Dtype> data_, info_, bboxes_;
+    Blob<Dtype> data_, info_, bboxes_, rot_mtxs_;
   };
 
   struct BBox
@@ -36,10 +36,18 @@ public:
   };
   typedef std::vector<BBox> BBoxes;
 
+  struct RotationMatrix
+  {
+      Dtype x11, x12, x13, x21, x22, x23, x31, x32, x33;
+  };
+
+  typedef std::vector<RotationMatrix> RotationMatrixList;
   struct Sample
   {
     std::vector<std::string> image_files;
     BBoxes bboxes;
+    RotationMatrixList rot_matrixes;
+
   };
   typedef std::vector<Sample> Samples;
 

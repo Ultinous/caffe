@@ -20,6 +20,9 @@ namespace caffe {
       auto top_bbox_inside_weights  = top[2];
       auto top_bbox_outside_weights = top[3];
 
+      auto top_rot_mtx_targets   = top[4];
+      auto top_rot_mtx_weights   = top[5];
+
       float hard_negative_mining = anchorTargetParam_.hard_negative_mining();
       CHECK(hard_negative_mining <= 1 && hard_negative_mining >= 0);
 
@@ -47,6 +50,9 @@ namespace caffe {
       top_bbox_targets->        Reshape(batch_size, base_anchors_.size() * 4, height, width);
       top_bbox_inside_weights-> Reshape(batch_size, base_anchors_.size() * 4, height, width);
       top_bbox_outside_weights->Reshape(batch_size, base_anchors_.size() * 4, height, width);
+
+      top_rot_mtx_weights->Reshape(batch_size,1, height, width);
+      top_rot_mtx_targets->Reshape(batch_size, 9, height, width);
     }
 
     template<typename Dtype>
@@ -55,12 +61,18 @@ namespace caffe {
       auto bottom_scores = bottom[0];
       auto bottom_bbox   = bottom[1];
       auto bottom_info   = bottom[2];
+
+      auto bottom_rot_mtx = bottom[3];
 //  auto bottom_image =  bottom[3];
 
       auto top_labels               = top[0];
       auto top_bbox_targets         = top[1];
       auto top_bbox_inside_weights  = top[2];
       auto top_bbox_outside_weights = top[3];
+
+      auto top_rot_mtx_targets = top[4];
+      auto top_rot_mtx_weights   = top[5];
+
 
       int batch_size = bottom_scores->shape(0);
       int height     = bottom_scores->shape(2);
@@ -71,18 +83,26 @@ namespace caffe {
       top_bbox_inside_weights-> Reshape(batch_size, base_anchors_.size() * 4, height, width);
       top_bbox_outside_weights->Reshape(batch_size, base_anchors_.size() * 4, height, width);
 
+      top_rot_mtx_targets->Reshape(batch_size, 9, height, width);
+
       Offset bottom_scores_offset(bottom_scores->shape());
       Offset bottom_bbox_offset(bottom_bbox->shape());
       Offset bottom_info_offset(bottom_info->shape());
 //      Offset bottom_image_offset(bottom_image->shape());
+
+      Offset bottom_rot_mtx_offset(bottom_rot_mtx->shape());
 
       Offset top_labels_offset(top_labels->shape());
       Offset top_bbox_targets_offset(top_bbox_targets->shape());
       Offset top_bbox_inside_weights_offset(top_bbox_inside_weights->shape());
       Offset top_bbox_outside_weights_offset(top_bbox_outside_weights->shape());
 
+      Offset top_rot_mtx_weights_offset(top_rot_mtx_weights->shape());
+      Offset top_rot_mtx_targets_offset(top_rot_mtx_targets->shape());
+
       auto im_info       = bottom_info->cpu_data();
       auto data_gt_boxes = bottom_bbox->cpu_data();
+      auto rot_matrix_data = bottom_rot_mtx->cpu_data();
 
       auto labels = top_labels->mutable_cpu_data();
       std::fill(labels, labels+top_labels_offset.count, Dtype(-1));
@@ -95,6 +115,13 @@ namespace caffe {
 
       auto bbox_outside_weights = top_bbox_outside_weights->mutable_cpu_data();
       std::fill(bbox_outside_weights, bbox_outside_weights+top_bbox_outside_weights_offset.count, Dtype(0));
+
+      auto rot_mtx_weights = top_rot_mtx_weights->mutable_cpu_data();
+      std::fill(rot_mtx_weights, rot_mtx_weights+top_rot_mtx_weights_offset.count, Dtype(0));
+
+      auto rot_mtx_targets = top_rot_mtx_targets->mutable_cpu_data();
+      std::fill(rot_mtx_targets, rot_mtx_targets + top_rot_mtx_targets_offset.count, Dtype(0));
+
 
       float RPN_POSITIVE_OVERLAP  = anchorTargetParam_.positive_overlap();
       float RPN_NEGATIVE_OVERLAP  = anchorTargetParam_.negative_overlap();
@@ -206,6 +233,7 @@ namespace caffe {
             if (anchor_max_overlaps[i] <= RPN_NEGATIVE_OVERLAP) {
               Shift anchorShift = anchors_shifts[i];
               labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x] = 0;
+
             }
           }
         }
@@ -214,6 +242,30 @@ namespace caffe {
         for (int anchorIx : gt_argmax_overlaps) {
           Shift anchorShift = anchors_shifts[anchorIx];
           labels[top_labels_offset(batch_index) + anchor_base_indices[anchorIx] * (width * height) + anchorShift.y * width + anchorShift.x] = 1;
+
+          //Fill up rot_matrix_target with real rot matrix parameters
+
+            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 0 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                   rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx +0];
+            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 1 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9 * anchorIx + 1];
+            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 2 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx + 2];
+            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 3 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx + 3];
+            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 4 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx + 4];
+            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 5 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx + 5];
+            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 6 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx + 6];
+            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 7 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx + 7];
+            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 8 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx +8];
+
+
+
         }
 
         // fg label: above threshold IOU
@@ -221,6 +273,27 @@ namespace caffe {
           if (anchor_max_overlaps[i] >= RPN_POSITIVE_OVERLAP) {
             Shift anchorShift = anchors_shifts[i];
             labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x] = 1;
+
+              //Fill up rot_matrix_target with real rot matrix parameters
+              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 0 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i +0];
+              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 1 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9 * i + 1];
+              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 2 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i + 2];
+              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 3 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i + 3];
+              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 4 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i + 4];
+              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 5 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i + 5];
+              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 6 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i + 6];
+              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 7 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i + 7];
+              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 8 * (width * height) + anchorShift.y * width + anchorShift.x] =
+                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i +8];
+
           }
         }
 
@@ -231,6 +304,7 @@ namespace caffe {
             if (anchor_max_overlaps[i] <= RPN_NEGATIVE_OVERLAP) {
               Shift anchorShift = anchors_shifts[i];
               labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x] = 0;
+
             }
           }
         }

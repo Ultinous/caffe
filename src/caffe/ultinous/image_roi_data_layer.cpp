@@ -87,8 +87,19 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
 
     BBox bbox;
     int tmp;
+    RotationMatrix rot_m;
     while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2 >> tmp )
       sample.bboxes.push_back(bbox);
+      if(tmp == 1){
+          //There is a rotation available for this bbox
+
+          iss >> rot_m.x11 >> rot_m.x12 >> rot_m.x13 >> rot_m.x21 >> rot_m.x22 >> rot_m.x23;
+          iss >> rot_m.x31 >> rot_m.x32 >> rot_m.x33;
+          sample.rot_matrixes.push_back(rot_m);
+      }else{
+          //There is no rotation matrix for thib bbox
+          sample.rot_matrixes.push_back({});
+      }
     if( !sample.bboxes.empty() )
       samples.push_back( sample );
   }
@@ -144,11 +155,17 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   bboxes_shape[1] = 5;
   top[2]->Reshape(bboxes_shape);
 
+  vector<int> rot_m_shape(2);
+  rot_m_shape[0] = 1;
+  rot_m_shape[1] = 9;
+  top[3]->Reshape(rot_m_shape);
+
   for (int i = 0; i < this->PREFETCH_COUNT; ++i)
   {
     this->prefetch_[i].data_.Reshape(top_shape);
     this->prefetch_[i].info_.Reshape(info_shape);
     this->prefetch_[i].bboxes_.Reshape(bboxes_shape);
+    this->prefetch_[i].rot_mtxs_.Reshape(rot_m_shape);
   }
 }
 
@@ -205,12 +222,16 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   const int samples_size = samples.size();
   int batch_index = 0;
   BBoxes accumulatedBoxes;
+  RotationMatrixList finalRotMatrixes;
   while ( batch_index < batch_size_ )
   {
     CPUTimer timer;
 
     // Copy bounding boxes
     BBoxes boxes = samples[sample_id_].bboxes;
+
+    // Copy rotation matrixes
+    RotationMatrixList rot_matrixes = samples[sample_id_].rot_matrixes;
 
     // Load image
     timer.Start();
@@ -292,8 +313,10 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       }
 
       BBoxes finalBoxes;
-      for (BBox bbox : boxes)
+
+      for (size_t i = 0; i < boxes.size(); i++)
       {
+        BBox bbox(boxes[i]);
         bbox.x1 *= scale;
         bbox.y1 *= scale;
         bbox.x2 *= scale;
@@ -320,6 +343,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         }
 
         finalBoxes.push_back(bbox);
+        finalRotMatrixes.push_back(rot_matrixes[i]);
       }
 
       if ( !finalBoxes.empty() )
@@ -351,8 +375,10 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         prefetch_info[batch->info_.offset( batch_index, 4 )] = static_cast<Dtype>(source_x2);
         prefetch_info[batch->info_.offset( batch_index, 5 )] = static_cast<Dtype>(source_y2);
         prefetch_info[batch->info_.offset( batch_index, 6 )] = static_cast<Dtype>(finalBoxes.size());
+        prefetch_info[batch->info_.offset( batch_index, 7)] = static_cast<Dtype>(finalRotMatrixes.size());
 
         std::copy(finalBoxes.begin(), finalBoxes.end(), std::back_inserter(accumulatedBoxes));
+
 
 //        TODO
 //        for (int bboxIx = 0; bboxIx < finalBoxes.size(); ++bboxIx)
@@ -404,6 +430,35 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     prefetch_bboxes[batch->bboxes_.offset( bboxIx, 4 )] = 1;
   }
 
+  vector<int> rot_mtx_shape(2);
+  rot_mtx_shape[0] = finalRotMatrixes.size();
+  rot_mtx_shape[1] = 9;
+  batch->rot_mtxs_.Reshape(rot_mtx_shape);
+  Dtype *prefetched_rot_matrixes = batch->rot_mtxs_.mutable_cpu_data();
+  for(int rotMtxIx = 0; rotMtxIx < finalRotMatrixes.size(); ++rotMtxIx)
+  {
+      RotationMatrix r_mtx = finalRotMatrixes[rotMtxIx];
+      auto x11 = static_cast<Dtype>(r_mtx.x11);
+      auto x12 = static_cast<Dtype>(r_mtx.x12);
+      auto x13 = static_cast<Dtype>(r_mtx.x13);
+      auto x21 = static_cast<Dtype>(r_mtx.x21);
+      auto x22 = static_cast<Dtype>(r_mtx.x22);
+      auto x23 = static_cast<Dtype>(r_mtx.x23);
+      auto x31 = static_cast<Dtype>(r_mtx.x31);
+      auto x32 = static_cast<Dtype>(r_mtx.x32);
+      auto x33 = static_cast<Dtype>(r_mtx.x33);
+
+      prefetched_rot_matrixes[batch->rot_mtxs_.offset(rotMtxIx, 0)] = x11;
+      prefetched_rot_matrixes[batch->rot_mtxs_.offset(rotMtxIx, 1)] = x12;
+      prefetched_rot_matrixes[batch->rot_mtxs_.offset(rotMtxIx, 2)] = x13;
+      prefetched_rot_matrixes[batch->rot_mtxs_.offset(rotMtxIx, 3)] = x21;
+      prefetched_rot_matrixes[batch->rot_mtxs_.offset(rotMtxIx, 4)] = x22;
+      prefetched_rot_matrixes[batch->rot_mtxs_.offset(rotMtxIx, 5)] = x23;
+      prefetched_rot_matrixes[batch->rot_mtxs_.offset(rotMtxIx, 6)] = x31;
+      prefetched_rot_matrixes[batch->rot_mtxs_.offset(rotMtxIx, 7)] = x32;
+      prefetched_rot_matrixes[batch->rot_mtxs_.offset(rotMtxIx, 8)] = x33;
+  }
+
   batch_timer.Stop();
   DLOG(INFO) << "Prefetch batch: " << batch_timer.MilliSeconds() << " ms.";
   DLOG(INFO) << "     Read time: " << read_time / 1000 << " ms.";
@@ -434,6 +489,7 @@ void ImageROIDataLayer<Dtype>::LayerSetUp
     prefetch_[i].data_.mutable_cpu_data();
     prefetch_[i].info_.mutable_cpu_data();
     prefetch_[i].bboxes_.mutable_cpu_data();
+    prefetch_[i].rot_mtxs_.mutable_cpu_data();
   }
 #ifndef CPU_ONLY
   if (Caffe::mode() == Caffe::GPU)
@@ -443,6 +499,7 @@ void ImageROIDataLayer<Dtype>::LayerSetUp
       prefetch_[i].data_.mutable_gpu_data();
       prefetch_[i].info_.mutable_gpu_data();
       prefetch_[i].bboxes_.mutable_gpu_data();
+      prefetch_[i].rot_mtxs_.mutable_gpu_data();
     }
   }
 #endif
@@ -860,6 +917,12 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
     // Copy bbox.
     caffe_copy(batch->bboxes_.count(), batch->bboxes_.cpu_data(),
                top[2]->mutable_cpu_data());
+
+    //Reshape rot matrixes
+    top[3]->ReshapeLike(batch->rot_mtxs_);
+    // Copy rot_mtx
+    caffe_copy(batch->rot_mtxs_.count(), batch->rot_mtxs_.cpu_data(),
+            top[3]->mutable_cpu_data());
 
     prefetch_free_.push(batch);
   }
