@@ -59,7 +59,7 @@ namespace caffe {
 
       virtual inline const char *type() const { return "AnchorTarget"; }
 
-      virtual inline int ExactNumBottomBlobs() const { return 4; }
+      virtual inline int ExactNumBottomBlobs() const { return 5; }
 
       virtual inline int MinTopBlobs() const { return 4; }
 

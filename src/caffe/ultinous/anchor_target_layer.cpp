@@ -22,6 +22,7 @@ namespace caffe {
 
       auto top_rot_mtx_targets   = top[4];
       auto top_rot_mtx_weights   = top[5];
+      //auto top_rot_mtx_weights_outside  = top[6];
 
       float hard_negative_mining = anchorTargetParam_.hard_negative_mining();
       CHECK(hard_negative_mining <= 1 && hard_negative_mining >= 0);
@@ -51,8 +52,9 @@ namespace caffe {
       top_bbox_inside_weights-> Reshape(batch_size, base_anchors_.size() * 4, height, width);
       top_bbox_outside_weights->Reshape(batch_size, base_anchors_.size() * 4, height, width);
 
-      top_rot_mtx_weights->Reshape(batch_size,1, height, width);
+      top_rot_mtx_weights->Reshape(batch_size, 9, height, width);
       top_rot_mtx_targets->Reshape(batch_size, 9, height, width);
+
     }
 
     template<typename Dtype>
@@ -71,7 +73,8 @@ namespace caffe {
       auto top_bbox_outside_weights = top[3];
 
       auto top_rot_mtx_targets = top[4];
-      auto top_rot_mtx_weights   = top[5];
+      auto top_rot_mtx_weights = top[5];
+      //  auto top_rot_mtx_weights_outside   = top[6];
 
 
       int batch_size = bottom_scores->shape(0);
@@ -84,6 +87,7 @@ namespace caffe {
       top_bbox_outside_weights->Reshape(batch_size, base_anchors_.size() * 4, height, width);
 
       top_rot_mtx_targets->Reshape(batch_size, 9, height, width);
+      top_rot_mtx_weights->Reshape(batch_size, 9, height, width);
 
       Offset bottom_scores_offset(bottom_scores->shape());
       Offset bottom_bbox_offset(bottom_bbox->shape());
