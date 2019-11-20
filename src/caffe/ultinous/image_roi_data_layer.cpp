@@ -88,14 +88,16 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     BBox bbox;
     int tmp;
     RotationMatrix rot_m;
-    while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2 >> tmp )
+    while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2 >> tmp >> rot_m.x11 >> rot_m.x12 >> rot_m.x13 >> rot_m.x21 >> rot_m.x22 >> rot_m.x23 >> rot_m.x31 >> rot_m.x32 >> rot_m.x33)
       sample.bboxes.push_back(bbox);
       if(tmp == 1){
           //There is a rotation available for this bbox
 
-          iss >> rot_m.x11 >> rot_m.x12 >> rot_m.x13 >> rot_m.x21 >> rot_m.x22 >> rot_m.x23;
-          iss >> rot_m.x31 >> rot_m.x32 >> rot_m.x33;
+          //iss >> rot_m.x11 >> rot_m.x12 >> rot_m.x13 >> rot_m.x21 >> rot_m.x22 >> rot_m.x23;
+          //iss >> rot_m.x31 >> rot_m.x32 >> rot_m.x33;
           sample.rot_matrixes.push_back(rot_m);
+	  //LOG(INFO) << "Line: " << line;
+	  //LOG(INFO) << "Reading rot mtx: " << rot_m.x11 << " " << rot_m.x12<< " " << rot_m.x13;
       }else{
           //There is no rotation matrix for thib bbox
           sample.rot_matrixes.push_back({});

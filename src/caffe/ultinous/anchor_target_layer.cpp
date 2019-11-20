@@ -65,7 +65,7 @@ namespace caffe {
       auto bottom_bbox   = bottom[1];
       auto bottom_info   = bottom[2];
 
-      auto bottom_rot_mtx = bottom[3];
+      auto bottom_rot_mtx = bottom[4];
 //  auto bottom_image =  bottom[3];
 
       auto top_labels               = top[0];
@@ -387,6 +387,13 @@ namespace caffe {
         {
             Shift anchorShift = anchors_shifts[i];
             if (labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x] == 1) {
+
+	                    /*LOG(INFO) << "There is a positive example: " << rot_matrix_data[bottom_rot_mtx_offset(batch_index)] << " " << rot_matrix_data[bottom_rot_mtx_offset(batch_index)+1]
+			    <<" " <<  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+2] << " "<< rot_matrix_data[bottom_rot_mtx_offset(batch_index)+3] << " " 
+			    << rot_matrix_data[bottom_rot_mtx_offset(batch_index)+4]  << " "<< rot_matrix_data[bottom_rot_mtx_offset(batch_index)+5] << " " 
+			    << rot_matrix_data[bottom_rot_mtx_offset(batch_index)+6 ] <<  " " <<rot_matrix_data[bottom_rot_mtx_offset(batch_index)+7]
+			    << " " << rot_matrix_data[bottom_rot_mtx_offset(batch_index)+8];*/
+
                 rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i], anchorShift.y,  anchorShift.x
                         )] = 1;
