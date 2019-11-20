@@ -28,6 +28,12 @@ namespace caffe {
       caffe_copy(batch->bboxes_.count(), batch->bboxes_.gpu_data(),
                  top[2]->mutable_gpu_data());
 
+
+      top[3]->ReshapeLike(batch->rot_mtxs_);
+
+      caffe_copy(batch->rot_mtxs_.count(), batch->rot_mtxs_.gpu_data(),
+            top[3]->mutable_gpu_data());
+
       // Ensure the copy is synchronous wrt the host, so that the next batch isn't
       // copied in meanwhile.
       CUDA_CHECK(cudaStreamSynchronize(cudaStreamDefault));
