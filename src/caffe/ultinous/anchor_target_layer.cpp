@@ -21,8 +21,8 @@ namespace caffe {
       auto top_bbox_outside_weights = top[3];
 
       auto top_rot_mtx_targets   = top[4];
-      auto top_rot_mtx_weights   = top[5];
-      //auto top_rot_mtx_weights_outside  = top[6];
+        auto top_rot_mtx_inside_weights = top[5];
+        auto top_rot_mtx_outside_weights = top[6];
 
       float hard_negative_mining = anchorTargetParam_.hard_negative_mining();
       CHECK(hard_negative_mining <= 1 && hard_negative_mining >= 0);
@@ -52,7 +52,8 @@ namespace caffe {
       top_bbox_inside_weights-> Reshape(batch_size, base_anchors_.size() * 4, height, width);
       top_bbox_outside_weights->Reshape(batch_size, base_anchors_.size() * 4, height, width);
 
-      top_rot_mtx_weights->Reshape(batch_size, base_anchors_.size() * 9, height, width);
+        top_rot_mtx_inside_weights->Reshape(batch_size, base_anchors_.size() *9, height, width);
+        top_rot_mtx_outside_weights->Reshape(batch_size, base_anchors_.size() *9, height, width);
       top_rot_mtx_targets->Reshape(batch_size, base_anchors_.size() * 9, height, width);
 
     }
@@ -73,8 +74,8 @@ namespace caffe {
       auto top_bbox_outside_weights = top[3];
 
       auto top_rot_mtx_targets = top[4];
-      auto top_rot_mtx_weights = top[5];
-      //  auto top_rot_mtx_weights_outside   = top[6];
+      auto top_rot_mtx_inside_weights = top[5];
+      auto top_rot_mtx_outside_weights = top[6];
 
 
       int batch_size = bottom_scores->shape(0);
@@ -87,7 +88,8 @@ namespace caffe {
       top_bbox_outside_weights->Reshape(batch_size, base_anchors_.size() * 4, height, width);
 
       top_rot_mtx_targets->Reshape(batch_size, base_anchors_.size() * 9, height, width);
-      top_rot_mtx_weights->Reshape(batch_size, base_anchors_.size() *9, height, width);
+      top_rot_mtx_inside_weights->Reshape(batch_size, base_anchors_.size() *9, height, width);
+      top_rot_mtx_outside_weights->Reshape(batch_size, base_anchors_.size() *9, height, width);
 
       Offset bottom_scores_offset(bottom_scores->shape());
       Offset bottom_bbox_offset(bottom_bbox->shape());
@@ -101,7 +103,8 @@ namespace caffe {
       Offset top_bbox_inside_weights_offset(top_bbox_inside_weights->shape());
       Offset top_bbox_outside_weights_offset(top_bbox_outside_weights->shape());
 
-      Offset top_rot_mtx_weights_offset(top_rot_mtx_weights->shape());
+      Offset top_rot_mtx_inside_weights_offset(top_rot_mtx_inside_weights->shape());
+        Offset top_rot_mtx_outside_weights_offset(top_rot_mtx_outside_weights->shape());
       Offset top_rot_mtx_targets_offset(top_rot_mtx_targets->shape());
 
       auto im_info       = bottom_info->cpu_data();
@@ -120,8 +123,13 @@ namespace caffe {
       auto bbox_outside_weights = top_bbox_outside_weights->mutable_cpu_data();
       std::fill(bbox_outside_weights, bbox_outside_weights+top_bbox_outside_weights_offset.count, Dtype(0));
 
-      auto rot_mtx_weights = top_rot_mtx_weights->mutable_cpu_data();
-      std::fill(rot_mtx_weights, rot_mtx_weights+top_rot_mtx_weights_offset.count, Dtype(0));
+      auto rot_mtx_inside_weights = top_rot_mtx_inside_weights->mutable_cpu_data();
+      std::fill(rot_mtx_inside_weights, rot_mtx_inside_weights+top_rot_mtx_inside_weights_offset.count, Dtype(0));
+
+
+        auto rot_mtx_outside_weights = top_rot_mtx_outside_weights->mutable_cpu_data();
+        std::fill(rot_mtx_outside_weights, rot_mtx_outside_weights+top_rot_mtx_outside_weights_offset.count, Dtype(0));
+
 
       auto rot_mtx_targets = top_rot_mtx_targets->mutable_cpu_data();
       std::fill(rot_mtx_targets, rot_mtx_targets + top_rot_mtx_targets_offset.count, Dtype(0));
@@ -247,29 +255,6 @@ namespace caffe {
           Shift anchorShift = anchors_shifts[anchorIx];
           labels[top_labels_offset(batch_index) + anchor_base_indices[anchorIx] * (width * height) + anchorShift.y * width + anchorShift.x] = 1;
 
-          //Fill up rot_matrix_target with real rot matrix parameters
-
-            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 0 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                   rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx +0];
-            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 1 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9 * anchorIx + 1];
-            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 2 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx + 2];
-            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 3 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx + 3];
-            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 4 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx + 4];
-            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 5 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx + 5];
-            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 6 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx + 6];
-            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 7 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx + 7];
-            rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 8 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                    rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* anchorIx +8];
-
-
-
         }
 
         // fg label: above threshold IOU
@@ -277,26 +262,6 @@ namespace caffe {
           if (anchor_max_overlaps[i] >= RPN_POSITIVE_OVERLAP) {
             Shift anchorShift = anchors_shifts[i];
             labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x] = 1;
-
-              //Fill up rot_matrix_target with real rot matrix parameters
-              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 0 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i +0];
-              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 1 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9 * i + 1];
-              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 2 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i + 2];
-              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 3 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i + 3];
-              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 4 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i + 4];
-              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 5 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i + 5];
-              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 6 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i + 6];
-              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 7 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i + 7];
-              rot_mtx_targets[top_rot_mtx_targets_offset(batch_index) + 8 * (width * height) + anchorShift.y * width + anchorShift.x] =
-                      rot_matrix_data[bottom_rot_mtx_offset(batch_index) +  9* i +8];
 
           }
         }
@@ -368,6 +333,36 @@ namespace caffe {
         // At this point bbox_targets are ready :)
 
 
+        for(size_t i = 0; i < anchors.size(); ++i)
+        {
+            Anchor ex = anchors[i];
+            Anchor gt = gt_boxes[anchor_argmax_overlaps[i]];
+
+            Shift anchorShift = anchors_shifts[i];
+
+            rot_mtx_targets[top_rot_mtx_targets_offset(
+                    batch_index, 9* anchor_base_indices[i], anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)];
+            rot_mtx_targets[top_rot_mtx_targets_offset(
+                    batch_index, 9* anchor_base_indices[i] +1, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+ 1];
+            rot_mtx_targets[top_rot_mtx_targets_offset(
+                    batch_index, 9* anchor_base_indices[i]+2, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+2];
+
+            rot_mtx_targets[top_rot_mtx_targets_offset(
+                    batch_index, 9* anchor_base_indices[i]+3, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+3];
+            rot_mtx_targets[top_rot_mtx_targets_offset(
+                    batch_index, 9* anchor_base_indices[i]+4, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+4];
+            rot_mtx_targets[top_rot_mtx_targets_offset(
+                    batch_index, 9* anchor_base_indices[i]+5, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+5];
+            rot_mtx_targets[top_rot_mtx_targets_offset(
+                    batch_index, 9* anchor_base_indices[i]+6, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+6];
+            rot_mtx_targets[top_rot_mtx_targets_offset(
+                    batch_index, 9* anchor_base_indices[i]+7, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+7];
+            rot_mtx_targets[top_rot_mtx_targets_offset(
+                    batch_index, 9* anchor_base_indices[i]+8, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+8];
+
+        }
+
+
         // Computing bbox_inside_weights
         for (size_t i = 0; i < anchors.size(); ++i) {
           Shift anchorShift = anchors_shifts[i];
@@ -386,6 +381,41 @@ namespace caffe {
           }
         }
         // At this point bbox_inside_weights are ready :)
+
+
+        for(size_t i = 0; i < anchors.size(); ++i)
+        {
+            Shift anchorShift = anchors_shifts[i];
+            if (labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x] == 1) {
+                rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
+                        batch_index, 9 * anchor_base_indices[i], anchorShift.y,  anchorShift.x
+                        )] = 1;
+                rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
+                        batch_index, 9 * anchor_base_indices[i] +1, anchorShift.y,  anchorShift.x
+                )] = 1;
+                rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
+                        batch_index, 9 * anchor_base_indices[i] +2, anchorShift.y,  anchorShift.x
+                )] = 1;
+                rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
+                        batch_index, 9 * anchor_base_indices[i] +3, anchorShift.y,  anchorShift.x
+                )] = 1;
+                rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
+                        batch_index, 9 * anchor_base_indices[i] +4, anchorShift.y,  anchorShift.x
+                )] = 1;
+                rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
+                        batch_index, 9 * anchor_base_indices[i] +5, anchorShift.y,  anchorShift.x
+                )] = 1;
+                rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
+                        batch_index, 9 * anchor_base_indices[i] +6, anchorShift.y,  anchorShift.x
+                )] = 1;
+                rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
+                        batch_index, 9 * anchor_base_indices[i] +7, anchorShift.y,  anchorShift.x
+                )] = 1;
+                rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
+                        batch_index, 9 * anchor_base_indices[i] +8, anchorShift.y,  anchorShift.x
+                )] = 1;
+            }
+        }
 
 
         // Computing bbox_outside_weights
@@ -419,6 +449,44 @@ namespace caffe {
             bbox_outside_weights[top_bbox_outside_weights_offset(
               batch_index, 4 * anchor_base_indices[i] + 3, anchorShift.y, anchorShift.x )] = weight;
           }
+        }
+
+
+        for (size_t i = 0; i< anchors.size(); ++i) {
+            Shift anchorShift = anchors_shifts[i];
+            Dtype label = labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) +
+                                 anchorShift.y * width + anchorShift.x];
+            if (label == 1 || label == 0) {
+                Dtype weight = label == 1 ? positive_weight : negative_weight;
+
+                rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i], anchorShift.y, anchorShift.x
+                )] = weight;
+                rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i] + 1, anchorShift.y, anchorShift.x
+                )] = weight;
+                rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i] + 2, anchorShift.y, anchorShift.x
+                )] = weight;
+                rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i] + 3, anchorShift.y, anchorShift.x
+                )] = weight;
+                rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i] + 4, anchorShift.y, anchorShift.x
+                )] = weight;
+                rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i] + 5, anchorShift.y, anchorShift.x
+                )] = weight;
+                rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i] + 6, anchorShift.y, anchorShift.x
+                )] = weight;
+                rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i] + 7, anchorShift.y, anchorShift.x
+                )] = weight;
+                rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i] + 8, anchorShift.y, anchorShift.x
+                )] = weight;
+            }
         }
       }
     }
