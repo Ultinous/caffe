@@ -52,8 +52,8 @@ namespace caffe {
       top_bbox_inside_weights-> Reshape(batch_size, base_anchors_.size() * 4, height, width);
       top_bbox_outside_weights->Reshape(batch_size, base_anchors_.size() * 4, height, width);
 
-      top_rot_mtx_weights->Reshape(batch_size, 9, height, width);
-      top_rot_mtx_targets->Reshape(batch_size, 9, height, width);
+      top_rot_mtx_weights->Reshape(batch_size, base_anchors_.size() * 9, height, width);
+      top_rot_mtx_targets->Reshape(batch_size, base_anchors_.size() * 9, height, width);
 
     }
 
@@ -86,8 +86,8 @@ namespace caffe {
       top_bbox_inside_weights-> Reshape(batch_size, base_anchors_.size() * 4, height, width);
       top_bbox_outside_weights->Reshape(batch_size, base_anchors_.size() * 4, height, width);
 
-      top_rot_mtx_targets->Reshape(batch_size, 9, height, width);
-      top_rot_mtx_weights->Reshape(batch_size, 9, height, width);
+      top_rot_mtx_targets->Reshape(batch_size, base_anchors_.size() * 9, height, width);
+      top_rot_mtx_weights->Reshape(batch_size, base_anchors_.size() *9, height, width);
 
       Offset bottom_scores_offset(bottom_scores->shape());
       Offset bottom_bbox_offset(bottom_bbox->shape());
