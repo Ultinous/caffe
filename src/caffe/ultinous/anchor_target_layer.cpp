@@ -388,39 +388,34 @@ namespace caffe {
             Shift anchorShift = anchors_shifts[i];
             if (labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x] == 1) {
 
-	                    /*LOG(INFO) << "There is a positive example: " << rot_matrix_data[bottom_rot_mtx_offset(batch_index)] << " " << rot_matrix_data[bottom_rot_mtx_offset(batch_index)+1]
-			    <<" " <<  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+2] << " "<< rot_matrix_data[bottom_rot_mtx_offset(batch_index)+3] << " " 
-			    << rot_matrix_data[bottom_rot_mtx_offset(batch_index)+4]  << " "<< rot_matrix_data[bottom_rot_mtx_offset(batch_index)+5] << " " 
-			    << rot_matrix_data[bottom_rot_mtx_offset(batch_index)+6 ] <<  " " <<rot_matrix_data[bottom_rot_mtx_offset(batch_index)+7]
-			    << " " << rot_matrix_data[bottom_rot_mtx_offset(batch_index)+8];*/
 
                 rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i], anchorShift.y,  anchorShift.x
-                        )] = 1;
+                        )] = 1.0;
                 rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i] +1, anchorShift.y,  anchorShift.x
-                )] = 1;
+                )] = 1.0;
                 rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i] +2, anchorShift.y,  anchorShift.x
-                )] = 1;
+                )] = 1.0;
                 rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i] +3, anchorShift.y,  anchorShift.x
-                )] = 1;
+                )] = 1.0;
                 rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i] +4, anchorShift.y,  anchorShift.x
-                )] = 1;
+                )] = 1.0;
                 rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i] +5, anchorShift.y,  anchorShift.x
-                )] = 1;
+                )] = 1.0;
                 rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i] +6, anchorShift.y,  anchorShift.x
-                )] = 1;
+                )] = 1.0;
                 rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i] +7, anchorShift.y,  anchorShift.x
-                )] = 1;
+                )] = 1.0;
                 rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i] +8, anchorShift.y,  anchorShift.x
-                )] = 1;
+                )] = 1.;
             }
         }
 
@@ -458,40 +453,40 @@ namespace caffe {
           }
         }
 
-
         for (size_t i = 0; i< anchors.size(); ++i) {
             Shift anchorShift = anchors_shifts[i];
             Dtype label = labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) +
                                  anchorShift.y * width + anchorShift.x];
-            if (label == 1 || label == 0) {
+            if (label == 1 || label == 0 ) {
                 Dtype weight = label == 1 ? positive_weight : negative_weight;
+              
 
                 rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
-                        batch_index, 4 * anchor_base_indices[i], anchorShift.y, anchorShift.x
+                        batch_index, 9 * anchor_base_indices[i], anchorShift.y, anchorShift.x
                 )] = weight;
                 rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
-                        batch_index, 4 * anchor_base_indices[i] + 1, anchorShift.y, anchorShift.x
+                        batch_index, 9 * anchor_base_indices[i] + 1, anchorShift.y, anchorShift.x
                 )] = weight;
                 rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
-                        batch_index, 4 * anchor_base_indices[i] + 2, anchorShift.y, anchorShift.x
+                        batch_index, 9 * anchor_base_indices[i] + 2, anchorShift.y, anchorShift.x
                 )] = weight;
                 rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
-                        batch_index, 4 * anchor_base_indices[i] + 3, anchorShift.y, anchorShift.x
+                        batch_index, 9 * anchor_base_indices[i] + 3, anchorShift.y, anchorShift.x
                 )] = weight;
                 rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
-                        batch_index, 4 * anchor_base_indices[i] + 4, anchorShift.y, anchorShift.x
+                        batch_index, 9 * anchor_base_indices[i] + 4, anchorShift.y, anchorShift.x
                 )] = weight;
                 rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
-                        batch_index, 4 * anchor_base_indices[i] + 5, anchorShift.y, anchorShift.x
+                        batch_index, 9 * anchor_base_indices[i] + 5, anchorShift.y, anchorShift.x
                 )] = weight;
                 rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
-                        batch_index, 4 * anchor_base_indices[i] + 6, anchorShift.y, anchorShift.x
+                        batch_index, 9 * anchor_base_indices[i] + 6, anchorShift.y, anchorShift.x
                 )] = weight;
                 rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
-                        batch_index, 4 * anchor_base_indices[i] + 7, anchorShift.y, anchorShift.x
+                        batch_index, 9 * anchor_base_indices[i] + 7, anchorShift.y, anchorShift.x
                 )] = weight;
                 rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
-                        batch_index, 4 * anchor_base_indices[i] + 8, anchorShift.y, anchorShift.x
+                        batch_index, 9 * anchor_base_indices[i] + 8, anchorShift.y, anchorShift.x
                 )] = weight;
             }
         }
