@@ -390,6 +390,12 @@ namespace caffe {
             Shift anchorShift = anchors_shifts[i];
             if (labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x] == 1) {
 
+                if (rot_matrix_data[anchor_argmax_overlaps[i]] == 0 &&
+                    rot_matrix_data[anchor_argmax_overlaps[i] +1 ] == 0 &&
+                        rot_matrix_data[anchor_argmax_overlaps[i] + 2] == 0)
+                {
+                    continue;
+                }
 
                 rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i], anchorShift.y,  anchorShift.x
