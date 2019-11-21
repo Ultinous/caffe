@@ -338,27 +338,29 @@ namespace caffe {
             Anchor ex = anchors[i];
             Anchor gt = gt_boxes[anchor_argmax_overlaps[i]];
 
+
+
             Shift anchorShift = anchors_shifts[i];
 
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i], anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)];
+                    batch_index, 9* anchor_base_indices[i], anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i]];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i] +1, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+ 1];
+                    batch_index, 9* anchor_base_indices[i] +1, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 1];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+2, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+2];
+                    batch_index, 9* anchor_base_indices[i]+2, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 2];
 
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+3, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+3];
+                    batch_index, 9* anchor_base_indices[i]+3, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 3];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+4, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+4];
+                    batch_index, 9* anchor_base_indices[i]+4, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 4];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+5, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+5];
+                    batch_index, 9* anchor_base_indices[i]+5, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 5];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+6, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+6];
+                    batch_index, 9* anchor_base_indices[i]+6, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 6];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+7, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+7];
+                    batch_index, 9* anchor_base_indices[i]+7, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 7];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+8, anchorShift.y, anchorShift.x)] =  rot_matrix_data[bottom_rot_mtx_offset(batch_index)+8];
+                    batch_index, 9* anchor_base_indices[i]+8, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 8];
 
         }
 
