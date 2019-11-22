@@ -21,7 +21,7 @@ namespace caffe {
       explicit Offset(std::vector<int> v)
       {
         CHECK(v.size()<=4);
-        CHECK(std::find_if(v.begin(),v.end(),[](const int i){return i<=0;}) == v.end());
+//        CHECK(std::find_if(v.begin(),v.end(),[](const int i){return i<=0;}) == v.end());
         v.resize(4,1);
         dN = v[1]*v[2]*v[3];
         dC = v[2]*v[3];
@@ -59,9 +59,9 @@ namespace caffe {
 
       virtual inline const char *type() const { return "AnchorTarget"; }
 
-      virtual inline int ExactNumBottomBlobs() const { return 4; }
+      virtual inline int ExactNumBottomBlobs() const { return 5; }//4; } // rpn_cls_score, gt_boxes, im_info, data, gt_body_boxes
 
-      virtual inline int MinTopBlobs() const { return 4; }
+      virtual inline int MinTopBlobs() const { return 7; } // 4; } // labels, targets, inside, outside, bodytargets, bodyyinside, bodyoutside
 
     protected:
       virtual void Forward_cpu(const vector<Blob<Dtype> *> &bottom,

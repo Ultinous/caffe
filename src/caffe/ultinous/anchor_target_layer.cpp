@@ -14,11 +14,15 @@ namespace caffe {
 //  auto bottom_bbox  = bottom[1];
 //  auto bottom_info  = bottom[2];
 //  auto bottom_image = bottom[3];
+//  auto bottom_body_bbox = bottom[4];
 
-      auto top_labels               = top[0];
-      auto top_bbox_targets         = top[1];
-      auto top_bbox_inside_weights  = top[2];
-      auto top_bbox_outside_weights = top[3];
+      auto top_labels                    = top[0];
+      auto top_bbox_targets              = top[1];
+      auto top_bbox_inside_weights       = top[2];
+      auto top_bbox_outside_weights      = top[3];
+      auto top_body_bbox_targets         = top[4];
+      auto top_body_bbox_inside_weights  = top[5];
+      auto top_body_bbox_outside_weights = top[6];
 
       float hard_negative_mining = anchorTargetParam_.hard_negative_mining();
       CHECK(hard_negative_mining <= 1 && hard_negative_mining >= 0);
@@ -47,20 +51,36 @@ namespace caffe {
       top_bbox_targets->        Reshape(batch_size, base_anchors_.size() * 4, height, width);
       top_bbox_inside_weights-> Reshape(batch_size, base_anchors_.size() * 4, height, width);
       top_bbox_outside_weights->Reshape(batch_size, base_anchors_.size() * 4, height, width);
+
+      top_body_bbox_targets->        Reshape(batch_size, base_anchors_.size() * 4, height, width);
+      top_body_bbox_inside_weights-> Reshape(batch_size, base_anchors_.size() * 4, height, width);
+      top_body_bbox_outside_weights->Reshape(batch_size, base_anchors_.size() * 4, height, width);
     }
 
     template<typename Dtype>
     void AnchorTargetLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype> *> &bottom,
                                                const vector<Blob<Dtype> *> &top) {
+
+      std::vector<Dtype> body_scales;
+      for (auto bs: anchorTargetParam_.body_scales()) // headW/bodyW, headH/bodyH, (bodyCtrX-headCtrX)/bodyW, (bodyCtrY-headCtrY)/bodyH
+          body_scales.push_back(bs);
+      if(!body_scales.size())
+          body_scales = std::vector<Dtype>({1.0, 1.0, 1.0, 1.0}); // TODO set default
+
       auto bottom_scores = bottom[0];
       auto bottom_bbox   = bottom[1];
       auto bottom_info   = bottom[2];
 //  auto bottom_image =  bottom[3];
+      auto bottom_body_bbox   = bottom[4];
+
 
       auto top_labels               = top[0];
       auto top_bbox_targets         = top[1];
       auto top_bbox_inside_weights  = top[2];
       auto top_bbox_outside_weights = top[3];
+      auto top_body_bbox_targets         = top[4];
+      auto top_body_bbox_inside_weights  = top[5];
+      auto top_body_bbox_outside_weights = top[6];
 
       int batch_size = bottom_scores->shape(0);
       int height     = bottom_scores->shape(2);
@@ -71,18 +91,42 @@ namespace caffe {
       top_bbox_inside_weights-> Reshape(batch_size, base_anchors_.size() * 4, height, width);
       top_bbox_outside_weights->Reshape(batch_size, base_anchors_.size() * 4, height, width);
 
+      top_body_bbox_targets->        Reshape(batch_size, base_anchors_.size() * 4, height, width);
+      top_body_bbox_inside_weights-> Reshape(batch_size, base_anchors_.size() * 4, height, width);
+      top_body_bbox_outside_weights->Reshape(batch_size, base_anchors_.size() * 4, height, width);
+
+//        LOG(INFO) << " bottom_scores  " << bottom_scores->shape_string();
+//        LOG(INFO) << " bottom_bbox  " << bottom_bbox->shape_string();
+//        LOG(INFO) << "bottom_body_bbox " << bottom_body_bbox->shape_string();
+//        LOG(INFO) << " bottom_info  " << bottom_info->shape_string();
+//
+//        LOG(INFO) << "top_labels " << top_labels->shape_string();
+//        LOG(INFO) << "top_bbox_targets " << top_bbox_targets->shape_string();
+//        LOG(INFO) << "top_bbox_inside_weights " << top_bbox_inside_weights->shape_string();
+//        LOG(INFO) << "top_bbox_outside_weights " << top_bbox_outside_weights->shape_string();
+//
+//        LOG(INFO) << "top_body_bbox_targets " <<  top_body_bbox_targets->shape_string();
+//        LOG(INFO) << "top_body_bbox_inside_weights " <<  top_body_bbox_inside_weights->shape_string();
+//        LOG(INFO) << "top_body_bbox_inside_weights " <<  top_body_bbox_outside_weights->shape_string();
+
       Offset bottom_scores_offset(bottom_scores->shape());
       Offset bottom_bbox_offset(bottom_bbox->shape());
       Offset bottom_info_offset(bottom_info->shape());
 //      Offset bottom_image_offset(bottom_image->shape());
+      Offset bottom_body_bbox_offset(bottom_body_bbox->shape());
 
       Offset top_labels_offset(top_labels->shape());
       Offset top_bbox_targets_offset(top_bbox_targets->shape());
       Offset top_bbox_inside_weights_offset(top_bbox_inside_weights->shape());
       Offset top_bbox_outside_weights_offset(top_bbox_outside_weights->shape());
 
+      Offset top_body_bbox_targets_offset(top_body_bbox_targets->shape());
+      Offset top_body_bbox_inside_weights_offset(top_body_bbox_inside_weights->shape());
+      Offset top_body_bbox_outside_weights_offset(top_body_bbox_outside_weights->shape());
+
       auto im_info       = bottom_info->cpu_data();
       auto data_gt_boxes = bottom_bbox->cpu_data();
+      auto data_gt_body_boxes = bottom_body_bbox->cpu_data();
 
       auto labels = top_labels->mutable_cpu_data();
       std::fill(labels, labels+top_labels_offset.count, Dtype(-1));
@@ -95,6 +139,15 @@ namespace caffe {
 
       auto bbox_outside_weights = top_bbox_outside_weights->mutable_cpu_data();
       std::fill(bbox_outside_weights, bbox_outside_weights+top_bbox_outside_weights_offset.count, Dtype(0));
+
+      auto body_bbox_targets = top_body_bbox_targets->mutable_cpu_data();
+      std::fill(body_bbox_targets, body_bbox_targets+top_body_bbox_targets_offset.count, Dtype(0));
+
+      auto body_bbox_inside_weights = top_body_bbox_inside_weights->mutable_cpu_data();
+      std::fill(body_bbox_inside_weights, body_bbox_inside_weights+top_body_bbox_inside_weights_offset.count, Dtype(0));
+
+      auto body_bbox_outside_weights = top_body_bbox_outside_weights->mutable_cpu_data();
+      std::fill(body_bbox_outside_weights, body_bbox_outside_weights+top_body_bbox_outside_weights_offset.count, Dtype(0));
 
       float RPN_POSITIVE_OVERLAP  = anchorTargetParam_.positive_overlap();
       float RPN_NEGATIVE_OVERLAP  = anchorTargetParam_.negative_overlap();
@@ -120,6 +173,7 @@ namespace caffe {
       };
 
       int gt_box_offset = 0;
+      int gt_body_box_offset = 0;
       for (int batch_index=0; batch_index < batch_size; ++batch_index)
       {
         // Create all anchors
@@ -152,20 +206,39 @@ namespace caffe {
 
         // Load gt_boxes;
         Boxes gt_boxes;
+        Boxes gt_body_boxes;
+        std::map<size_t, size_t> head2body;
         size_t num_gt_boxes = im_info[bottom_info_offset( batch_index, 6 )];
+        size_t num_gt_body_boxes = 0;
+        for (size_t i = gt_box_offset; i < gt_box_offset+num_gt_boxes; ++i) {
+            gt_boxes.push_back(
+                    Anchor{data_gt_boxes[bottom_bbox_offset(i, 1)],
+                           data_gt_boxes[bottom_bbox_offset(i, 2)],
+                           data_gt_boxes[bottom_bbox_offset(i, 3)],
+                           data_gt_boxes[bottom_bbox_offset(i, 4)]});
+            // load body box if it exists
+            if (data_gt_boxes[bottom_bbox_offset(i, 0)] == 1){
+                head2body[i-gt_box_offset] = num_gt_body_boxes;
+                size_t j = gt_box_offset + num_gt_body_boxes;
+                gt_body_boxes.push_back(
+                        Anchor{data_gt_body_boxes[bottom_body_bbox_offset(j, 0)],
+                               data_gt_body_boxes[bottom_body_bbox_offset(j, 1)],
+                               data_gt_body_boxes[bottom_body_bbox_offset(j, 2)],
+                               data_gt_body_boxes[bottom_body_bbox_offset(j, 3)]});
+                num_gt_body_boxes += 1;
+            }
+            else{
+                head2body[i-gt_body_box_offset] = -1; // no body exists for current head
+            }
+        }
 
-        for (size_t i = gt_box_offset; i < gt_box_offset+num_gt_boxes; ++i)
-          gt_boxes.push_back(
-              Anchor{data_gt_boxes[bottom_bbox_offset( i, 0 )],
-                     data_gt_boxes[bottom_bbox_offset( i, 1 )],
-                     data_gt_boxes[bottom_bbox_offset( i, 2 )],
-                     data_gt_boxes[bottom_bbox_offset( i, 3 )]});
-
+        gt_body_box_offset += num_gt_body_boxes;
         gt_box_offset += num_gt_boxes;
 
         // Compute overlaps between anchors and gt_boxes
         Overlaps overlaps = bbox_overlaps(anchors, gt_boxes);
 
+        // NMS
         // Select maximally overlapping gt_box for each anchor
         std::vector<size_t> anchor_argmax_overlaps(anchors.size(), 0);
         std::vector<Overlap> anchor_max_overlaps(anchors.size(), 0);
@@ -255,24 +328,24 @@ namespace caffe {
 
         // Computing bbox_targets
         for (size_t i = 0; i < anchors.size(); ++i) {
-          Anchor ex = anchors[i];
+          Anchor src = anchors[i];
           Anchor gt = gt_boxes[anchor_argmax_overlaps[i]];
 
           // bbox_transform
-          float ex_width = ex[2] - ex[0] + 1.0;
-          float ex_height = ex[3] - ex[1] + 1.0;
-          float ex_ctr_x = ex[0] + 0.5 * ex_width;
-          float ex_ctr_y = ex[1] + 0.5 * ex_height;
+          float src_width = src[2] - src[0] + 1.0;
+          float src_height = src[3] - src[1] + 1.0;
+          float src_ctr_x = src[0] + 0.5 * src_width;
+          float src_ctr_y = src[1] + 0.5 * src_height;
 
           float gt_width = gt[2] - gt[0] + 1.0;
           float gt_height = gt[3] - gt[1] + 1.0;
           float gt_ctr_x = gt[0] + 0.5 * gt_width;
           float gt_ctr_y = gt[1] + 0.5 * gt_height;
 
-          float targets_dx = (gt_ctr_x - ex_ctr_x) / ex_width;
-          float targets_dy = (gt_ctr_y - ex_ctr_y) / ex_height;
-          float targets_dw = std::log(gt_width / ex_width);
-          float targets_dh = std::log(gt_height / ex_height);
+          float targets_dx = (gt_ctr_x - src_ctr_x) / src_width;
+          float targets_dy = (gt_ctr_y - src_ctr_y) / src_height;
+          float targets_dw = std::log(gt_width / src_width);
+          float targets_dh = std::log(gt_height / src_height);
 
           Shift anchorShift = anchors_shifts[i];
           bbox_targets[top_bbox_targets_offset(
@@ -286,6 +359,43 @@ namespace caffe {
 
           bbox_targets[top_bbox_targets_offset(
             batch_index, 4 * anchor_base_indices[i] + 3, anchorShift.y, anchorShift.x )] = targets_dh;
+
+          // Compute body bbox targets if body exists for head
+          if (head2body[anchor_argmax_overlaps[i]] != -1){
+              Anchor body_gt = gt_body_boxes[head2body[anchor_argmax_overlaps[i]]];
+              // TODO  precompute transformation for 5 anchor scales
+              // TODO check validity
+              float body_src_width = src_width * body_scales[0];
+              float body_src_height = src_height * body_scales[1];
+              float body_src_ctr_x = src_ctr_x; // body aligned vertically with head
+              float body_src_ctr_y = src_ctr_y + body_src_height * body_scales[3];
+
+              float body_gt_width = body_gt[2] - body_gt[0] + 1.0;
+              float body_gt_height = body_gt[3] - body_gt[1] + 1.0;
+              float body_gt_ctr_x = body_gt[0] + 0.5 * body_gt_width;
+              float body_gt_ctr_y = body_gt[1] + 0.5 * body_gt_height;
+
+              float body_targets_dx = (body_gt_ctr_x - body_src_ctr_x) / body_src_width;
+              float body_targets_dy = (body_gt_ctr_y - body_src_ctr_y) / body_src_height;
+              float body_targets_dw = std::log(body_gt_width / body_src_width);
+              float body_targets_dh = std::log(body_gt_height / body_src_height);
+//              LOG(INFO) << "body_source: " << body_src_width << " " << body_src_height << " " << body_src_ctr_x << " " << body_src_ctr_y;
+//              LOG(INFO) << "body_gt: " << body_gt_width << " " << body_gt_height << " " << body_gt_ctr_x << " " << body_gt_ctr_y;
+//              LOG(INFO) << "body_targets: " << body_targets_dx << " " << body_targets_dy << " " << body_targets_dw << " " << body_targets_dh;
+              Shift anchorShift = anchors_shifts[i];
+              body_bbox_targets[top_body_bbox_targets_offset(
+                      batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = body_targets_dx;
+
+              body_bbox_targets[top_body_bbox_targets_offset(
+                      batch_index, 4 * anchor_base_indices[i] + 1, anchorShift.y, anchorShift.x )] = body_targets_dy;
+
+              body_bbox_targets[top_body_bbox_targets_offset(
+                      batch_index, 4 * anchor_base_indices[i] + 2, anchorShift.y, anchorShift.x )] = body_targets_dw;
+
+              body_bbox_targets[top_body_bbox_targets_offset(
+                      batch_index, 4 * anchor_base_indices[i] + 3, anchorShift.y, anchorShift.x )] = body_targets_dh;
+          }
+
         }
         // At this point bbox_targets are ready :)
 
@@ -305,6 +415,17 @@ namespace caffe {
 
             bbox_inside_weights[top_bbox_inside_weights_offset(
               batch_index, 4 * anchor_base_indices[i] + 3, anchorShift.y, anchorShift.x )] = RPN_BBOX_INSIDE_WEIGHTS[3];
+            if (head2body[anchor_argmax_overlaps[i]] != -1){ // body exists for head
+                body_bbox_inside_weights[top_body_bbox_inside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = RPN_BBOX_INSIDE_WEIGHTS[0];
+                body_bbox_inside_weights[top_body_bbox_inside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = RPN_BBOX_INSIDE_WEIGHTS[0];
+                body_bbox_inside_weights[top_body_bbox_inside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = RPN_BBOX_INSIDE_WEIGHTS[0];
+                body_bbox_inside_weights[top_body_bbox_inside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = RPN_BBOX_INSIDE_WEIGHTS[0];
+            }
+
           }
         }
         // At this point bbox_inside_weights are ready :)
@@ -340,6 +461,20 @@ namespace caffe {
 
             bbox_outside_weights[top_bbox_outside_weights_offset(
               batch_index, 4 * anchor_base_indices[i] + 3, anchorShift.y, anchorShift.x )] = weight;
+
+            if (head2body[anchor_argmax_overlaps[i]] != -1) { // body exists for head
+                body_bbox_outside_weights[top_body_bbox_outside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i], anchorShift.y, anchorShift.x)] = weight;
+
+                body_bbox_outside_weights[top_body_bbox_outside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i] + 1, anchorShift.y, anchorShift.x)] = weight;
+
+                body_bbox_outside_weights[top_body_bbox_outside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i] + 2, anchorShift.y, anchorShift.x)] = weight;
+
+                body_bbox_outside_weights[top_body_bbox_outside_weights_offset(
+                        batch_index, 4 * anchor_base_indices[i] + 3, anchorShift.y, anchorShift.x)] = weight;
+            }
           }
         }
       }
