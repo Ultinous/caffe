@@ -1625,6 +1625,7 @@ message AnchorTargetParameter {
   optional float positive_weight = 11 [default = -1.0];
   optional float hard_negative_mining = 12 [default = 0.0]; // 0->random, 1->totally sorted
   optional float denoise = 13 [default = 0.0];
+  repeated float body_scales = 14; // headW/bodyW, headH/bodyH, (bodyCtrX-headCtrX)/bodyW, (bodyCtrY-headCtrY)/bodyH
 }
 
 message AdversarialImageDataParamater {
