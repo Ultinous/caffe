@@ -85,10 +85,19 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
       sample.image_files.push_back(image_file);
     }
 
+    // if there is is an additional body (next to the head), read its bounding box coordinates
     BBox bbox;
-    int tmp;
-    while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2 >> tmp )
-      sample.bboxes.push_back(bbox);
+    BodyBBox body_bbox;
+    while(iss >> bbox.numBody >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2){
+        sample.bboxes.push_back(bbox);
+        if( bbox.numBody == 1 ){
+            iss >> body_bbox.x1 >> body_bbox.y1 >> body_bbox.x2 >> body_bbox.y2;
+            sample.body_bboxes.push_back(body_bbox);
+        }
+    }
+
+//    while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2 >> tmp )
+//      sample.bboxes.push_back(bbox);
     if( !sample.bboxes.empty() )
       samples.push_back( sample );
   }
@@ -140,15 +149,21 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   top[1]->Reshape(info_shape);
 
   vector<int> bboxes_shape(2);
-  bboxes_shape[0] = 1;
-  bboxes_shape[1] = 5;
+  bboxes_shape[0] = 1; // number of bounding boxes
+  bboxes_shape[1] = 5;// numBody, x1, y1, x2, y2
   top[2]->Reshape(bboxes_shape);
+
+  vector<int> body_bboxes_shape(2);
+  body_bboxes_shape[0] = 1; // number of body bounding boxes
+  body_bboxes_shape[1] = 4;// x1, y1, x2, y2
+  top[3]->Reshape(body_bboxes_shape);
 
   for (int i = 0; i < this->PREFETCH_COUNT; ++i)
   {
     this->prefetch_[i].data_.Reshape(top_shape);
     this->prefetch_[i].info_.Reshape(info_shape);
     this->prefetch_[i].bboxes_.Reshape(bboxes_shape);
+    this->prefetch_[i].body_bboxes_.Reshape(body_bboxes_shape);
   }
 }
 
@@ -205,12 +220,16 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   const int samples_size = samples.size();
   int batch_index = 0;
   BBoxes accumulatedBoxes;
+  BodyBBoxes accumulatedBodyBoxes;
   while ( batch_index < batch_size_ )
   {
     CPUTimer timer;
 
     // Copy bounding boxes
     BBoxes boxes = samples[sample_id_].bboxes;
+
+    // Copy bounding boxes
+    BodyBBoxes body_boxes = samples[sample_id_].body_bboxes;
 
     // Load image
     timer.Start();
@@ -227,7 +246,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
     bool skip = false;
     int source_x1=0, source_y1=0, source_x2=0, source_y2=0;
-    if (randomCrop)
+    if (randomCrop) // TODO include body bounding boxes, too
       skip = doRandomCrop(
         cv_img, boxes,
         source_x1, source_x2, source_y1, source_y2,
@@ -292,6 +311,8 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       }
 
       BBoxes finalBoxes;
+      BodyBBoxes finalBodyBoxes;
+      auto body_bbox_it = body_boxes.begin();
       for (BBox bbox : boxes)
       {
         bbox.x1 *= scale;
@@ -299,10 +320,27 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         bbox.x2 *= scale;
         bbox.y2 *= scale;
 
+        BodyBBox body_bbox;
+        if(bbox.numBody == 1){
+//          LOG(INFO) << "bodyBBOX" << body_bbox_it->x1 << " " << body_bbox_it->y1 << " " << body_bbox_it->x2 << " " << body_bbox_it->y2;
+//          CHECK(body_bbox_it == body_boxes.end()) << "No body bounding boxes left at " << samples[sample_id_].image_files[0];
+          body_bbox = *body_bbox_it;
+          body_bbox.x1 *= scale;
+          body_bbox.y1 *= scale;
+          body_bbox.x2 *= scale;
+          body_bbox.y2 *= scale;
+          body_bbox_it = std::next(body_bbox_it, 1);
+        }
+
         if (bbox.x1 >= bbox.x2 || bbox.y1 >= bbox.y2)
           continue;
+        if (bbox.numBody == 1 && (body_bbox.x1 >= body_bbox.x2 || body_bbox.y1 >= body_bbox.y2))
+          continue;
 
-        int bw=ceil((bbox.x2-bbox.x1+1)*0.6), bh=ceil((bbox.y2-bbox.y1+1)*0.6);
+
+        // TODO 0.6 for body as well? - irrelevant if randomCrop wasn't performed
+        // heads  present with less than 0.6 ratio on image after crop are not allowed
+        int bw=ceil((bbox.x2-bbox.x1+1)*0.6), bh=ceil((bbox.y2-bbox.y1+1)*0.6); // 0.6 * bounding box width and height
         if (bbox.x1 < -bw + source_x1)
           continue;
         if (bbox.y1 < -bh + source_y1)
@@ -317,9 +355,16 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
           Dtype temp = bbox.x1;
           bbox.x1 = cv_img.cols - bbox.x2 - 1;
           bbox.x2 = cv_img.cols - temp - 1;
+          if(bbox.numBody == 1) {
+              temp = body_bbox.x1;
+              body_bbox.x1 = cv_img.cols - body_bbox.x2 - 1;
+              body_bbox.x2 = cv_img.cols - temp - 1;
+          }
         }
 
         finalBoxes.push_back(bbox);
+        if(bbox.numBody == 1)
+            finalBodyBoxes.push_back(body_bbox);
       }
 
       if ( !finalBoxes.empty() )
@@ -351,9 +396,10 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         prefetch_info[batch->info_.offset( batch_index, 4 )] = static_cast<Dtype>(source_x2);
         prefetch_info[batch->info_.offset( batch_index, 5 )] = static_cast<Dtype>(source_y2);
         prefetch_info[batch->info_.offset( batch_index, 6 )] = static_cast<Dtype>(finalBoxes.size());
+//        prefetch_info[batch->info_.offset( batch_index, 7 )] = static_cast<Dtype>(finalBodyBoxes.size());
 
         std::copy(finalBoxes.begin(), finalBoxes.end(), std::back_inserter(accumulatedBoxes));
-
+        std::copy(finalBodyBoxes.begin(), finalBodyBoxes.end(), std::back_inserter(accumulatedBodyBoxes));
 //        TODO
 //        for (int bboxIx = 0; bboxIx < finalBoxes.size(); ++bboxIx)
 //        {
@@ -392,16 +438,38 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   for (int bboxIx = 0; bboxIx < accumulatedBoxes.size(); ++bboxIx)
   {
     BBox bbox = accumulatedBoxes[bboxIx];
+    auto numBody = static_cast<Dtype>(bbox.numBody);
     auto x1 = static_cast<Dtype>(bbox.x1);
     auto y1 = static_cast<Dtype>(bbox.y1);
     auto x2 = static_cast<Dtype>(bbox.x2);
     auto y2 = static_cast<Dtype>(bbox.y2);
 
-    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 0 )] = x1;
-    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 1 )] = y1;
-    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 2 )] = x2;
-    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 3 )] = y2;
-    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 4 )] = 1;
+    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 0 )] = numBody;
+    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 1 )] = x1;
+    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 2 )] = y1;
+    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 3 )] = x2;
+    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 4 )] = y2;
+
+  }
+
+  vector<int> body_bboxes_shape(2);
+  body_bboxes_shape[0] = accumulatedBodyBoxes.size();
+  body_bboxes_shape[1] = 4;
+  batch->body_bboxes_.Reshape(body_bboxes_shape);
+  Dtype *prefetch_body_bboxes = batch->body_bboxes_.mutable_cpu_data();
+  for (int body_bboxIx = 0; body_bboxIx < accumulatedBodyBoxes.size(); ++body_bboxIx)
+  {
+    BodyBBox body_bbox = accumulatedBodyBoxes[body_bboxIx];
+    auto x1 = static_cast<Dtype>(body_bbox.x1);
+    auto y1 = static_cast<Dtype>(body_bbox.y1);
+    auto x2 = static_cast<Dtype>(body_bbox.x2);
+    auto y2 = static_cast<Dtype>(body_bbox.y2);
+
+      prefetch_body_bboxes[batch->bboxes_.offset( body_bboxIx, 0 )] = x1;
+      prefetch_body_bboxes[batch->bboxes_.offset( body_bboxIx, 1 )] = y1;
+      prefetch_body_bboxes[batch->bboxes_.offset( body_bboxIx, 2 )] = x2;
+      prefetch_body_bboxes[batch->bboxes_.offset( body_bboxIx, 3 )] = y2;
+
   }
 
   batch_timer.Stop();
@@ -434,6 +502,7 @@ void ImageROIDataLayer<Dtype>::LayerSetUp
     prefetch_[i].data_.mutable_cpu_data();
     prefetch_[i].info_.mutable_cpu_data();
     prefetch_[i].bboxes_.mutable_cpu_data();
+    prefetch_[i].body_bboxes_.mutable_cpu_data();
   }
 #ifndef CPU_ONLY
   if (Caffe::mode() == Caffe::GPU)
@@ -443,6 +512,7 @@ void ImageROIDataLayer<Dtype>::LayerSetUp
       prefetch_[i].data_.mutable_gpu_data();
       prefetch_[i].info_.mutable_gpu_data();
       prefetch_[i].bboxes_.mutable_gpu_data();
+      prefetch_[i].body_bboxes_.mutable_gpu_data();
     }
   }
 #endif
@@ -855,13 +925,20 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
     caffe_copy(batch->info_.count(), batch->info_.cpu_data(),
                top[1]->mutable_cpu_data());
 
-    // Reshape to image info.
+    // Reshape to bounding boxes.
     top[2]->ReshapeLike(batch->bboxes_);
     // Copy bbox.
     caffe_copy(batch->bboxes_.count(), batch->bboxes_.cpu_data(),
                top[2]->mutable_cpu_data());
 
-    prefetch_free_.push(batch);
+    // Reshape to body bounding boxes.
+    top[3]->ReshapeLike(batch->body_bboxes_);
+    // Copy bbox.
+    caffe_copy(batch->body_bboxes_.count(), batch->body_bboxes_.cpu_data(),
+                 top[3]->mutable_cpu_data());
+
+
+      prefetch_free_.push(batch);
   }
 
 

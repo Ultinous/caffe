@@ -24,24 +24,31 @@ void copyMakeBorderWrapper(const cv::Mat &src, cv::Mat &dst,
 template <typename Dtype>
 class ImageROIDataLayer : public BaseDataLayer<Dtype>, public InternalThread {
 public:
-
   class Batch {
     public:
-    Blob<Dtype> data_, info_, bboxes_;
+    Blob<Dtype> data_, info_, bboxes_, body_bboxes_;
   };
 
-  struct BBox
+    struct BBox
+  {
+//      std::vector<int> coordinates;
+    int numBody, x1, y1, x2, y2;
+  };
+    typedef std::vector<BBox> BBoxes;
+
+    struct BodyBBox
   {
     int x1, y1, x2, y2;
   };
-  typedef std::vector<BBox> BBoxes;
+    typedef std::vector<BodyBBox> BodyBBoxes;
 
-  struct Sample
+    struct Sample
   {
     std::vector<std::string> image_files;
     BBoxes bboxes;
+    BodyBBoxes body_bboxes;
   };
-  typedef std::vector<Sample> Samples;
+    typedef std::vector<Sample> Samples;
 
 public:
   explicit ImageROIDataLayer(const LayerParameter& param);
