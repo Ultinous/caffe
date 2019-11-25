@@ -88,7 +88,9 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     BBox bbox;
     int tmp;
     RotationMatrix rot_m;
+    //LOG(INFO) << "Reading source file ==================================================";
     while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2 >> tmp >> rot_m.x11 >> rot_m.x12 >> rot_m.x13 >> rot_m.x21 >> rot_m.x22 >> rot_m.x23 >> rot_m.x31 >> rot_m.x32 >> rot_m.x33)
+    {
       sample.bboxes.push_back(bbox);
       if(tmp == 1){
           //There is a rotation available for this bbox
@@ -101,9 +103,11 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
       }else{
           //There is no rotation matrix for thib bbox
           sample.rot_matrixes.push_back({});
+	  LOG(INFO) << "No rot mtx found";
       }
     if( !sample.bboxes.empty() )
       samples.push_back( sample );
+  }
   }
 
   CHECK(!samples.empty()) << "File is empty";
@@ -234,6 +238,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
     // Copy rotation matrixes
     RotationMatrixList rot_matrixes = samples[sample_id_].rot_matrixes;
+    //LOG(INFO) << "Sample id: " << sample_id_ <<  " " << rot_matrixes[0].x11 << " " << rot_matrixes[1].x11 << " " << rot_matrixes[2].x11;
 
     // Load image
     timer.Start();
@@ -345,7 +350,9 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         }
 
         finalBoxes.push_back(bbox);
+	//LOG(INFO) << "Index insert: " << i;
         finalRotMatrixes.push_back(rot_matrixes[i]);
+	//LOG(INFO) << "Push mtx to finalRotMtces " << rot_matrixes[i].x11<< " " << rot_matrixes[i].x12 << " "<< rot_matrixes[i].x13;
       }
 
       if ( !finalBoxes.empty() )
@@ -459,6 +466,10 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       prefetched_rot_matrixes[batch->rot_mtxs_.offset(rotMtxIx, 6)] = x31;
       prefetched_rot_matrixes[batch->rot_mtxs_.offset(rotMtxIx, 7)] = x32;
       prefetched_rot_matrixes[batch->rot_mtxs_.offset(rotMtxIx, 8)] = x33;
+
+
+      //LOG(INFO)<< "rotMtxIx: " << rotMtxIx << "first col:  " << x11 << " " << x12 <<  " " << x13;
+
   }
 
   batch_timer.Stop();

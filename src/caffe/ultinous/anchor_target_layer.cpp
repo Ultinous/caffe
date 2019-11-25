@@ -91,6 +91,8 @@ namespace caffe {
       top_rot_mtx_inside_weights->Reshape(batch_size, base_anchors_.size() *9, height, width);
       top_rot_mtx_outside_weights->Reshape(batch_size, base_anchors_.size() *9, height, width);
 
+      //LOG(INFO) << "Rot mtx blob shape " << batch_size << " " << base_anchors_.size() *9 << " " << height << " " << width;
+
       Offset bottom_scores_offset(bottom_scores->shape());
       Offset bottom_bbox_offset(bottom_bbox->shape());
       Offset bottom_info_offset(bottom_info->shape());
@@ -104,7 +106,7 @@ namespace caffe {
       Offset top_bbox_outside_weights_offset(top_bbox_outside_weights->shape());
 
       Offset top_rot_mtx_inside_weights_offset(top_rot_mtx_inside_weights->shape());
-        Offset top_rot_mtx_outside_weights_offset(top_rot_mtx_outside_weights->shape());
+      Offset top_rot_mtx_outside_weights_offset(top_rot_mtx_outside_weights->shape());
       Offset top_rot_mtx_targets_offset(top_rot_mtx_targets->shape());
 
       auto im_info       = bottom_info->cpu_data();
@@ -134,6 +136,7 @@ namespace caffe {
       auto rot_mtx_targets = top_rot_mtx_targets->mutable_cpu_data();
       std::fill(rot_mtx_targets, rot_mtx_targets + top_rot_mtx_targets_offset.count, Dtype(0));
 
+      //LOG(INFO) << bottom_rot_mtx->shape()[0] << " " << bottom_rot_mtx->shape()[1];
 
       float RPN_POSITIVE_OVERLAP  = anchorTargetParam_.positive_overlap();
       float RPN_NEGATIVE_OVERLAP  = anchorTargetParam_.negative_overlap();
@@ -331,14 +334,18 @@ namespace caffe {
             batch_index, 4 * anchor_base_indices[i] + 3, anchorShift.y, anchorShift.x )] = targets_dh;
         }
         // At this point bbox_targets are ready :)
+        
 
+	//LOG(INFO) << "Gt boxes len " << gt_boxes.size();
 
         for(size_t i = 0; i < anchors.size(); ++i)
         {
             Anchor ex = anchors[i];
             Anchor gt = gt_boxes[anchor_argmax_overlaps[i]];
 
-
+		
+	    //LOG(INFO) << "anchor_argmax_overlaps " << anchor_argmax_overlaps[i];
+	    //LOG(INFO) << "batch index " << batch_index;
 
             Shift anchorShift = anchors_shifts[i];
 
@@ -390,12 +397,15 @@ namespace caffe {
             Shift anchorShift = anchors_shifts[i];
             if (labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x] == 1) {
 
-                if (rot_matrix_data[anchor_argmax_overlaps[i]] == 0 &&
-                    rot_matrix_data[anchor_argmax_overlaps[i] +1 ] == 0 &&
-                        rot_matrix_data[anchor_argmax_overlaps[i] + 2] == 0)
+                if (rot_matrix_data[ anchor_argmax_overlaps[i] *9 ] == 0 &&
+                    rot_matrix_data[ anchor_argmax_overlaps[i] *9 +1 ] == 0 &&
+                        rot_matrix_data[ anchor_argmax_overlaps[i]* 9 + 2] == 0)
                 {
+		/* LOG(INFO) << "Skipp anchor at" << rot_matrix_data[anchor_argmax_overlaps[i]] << " " << rot_matrix_data[ anchor_argmax_overlaps[i] *9 +1 ] << " " << rot_matrix_data[ anchor_argmax_overlaps[i]* 9 + 2]; */
                     continue;
                 }
+            /*LOG(INFO) << "target mtx " << rot_matrix_data[anchor_argmax_overlaps[i]*9] << " " << rot_matrix_data[anchor_argmax_overlaps[i]*9 + 1] << " " <<
+		    rot_matrix_data[anchor_argmax_overlaps[i]*9+ 2];*/
 
                 rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i], anchorShift.y,  anchorShift.x
@@ -468,7 +478,7 @@ namespace caffe {
             if (label == 1 || label == 0 ) {
                 Dtype weight = label == 1 ? positive_weight : negative_weight;
               
-
+		
                 rot_mtx_outside_weights[top_rot_mtx_outside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i], anchorShift.y, anchorShift.x
                 )] = weight;

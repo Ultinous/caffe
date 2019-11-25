@@ -38,7 +38,7 @@ public:
 
   struct RotationMatrix
   {
-      Dtype x11, x12, x13, x21, x22, x23, x31, x32, x33;
+      float x11, x12, x13, x21, x22, x23, x31, x32, x33;
   };
 
   typedef std::vector<RotationMatrix> RotationMatrixList;
