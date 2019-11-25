@@ -350,24 +350,24 @@ namespace caffe {
             Shift anchorShift = anchors_shifts[i];
 
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i], anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i]];
+                    batch_index, 9* anchor_base_indices[i], anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] * 9];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i] +1, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 1];
+                    batch_index, 9* anchor_base_indices[i] +1, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] *9 + 1];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+2, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 2];
+                    batch_index, 9* anchor_base_indices[i]+2, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] *9 + 2];
 
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+3, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 3];
+                    batch_index, 9* anchor_base_indices[i]+3, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] *9 + 3];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+4, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 4];
+                    batch_index, 9* anchor_base_indices[i]+4, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] *9 + 4];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+5, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 5];
+                    batch_index, 9* anchor_base_indices[i]+5, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] *9 + 5];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+6, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 6];
+                    batch_index, 9* anchor_base_indices[i]+6, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] *9 + 6];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+7, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 7];
+                    batch_index, 9* anchor_base_indices[i]+7, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] *9 + 7];
             rot_mtx_targets[top_rot_mtx_targets_offset(
-                    batch_index, 9* anchor_base_indices[i]+8, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] + 8];
+                    batch_index, 9* anchor_base_indices[i]+8, anchorShift.y, anchorShift.x)] =  rot_matrix_data[anchor_argmax_overlaps[i] *9 + 8];
 
         }
 
@@ -401,7 +401,7 @@ namespace caffe {
                     rot_matrix_data[ anchor_argmax_overlaps[i] *9 +1 ] == 0 &&
                         rot_matrix_data[ anchor_argmax_overlaps[i]* 9 + 2] == 0)
                 {
-		/* LOG(INFO) << "Skipp anchor at" << rot_matrix_data[anchor_argmax_overlaps[i]] << " " << rot_matrix_data[ anchor_argmax_overlaps[i] *9 +1 ] << " " << rot_matrix_data[ anchor_argmax_overlaps[i]* 9 + 2]; */
+		/* LOG(INFO) << "Skipp anchor at" << rot_matrix_data[anchor_argmax_overlaps[i]*9] << " " << rot_matrix_data[ anchor_argmax_overlaps[i] *9 +1 ] << " " << rot_matrix_data[ anchor_argmax_overlaps[i]* 9 + 2]; */
                     continue;
                 }
             /*LOG(INFO) << "target mtx " << rot_matrix_data[anchor_argmax_overlaps[i]*9] << " " << rot_matrix_data[anchor_argmax_overlaps[i]*9 + 1] << " " <<
@@ -433,7 +433,7 @@ namespace caffe {
                 )] = 1.0;
                 rot_mtx_inside_weights[top_rot_mtx_inside_weights_offset(
                         batch_index, 9 * anchor_base_indices[i] +8, anchorShift.y,  anchorShift.x
-                )] = 1.;
+                )] = 1.0;
             }
         }
 
