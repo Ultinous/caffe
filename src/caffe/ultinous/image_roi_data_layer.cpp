@@ -583,6 +583,28 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
   int& source_x1, int& source_x2, int& source_y1, int& source_y2,
   const int crop_height, const int crop_width
 ){
+//  TODO
+//  int h=cv_img.rows, w=cv_img.cols;
+//
+//  source_x1 = 0;
+//  source_x2 = std::min(w-1,crop_width-1);
+//  source_y1 = 0;
+//  source_y2 = std::min(h-1,crop_height-1);
+//
+//  if (h<crop_height && w < crop_width)
+//    copyMakeBorderWrapper(cv_img, cv_img, 0, crop_height-h, 0, crop_width-w, mean_values_);
+//  else if (h<crop_height)
+//    copyMakeBorderWrapper(cv_img, cv_img, 0, crop_height-h, 0, 0, mean_values_);
+//  else if (w < crop_width)
+//    copyMakeBorderWrapper(cv_img, cv_img, 0, 0, 0, crop_width-w, mean_values_);
+//
+//  if ( h != crop_width || w != crop_height )
+//    cv_img = cv_img(cv::Rect(0, 0, crop_width, crop_height));
+//
+//  return false;
+
+
+
   bool skip = true;
 
   int crop_x,crop_y,pad_x=0,pad_y=0;
