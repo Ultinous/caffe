@@ -207,7 +207,7 @@ namespace caffe {
         // Load gt_boxes;
         Boxes gt_boxes;
         Boxes gt_body_boxes;
-        std::map<size_t, size_t> head2body;
+        std::map<short, short> head2body;
         size_t num_gt_boxes = im_info[bottom_info_offset( batch_index, 6 )];
         size_t num_gt_body_boxes = 0;
         for (size_t i = gt_box_offset; i < gt_box_offset+num_gt_boxes; ++i) {
@@ -228,7 +228,7 @@ namespace caffe {
                 num_gt_body_boxes += 1;
             }
             else{
-                head2body[i-gt_body_box_offset] = -1; // no body exists for current head
+                head2body[i-gt_box_offset] = -1; // no body exists for current head
             }
         }
 
