@@ -219,7 +219,7 @@ namespace caffe {
             // load body box if it exists
             if (data_gt_boxes[bottom_bbox_offset(i, 0)] == 1){
                 head2body[i-gt_box_offset] = num_gt_body_boxes;
-                size_t j = gt_box_offset + num_gt_body_boxes;
+                size_t j = gt_body_box_offset + num_gt_body_boxes;
                 gt_body_boxes.push_back(
                         Anchor{data_gt_body_boxes[bottom_body_bbox_offset(j, 0)],
                                data_gt_body_boxes[bottom_body_bbox_offset(j, 1)],
@@ -367,7 +367,7 @@ namespace caffe {
               // TODO check validity
               float body_src_width = src_width * body_scales[0];
               float body_src_height = src_height * body_scales[1];
-              float body_src_ctr_x = src_ctr_x; // body aligned vertically with head
+              float body_src_ctr_x = src_ctr_x; // asssume that body is always aligned vertically with head
               float body_src_ctr_y = src_ctr_y + body_src_height * body_scales[3];
 
               float body_gt_width = body_gt[2] - body_gt[0] + 1.0;
@@ -379,9 +379,7 @@ namespace caffe {
               float body_targets_dy = (body_gt_ctr_y - body_src_ctr_y) / body_src_height;
               float body_targets_dw = std::log(body_gt_width / body_src_width);
               float body_targets_dh = std::log(body_gt_height / body_src_height);
-//              LOG(INFO) << "body_source: " << body_src_width << " " << body_src_height << " " << body_src_ctr_x << " " << body_src_ctr_y;
-//              LOG(INFO) << "body_gt: " << body_gt_width << " " << body_gt_height << " " << body_gt_ctr_x << " " << body_gt_ctr_y;
-//              LOG(INFO) << "body_targets: " << body_targets_dx << " " << body_targets_dy << " " << body_targets_dw << " " << body_targets_dh;
+
               Shift anchorShift = anchors_shifts[i];
               body_bbox_targets[top_body_bbox_targets_offset(
                       batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = body_targets_dx;
@@ -395,7 +393,6 @@ namespace caffe {
               body_bbox_targets[top_body_bbox_targets_offset(
                       batch_index, 4 * anchor_base_indices[i] + 3, anchorShift.y, anchorShift.x )] = body_targets_dh;
           }
-
         }
         // At this point bbox_targets are ready :)
 
