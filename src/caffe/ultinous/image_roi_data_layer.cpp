@@ -322,7 +322,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
         BodyBBox body_bbox;
         if(bbox.numBody == 1){
-//          LOG(INFO) << "bodyBBOX" << body_bbox_it->x1 << " " << body_bbox_it->y1 << " " << body_bbox_it->x2 << " " << body_bbox_it->y2;
+//          LOG(INFO) << "bodyBBOX " << body_bbox_it->x1 << " " << body_bbox_it->y1 << " " << body_bbox_it->x2 << " " << body_bbox_it->y2;
 //          CHECK(body_bbox_it == body_boxes.end()) << "No body bounding boxes left at " << samples[sample_id_].image_files[0];
           body_bbox = *body_bbox_it;
           body_bbox.x1 *= scale;
@@ -465,10 +465,10 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     auto x2 = static_cast<Dtype>(body_bbox.x2);
     auto y2 = static_cast<Dtype>(body_bbox.y2);
 
-      prefetch_body_bboxes[batch->bboxes_.offset( body_bboxIx, 0 )] = x1;
-      prefetch_body_bboxes[batch->bboxes_.offset( body_bboxIx, 1 )] = y1;
-      prefetch_body_bboxes[batch->bboxes_.offset( body_bboxIx, 2 )] = x2;
-      prefetch_body_bboxes[batch->bboxes_.offset( body_bboxIx, 3 )] = y2;
+      prefetch_body_bboxes[batch->body_bboxes_.offset( body_bboxIx, 0 )] = x1;
+      prefetch_body_bboxes[batch->body_bboxes_.offset( body_bboxIx, 1 )] = y1;
+      prefetch_body_bboxes[batch->body_bboxes_.offset( body_bboxIx, 2 )] = x2;
+      prefetch_body_bboxes[batch->body_bboxes_.offset( body_bboxIx, 3 )] = y2;
 
   }
 

@@ -69,10 +69,9 @@ namespace caffe {
 
       auto bottom_scores = bottom[0];
       auto bottom_bbox   = bottom[1];
-      auto bottom_info   = bottom[2];
+      auto bottom_body_bbox   = bottom[2];
+      auto bottom_info   = bottom[3];
 //  auto bottom_image =  bottom[3];
-      auto bottom_body_bbox   = bottom[4];
-
 
       auto top_labels               = top[0];
       auto top_bbox_targets         = top[1];
@@ -211,6 +210,8 @@ namespace caffe {
         size_t num_gt_boxes = im_info[bottom_info_offset( batch_index, 6 )];
         size_t num_gt_body_boxes = 0;
         for (size_t i = gt_box_offset; i < gt_box_offset+num_gt_boxes; ++i) {
+//            LOG(INFO) << "pushback gt head boxes: " << data_gt_boxes[bottom_bbox_offset(i, 1)] << " " << data_gt_boxes[bottom_bbox_offset(i, 2)]
+//                      << " " << data_gt_boxes[bottom_bbox_offset(i, 3)] << " " << data_gt_boxes[bottom_bbox_offset(i, 4)];
             gt_boxes.push_back(
                     Anchor{data_gt_boxes[bottom_bbox_offset(i, 1)],
                            data_gt_boxes[bottom_bbox_offset(i, 2)],
@@ -220,6 +221,8 @@ namespace caffe {
             if (data_gt_boxes[bottom_bbox_offset(i, 0)] == 1){
                 head2body[i-gt_box_offset] = num_gt_body_boxes;
                 size_t j = gt_body_box_offset + num_gt_body_boxes;
+//                LOG(INFO) << "pushback gt body boxes: " << data_gt_body_boxes[bottom_body_bbox_offset(j, 0)] << " " << data_gt_body_boxes[bottom_body_bbox_offset(j, 1)]
+//                << " " << data_gt_body_boxes[bottom_body_bbox_offset(j, 2)] << " " << data_gt_body_boxes[bottom_body_bbox_offset(j, 3)];
                 gt_body_boxes.push_back(
                         Anchor{data_gt_body_boxes[bottom_body_bbox_offset(j, 0)],
                                data_gt_body_boxes[bottom_body_bbox_offset(j, 1)],
@@ -379,6 +382,10 @@ namespace caffe {
               float body_targets_dy = (body_gt_ctr_y - body_src_ctr_y) / body_src_height;
               float body_targets_dw = std::log(body_gt_width / body_src_width);
               float body_targets_dh = std::log(body_gt_height / body_src_height);
+//              LOG(INFO) << "head2body: " << head2body[anchor_argmax_overlaps[i]];
+//              LOG(INFO) << "body_box: " << body_gt[0] << " "<< body_gt[1] << " " << body_gt[2] << " " << body_gt[3];
+//              LOG(INFO) << "logs: " << body_targets_dw << " " << body_targets_dh;
+//              LOG(INFO) << "logargs: " << body_gt_width << " " <<  body_src_width << " " << body_gt_height << " " << body_src_height;
 
               Shift anchorShift = anchors_shifts[i];
               body_bbox_targets[top_body_bbox_targets_offset(
