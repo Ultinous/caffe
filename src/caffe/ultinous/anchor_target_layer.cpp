@@ -423,11 +423,11 @@ namespace caffe {
                 body_bbox_inside_weights[top_body_bbox_inside_weights_offset(
                         batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = RPN_BBOX_INSIDE_WEIGHTS[0];
                 body_bbox_inside_weights[top_body_bbox_inside_weights_offset(
-                        batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = RPN_BBOX_INSIDE_WEIGHTS[0];
+                        batch_index, 4 * anchor_base_indices[i] + 1,     anchorShift.y, anchorShift.x )] = RPN_BBOX_INSIDE_WEIGHTS[1];
                 body_bbox_inside_weights[top_body_bbox_inside_weights_offset(
-                        batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = RPN_BBOX_INSIDE_WEIGHTS[0];
+                        batch_index, 4 * anchor_base_indices[i] + 2,     anchorShift.y, anchorShift.x )] = RPN_BBOX_INSIDE_WEIGHTS[2];
                 body_bbox_inside_weights[top_body_bbox_inside_weights_offset(
-                        batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = RPN_BBOX_INSIDE_WEIGHTS[0];
+                        batch_index, 4 * anchor_base_indices[i] + 3,     anchorShift.y, anchorShift.x )] = RPN_BBOX_INSIDE_WEIGHTS[3];
             }
 
           }
