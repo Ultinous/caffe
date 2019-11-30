@@ -170,8 +170,11 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 //    milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 //    std::stringstream ss;
 //    ss << ms.count();
+//
 //    name = ss.str();
 //  }
+
+
 
   const auto& image_data_param = this->layer_param_.image_data_param();
 
@@ -220,8 +223,10 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
 //    TODO
 //    cv::Mat cv_tmp = cv_img.clone();
-//    for (auto it=samples[sample_id_].bboxes.begin(); it!=samples[sample_id_].bboxes.end(); ++it)
-//      cv::rectangle(cv_tmp, cv::Point(it->x1, it->y1), cv::Point(it->x2, it->y2), cv::Scalar(0, 255, 0));
+//    for (auto box : boxes)
+//      cv::rectangle(cv_tmp, cv::Point(box.x1, box.y1), cv::Point(box.x2, box.y2), cv::Scalar(0, 0, 255));
+
+
 
     read_time += timer.MicroSeconds();
 
@@ -292,34 +297,34 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       }
 
       BBoxes finalBoxes;
-      for (BBox bbox : boxes)
+      for (BBox box : boxes)
       {
-        bbox.x1 *= scale;
-        bbox.y1 *= scale;
-        bbox.x2 *= scale;
-        bbox.y2 *= scale;
-
-        if (bbox.x1 >= bbox.x2 || bbox.y1 >= bbox.y2)
-          continue;
-
-        int bw=ceil((bbox.x2-bbox.x1+1)*0.6), bh=ceil((bbox.y2-bbox.y1+1)*0.6);
-        if (bbox.x1 < -bw + source_x1)
-          continue;
-        if (bbox.y1 < -bh + source_y1)
-          continue;
-        if (bbox.x2 > source_x2 + bw)
-          continue;
-        if (bbox.y2 > source_y2 + bh)
+        if (box.x1 > box.x2 || box.y1 > box.y2)
           continue;
 
         if (mirror)
         {
-          Dtype temp = bbox.x1;
-          bbox.x1 = cv_img.cols - bbox.x2 - 1;
-          bbox.x2 = cv_img.cols - temp - 1;
+          Dtype temp = box.x1;
+          box.x1 = cv_img.cols - box.x2 - 1;
+          box.x2 = cv_img.cols - temp - 1;
         }
 
-        finalBoxes.push_back(bbox);
+        box.x1 *= scale;
+        box.y1 *= scale;
+        box.x2 *= scale;
+        box.y2 *= scale;
+
+        int bw=ceil((box.x2-box.x1+1)*0.6), bh=ceil((box.y2-box.y1+1)*0.6);
+        if (box.x1 < source_x1 - bw)
+          continue;
+        if (box.y1 < source_y1 - bw)
+          continue;
+        if (box.x2 > source_x2 + bw)
+          continue;
+        if (box.y2 > source_y2 + bh)
+          continue;
+
+        finalBoxes.push_back(box);
       }
 
       if ( !finalBoxes.empty() )
@@ -363,10 +368,13 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 //          Dtype x2 = static_cast<Dtype>(bbox.x2);
 //          Dtype y2 = static_cast<Dtype>(bbox.y2);
 //
-//          cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0));//TODO
+//          cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 0, 255));
 //        }
-//        cv::imwrite("debug/"+name+"_"+batch_index+"_crop.jpg", cv_img);//TODO
-//        cv::imwrite("debug/"+name+_+batch_index+".jpg", cv_tmp);//TODO
+//        cv::rectangle(cv_img, cv::Point(source_x1, source_y1), cv::Point(source_x2, source_y2), cv::Scalar(0, 255, 0));
+//        cv::imwrite("debug/"+name+'_'+std::to_string(batch_index)+"_crop.jpg", cv_img);
+//        cv::imwrite("debug/"+name+'_'+std::to_string(batch_index)+".jpg", cv_tmp);
+
+
 
         batch_index += 1;
       }
@@ -607,6 +615,11 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
 
   bool skip = true;
 
+  source_x1 = 0;
+  source_y1 = 0;
+  source_x2 = crop_width  - 1;
+  source_y2 = crop_height - 1;
+
   int crop_x,crop_y,pad_x=0,pad_y=0;
 
   int source_height = cv_img.rows;
@@ -662,20 +675,17 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
     }
 
     std::vector<int> vx1,vx2,vy1,vy2;
-    for (BBox bb : boxes)
+    for (BBox box : boxes)
     {
-      vx1.push_back( std::min(std::max(0,bb.x1), cv_img.cols-1) );
-      vy1.push_back( std::min(std::max(0,bb.y1), cv_img.rows-1) );
-      vx2.push_back( std::min(std::max(0,bb.x2), cv_img.cols-1) );
-      vy2.push_back( std::min(std::max(0,bb.y2), cv_img.rows-1) );
+      vx1.push_back( std::min(std::max(0,box.x1), cv_img.cols-1) );
+      vy1.push_back( std::min(std::max(0,box.y1), cv_img.rows-1) );
+      vx2.push_back( std::min(std::max(0,box.x2), cv_img.cols-1) );
+      vy2.push_back( std::min(std::max(0,box.y2), cv_img.rows-1) );
     }
 
     int x1,x2,y1,y2;
     while (true)
     {
-      if (vx1.empty())
-        break;
-
       x1 = *std::min_element(vx1.begin(),vx1.end());
       y1 = *std::min_element(vy1.begin(),vy1.end());
       x2 = *std::max_element(vx2.begin(),vx2.end());
@@ -745,10 +755,15 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
 
           for (auto direction : directions)
           {
-            auto gain = getGain(direction.second,vx1,vy1,vx2,vy2);
-            gains[direction.first] = gain[Gain::vertical] * gain[Gain::horizontal];
-            if ( gain[Gain::vertical] <= crop_height && gain[Gain::horizontal] <= crop_width )
-              satisfiers.push_back(direction.first);
+            if (direction.second.size() >= vx1.size())
+              directions.erase(direction.first);
+            else
+            {
+              auto gain = getGain(direction.second,vx1,vy1,vx2,vy2);
+              gains[direction.first] = gain[Gain::vertical] * gain[Gain::horizontal];
+              if ( gain[Gain::vertical] <= crop_height && gain[Gain::horizontal] <= crop_width )
+                satisfiers.push_back(direction.first);
+            }
           }
         }
         else if (vertical)
@@ -757,9 +772,14 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
           directions.erase(Dir::e);
           for (auto direction : directions)
           {
-            gains[direction.first] = getGain(direction.second,vx1,vy1,vx2,vy2)[Gain::vertical];
-            if ( gains[direction.first] <= crop_height )
-              satisfiers.push_back(direction.first);
+            if (direction.second.size() >= vx1.size())
+              directions.erase(direction.first);
+            else
+            {
+              gains[direction.first] = getGain(direction.second,vx1,vy1,vx2,vy2)[Gain::vertical];
+              if ( gains[direction.first] <= crop_height )
+                satisfiers.push_back(direction.first);
+            }
           }
         }
         else if (horizontal)
@@ -768,9 +788,14 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
           directions.erase(Dir::s);
           for (auto direction : directions)
           {
-            gains[direction.first] = getGain(direction.second,vx1,vy1,vx2,vy2)[Gain::horizontal];
-            if ( gains[direction.first] <= crop_width )
-              satisfiers.push_back(direction.first);
+            if (direction.second.size() >= vx1.size())
+              directions.erase(direction.first);
+            else
+            {
+              gains[direction.first] = getGain(direction.second,vx1,vy1,vx2,vy2)[Gain::horizontal];
+              if ( gains[direction.first] <= crop_width )
+                satisfiers.push_back(direction.first);
+            }
           }
         }
 
@@ -780,11 +805,21 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
           if (satisfiers.size() == 1)
             key = satisfiers[0];
           else
+          {
+            std::vector<size_t> sizes;
+            for (auto k : satisfiers)
+              sizes.push_back(directions[k].size());
+            const size_t minSize = *std::min_element(sizes.begin(),sizes.end());
+            for (auto it=sizes.rbegin(); it!=sizes.rend(); ++it)
+              if (*it != minSize)
+                satisfiers.erase( satisfiers.begin() - std::distance(sizes.rend(), it) - 1 );
+
             key = satisfiers[ caffe_rng_rand() % satisfiers.size() ];
+          }
 
           indicesToRemove.insert(directions[key].begin(), directions[key].end());
         }
-        else
+        else if ( !directions.empty() )
         {
           const int minGain = std::min_element(
               std::begin(gains), std::end(gains),
@@ -796,10 +831,21 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
           for (auto gain : gains)
             if (gain.second == minGain)
               minKeys.push_back(gain.first);
+
+          std::vector<size_t> sizes;
+          for (auto k : minKeys)
+            sizes.push_back(directions[k].size());
+          const size_t minSize = *std::min_element(sizes.begin(),sizes.end());
+          for (auto it=sizes.rbegin(); it!=sizes.rend(); ++it)
+            if (*it != minSize)
+              minKeys.erase( minKeys.begin() - std::distance(sizes.rend(), it) - 1 );
+
           Dir minKey = minKeys[ caffe_rng_rand() % minKeys.size() ];
 
           indicesToRemove.insert(directions[minKey].begin(), directions[minKey].end());
         }
+        else
+          break;
 
         for (auto it=indicesToRemove.rbegin(); indicesToRemove.rend()!=it; ++it)
         {
