@@ -21,6 +21,8 @@ void copyMakeBorderWrapper(const cv::Mat &src, cv::Mat &dst,
                            int top, int bottom, int left, int right,
                            const std::vector<double> &color);
 
+void addBackgorund(int &c1, int &c2, int b1, int b2, int space);
+
 template <typename Dtype>
 class ImageROIDataLayer : public BaseDataLayer<Dtype>, public InternalThread {
 public:

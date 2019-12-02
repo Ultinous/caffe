@@ -221,7 +221,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 //    TODO
 //    cv::Mat cv_tmp = cv_img.clone();
 //    for (auto it=samples[sample_id_].bboxes.begin(); it!=samples[sample_id_].bboxes.end(); ++it)
-//      cv::rectangle(cv_tmp, cv::Point(it->x1, it->y1), cv::Point(it->x2, it->y2), cv::Scalar(0, 255, 0));
+//      cv::rectangle(cv_tmp, cv::Point(it->x1, it->y1), cv::Point(it->x2, it->y2), cv::Scalar(0, 0, 255));
 
     read_time += timer.MicroSeconds();
 
@@ -363,10 +363,11 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 //          Dtype x2 = static_cast<Dtype>(bbox.x2);
 //          Dtype y2 = static_cast<Dtype>(bbox.y2);
 //
-//          cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 255, 0));//TODO
+//          cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 0, 255));
 //        }
-//        cv::imwrite("debug/"+name+"_"+batch_index+"_crop.jpg", cv_img);//TODO
-//        cv::imwrite("debug/"+name+_+batch_index+".jpg", cv_tmp);//TODO
+//        cv::rectangle(cv_img, cv::Point(source_x1, source_y1), cv::Point(source_x2, source_y2), cv::Scalar(0, 255, 0));
+//        cv::imwrite("debug/"+name+'_'+std::to_string(batch_index)+"_crop.jpg", cv_img);
+//        cv::imwrite("debug/"+name+'_'+std::to_string(batch_index)+".jpg", cv_tmp);
 
         batch_index += 1;
       }
@@ -525,6 +526,27 @@ void copyMakeBorderWrapper(const cv::Mat &src, cv::Mat &dst,
   }
 }
 
+void addBackgorund(int &c1, int &c2, int b1, int b2, int space)
+{
+  int d = std::min(b1,b2);
+  if (2*d < space)
+  {
+    c1 -= d;
+    c2 += d;
+    b1 -= d;
+    b2 -= d;
+    if (b1)
+      c1 -= std::min(b1, space - 2*d);
+    else // if (r)
+      c2 += std::min(b2, space - 2*d);
+  }
+  else
+  {
+    c1 -= space/2;
+    c2 += space/2;
+  }
+}
+
 template <typename Dtype>
 inline cv::Mat ImageROIDataLayer<Dtype>::readMultiChannelImage(int inImgNum, int new_height, int new_width, bool is_color, const string& root_folder)
 {
@@ -583,37 +605,6 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
   int& source_x1, int& source_x2, int& source_y1, int& source_y2,
   const int crop_height, const int crop_width
 ){
-//  TODO
-//  int h=cv_img.rows, w=cv_img.cols;
-//
-//  source_x1 = 0;
-//  source_x2 = std::min(w-1,crop_width-1);
-//  source_y1 = 0;
-//  source_y2 = std::min(h-1,crop_height-1);
-//
-//  if (h<crop_height && w < crop_width)
-//    copyMakeBorderWrapper(cv_img, cv_img, 0, crop_height-h, 0, crop_width-w, mean_values_);
-//  else if (h<crop_height)
-//    copyMakeBorderWrapper(cv_img, cv_img, 0, crop_height-h, 0, 0, mean_values_);
-//  else if (w < crop_width)
-//    copyMakeBorderWrapper(cv_img, cv_img, 0, 0, 0, crop_width-w, mean_values_);
-//
-//  if ( h != crop_width || w != crop_height )
-//    cv_img = cv_img(cv::Rect(0, 0, crop_width, crop_height));
-//
-//  return false;
-
-
-
-  bool skip = true;
-
-  source_x1 = 0;
-  source_y1 = 0;
-  source_x2 = crop_width  - 1;
-  source_y2 = crop_height - 1;
-
-  int crop_x,crop_y,pad_x=0,pad_y=0;
-
   int source_height = cv_img.rows;
   int source_width = cv_img.cols;
 
@@ -621,51 +612,16 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
   int dx = crop_width - source_width;
   if (dy >= 0 && dx >= 0)
   {
-    pad_x = ( dx==0 ? 0 : caffe_rng_rand()%(dx + 1) );
-
-    pad_y = ( dy==0 ? 0 : caffe_rng_rand()%(dy + 1) );
-
-    source_x1 = pad_x;
-    source_y1 = pad_y;
-    source_x2 = pad_x + source_width  - 1;
-    source_y2 = pad_y + source_height - 1;
+    source_x1 = 0;
+    source_y1 = 0;
+    source_x2 = source_width  - 1;
+    source_y2 = source_height - 1;
 
     if (dx != 0 || dy != 0)
-    {
-      copyMakeBorderWrapper(cv_img, cv_img, pad_y, dy - pad_y, pad_x, dx - pad_x, mean_values_);
-
-      for (auto it=boxes.begin(); it!=boxes.end(); ++it)
-      {
-        it->x1 += pad_x;
-        it->x2 += pad_x;
-        it->y1 += pad_y;
-        it->y2 += pad_y;
-      }
-    }
-
-    skip = false;
-
+      copyMakeBorderWrapper(cv_img, cv_img, 0, dy, 0, dx, mean_values_);
   }
   else
   {
-    if (dy > 0)
-    {
-      pad_y = dy;
-      copyMakeBorderWrapper(cv_img, cv_img, pad_y, pad_y, 0, 0, mean_values_);
-    }
-    else if (dx > 0)
-    {
-      pad_x = dx;
-      copyMakeBorderWrapper(cv_img, cv_img, 0, 0, pad_x, pad_x, mean_values_);
-    }
-    for (auto it=boxes.begin(); it!=boxes.end(); ++it)
-    {
-      it->x1 += pad_x;
-      it->x2 += pad_x;
-      it->y1 += pad_y;
-      it->y2 += pad_y;
-    }
-
     std::vector<int> vx1,vx2,vy1,vy2;
     for (BBox bb : boxes)
     {
@@ -675,226 +631,99 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
       vy2.push_back( std::min(std::max(0,bb.y2), cv_img.rows-1) );
     }
 
-    int x1,x2,y1,y2;
-    while (true)
+    int x1 = *std::min_element(vx1.begin(), vx1.end());
+    int y1 = *std::min_element(vy1.begin(), vy1.end());
+    int x2 = *std::max_element(vx2.begin(), vx2.end());
+    int y2 = *std::max_element(vy2.begin(), vy2.end());
+
+    int context_w = 333, context_h = context_w; // effective receptive field dim / 2
+
+    x1 = std::max( x1 - context_w, 0 );
+    y1 = std::max( y1 - context_h, 0 );
+    x2 = std::min( x2 + context_w, source_width  - 1 );
+    y2 = std::min( y2 + context_h, source_height - 1 );
+
+    int w = x2 - x1 + 1, h = y2 - y1 + 1;
+
+    if (w > crop_width || h > crop_height)
     {
-      x1 = *std::min_element(vx1.begin(),vx1.end());
-      y1 = *std::min_element(vy1.begin(),vy1.end());
-      x2 = *std::max_element(vx2.begin(),vx2.end());
-      y2 = *std::max_element(vy2.begin(),vy2.end());
+      auto scale_w = std::min( 1.0f, (float)crop_width  / w );
+      auto scale_h = std::min( 1.0f, (float)crop_height / h );
+      auto scale = std::min(scale_w,scale_h);
 
-      if (x1 >= x2 || y1 >= y2)
-        break;
+      int l = x1;
+      int r = source_width - 1 - x2;
+      int t = y1;
+      int b = source_height - 1 - y2;
 
-      int h = y2-y1+1, w = x2-x1+1;
+      auto space_width  = (int)std::round((float)crop_width / scale - w);
+      auto space_height = (int)std::round((float)crop_height / scale - h);
 
-      bool vertical   = h > crop_height;
-      bool horizontal = w > crop_width;
+      addBackgorund(y1, y2, t, b, space_height);
+      addBackgorund(x1, x2, l, r, space_width);
 
-      if (vertical || horizontal)
+      w = x2 - x1 + 1;
+      h = y2 - y1 + 1;
+
+      cv::Mat cv_resized;
+      cv::Rect roi(x1,y1,w,h);
+      cv_img = cv_img(roi);
+      cv::resize(cv_img, cv_resized, cv::Size(0,0), scale, scale, cv::INTER_LINEAR);
+      cv_img = cv_resized;
+
+      for (auto it=boxes.begin(); it!=boxes.end(); ++it)
       {
-        std::set<size_t> indicesToRemove;
-        std::vector<Dir> satisfiers;
-        std::map<Dir, std::vector<size_t>> directions;
-        std::map<Dir, int> gains;
-
-        for (int i=0; i<4; ++i) // iterate n,e,s,w
-          directions.emplace(std::make_pair(Dir(i), std::vector<size_t>()));
-
-        for (size_t i = 0; i < vx1.size(); ++i)
-        {
-          if (vx1[i] == x1)
-            directions[Dir::w].push_back(i);
-          if (vy1[i] == y1)
-            directions[Dir::n].push_back(i);
-          if (vx2[i] == x2)
-            directions[Dir::e].push_back(i);
-          if (vy2[i] == y2)
-            directions[Dir::s].push_back(i);
-        }
-
-        if (vertical && horizontal)
-        {
-          for (int i=4; i<8; ++i) // iterate ne,se,sw,nw
-            directions.emplace(std::make_pair(Dir(i), std::vector<size_t>()));
-
-          std::vector<size_t> u;
-          std::set_union(
-            directions[Dir::n].begin(), directions[Dir::n].end(), directions[Dir::e].begin(), directions[Dir::e].end(),
-            std::back_inserter(u));
-          directions[Dir::ne] = u;
-
-          u.clear();
-          std::set_union(
-            directions[Dir::s].begin(), directions[Dir::s].end(), directions[Dir::e].begin(), directions[Dir::e].end(),
-            std::back_inserter(u));
-          directions[Dir::se] = u;
-
-          u.clear();
-          std::set_union(
-            directions[Dir::s].begin(), directions[Dir::s].end(), directions[Dir::w].begin(), directions[Dir::w].end(),
-            std::back_inserter(u));
-          directions[Dir::sw] = u;
-
-          u.clear();
-          std::set_union(
-            directions[Dir::n].begin(), directions[Dir::n].end(), directions[Dir::w].begin(), directions[Dir::w].end(),
-            std::back_inserter(u));
-          directions[Dir::nw] = u;
-
-          for (int i=0; i<4; ++i) // iterate n,e,s,w
-            directions.erase(Dir(i));
-
-          for (auto direction : directions)
-          {
-            if (direction.second.size() >= vx1.size())
-              directions.erase(direction.first);
-            else
-            {
-              auto gain = getGain(direction.second,vx1,vy1,vx2,vy2);
-              gains[direction.first] = gain[Gain::vertical] * gain[Gain::horizontal];
-              if ( gain[Gain::vertical] <= crop_height && gain[Gain::horizontal] <= crop_width )
-                satisfiers.push_back(direction.first);
-            }
-          }
-        }
-        else if (vertical)
-        {
-          directions.erase(Dir::w);
-          directions.erase(Dir::e);
-          for (auto direction : directions)
-          {
-            if (direction.second.size() >= vx1.size())
-              directions.erase(direction.first);
-            else
-            {
-              gains[direction.first] = getGain(direction.second,vx1,vy1,vx2,vy2)[Gain::vertical];
-              if ( gains[direction.first] <= crop_height )
-                satisfiers.push_back(direction.first);
-            }
-          }
-        }
-        else if (horizontal)
-        {
-          directions.erase(Dir::n);
-          directions.erase(Dir::s);
-          for (auto direction : directions)
-          {
-            if (direction.second.size() >= vx1.size())
-              directions.erase(direction.first);
-            else
-            {
-              gains[direction.first] = getGain(direction.second,vx1,vy1,vx2,vy2)[Gain::horizontal];
-              if ( gains[direction.first] <= crop_width )
-                satisfiers.push_back(direction.first);
-            }
-          }
-        }
-
-        if ( !satisfiers.empty() )
-        {
-          Dir key;
-          if (satisfiers.size() == 1)
-            key = satisfiers[0];
-          else
-          {
-            std::vector<size_t> sizes;
-            for (auto k : satisfiers)
-              sizes.push_back(directions[k].size());
-            const size_t minSize = *std::min_element(sizes.begin(),sizes.end());
-            for (auto it=sizes.rbegin(); it!=sizes.rend(); ++it)
-              if (*it != minSize)
-                satisfiers.erase( satisfiers.begin() - std::distance(sizes.rend(), it) - 1 );
-
-            key = satisfiers[ caffe_rng_rand() % satisfiers.size() ];
-          }
-
-          indicesToRemove.insert(directions[key].begin(), directions[key].end());
-        }
-        else if ( !directions.empty() )
-        {
-          const int minGain = std::min_element(
-              std::begin(gains), std::end(gains),
-              [] (const std::pair< Dir, int > & p1, const std::pair< Dir, int > & p2) {
-                return p1.second < p2.second;
-              })->second;
-
-          std::vector<Dir> minKeys;
-          for (auto gain : gains)
-            if (gain.second == minGain)
-              minKeys.push_back(gain.first);
-
-          std::vector<size_t> sizes;
-          for (auto k : minKeys)
-            sizes.push_back(directions[k].size());
-          const size_t minSize = *std::min_element(sizes.begin(),sizes.end());
-          for (auto it=sizes.rbegin(); it!=sizes.rend(); ++it)
-            if (*it != minSize)
-              minKeys.erase( minKeys.begin() - std::distance(sizes.rend(), it) - 1 );
-
-          Dir minKey = minKeys[ caffe_rng_rand() % minKeys.size() ];
-
-          indicesToRemove.insert(directions[minKey].begin(), directions[minKey].end());
-        }
-        else
-          break;
-
-        for (auto it=indicesToRemove.rbegin(); indicesToRemove.rend()!=it; ++it)
-        {
-          vx1.erase(vx1.begin() + *it);
-          vx2.erase(vx2.begin() + *it);
-          vy1.erase(vy1.begin() + *it);
-          vy2.erase(vy2.begin() + *it);
-        }
+        it->x1 = (it->x1 - x1) * scale;
+        it->x2 = (it->x2 - x1) * scale;
+        it->y1 = (it->y1 - y1) * scale;
+        it->y2 = (it->y2 - y1) * scale;
       }
-      else
-      {
-        skip = false;
-        break;
-      }
+
+      source_x1 = 0;
+      source_y1 = 0;
+      source_x2 = cv_img.cols - 1;
+      source_y2 = cv_img.rows - 1;
     }
-    if (!skip)
+    else
     {
-      int crop_min_x = std::max(0, x2 - crop_width + 1);
-      int crop_min_y = std::max(0, y2 - crop_height + 1);
-      int crop_max_x = std::min(x1, cv_img.cols - crop_width);
-      int crop_max_y = std::min(y1, cv_img.rows - crop_height);
+      int l = x1;
+      int r = source_width - 1 - x2;
+      int t = y1;
+      int b = source_height - 1 - y2;
 
-      if (crop_min_y == crop_max_y)
-        crop_y = crop_min_y;
-      else
-        crop_y = crop_min_y + (caffe_rng_rand() % (crop_max_y-crop_min_y+1));
+      int space_width  = crop_width - w;
+      int space_height = crop_height - h;
 
-      if (crop_min_x == crop_max_x)
-        crop_x = crop_min_x;
-      else
-        crop_x = crop_min_x + (caffe_rng_rand() % (crop_max_x-crop_min_x+1));
+      addBackgorund(x1, x2, l, r, space_width);
+      addBackgorund(y1, y2, t, b, space_height);
 
-      if (dy > 0)
-      {
-        source_y1 = dy-crop_y;
-        source_y2 = source_y1 + source_height - 1;
-      }
-      else if (dx > 0)
-      {
-        source_x1 = dx-crop_x;
-        source_x2 = source_x1 + source_width - 1;
-      }
+      w = x2 - x1 + 1;
+      h = y2 - y1 + 1;
 
-      cv::Rect roi(crop_x, crop_y, crop_width, crop_height);
+      cv::Rect roi(x1,y1,w,h);
       cv_img = cv_img(roi);
 
       for (auto it=boxes.begin(); it!=boxes.end(); ++it)
       {
-        it->x1 -= crop_x;
-        it->x2 -= crop_x;
-        it->y1 -= crop_y;
-        it->y2 -= crop_y;
+        it->x1 = (it->x1 - x1);
+        it->x2 = (it->x2 - x1);
+        it->y1 = (it->y1 - y1);
+        it->y2 = (it->y2 - y1);
       }
+
+      source_x1 = 0;
+      source_y1 = 0;
+      source_x2 = w - 1;
+      source_y2 = h - 1;
     }
+
+    dy = crop_height - cv_img.rows;
+    dx = crop_width - cv_img.cols;
+    if (dy != 0 || dx != 0)
+      copyMakeBorderWrapper(cv_img, cv_img, 0, dy, 0, dx, mean_values_);
   }
 
-  return skip;
+  return false;
 }
 
   template <typename Dtype>

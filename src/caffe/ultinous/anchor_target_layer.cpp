@@ -101,7 +101,7 @@ namespace caffe {
 //      for (int batch_index=0; batch_index < batch_size; ++batch_index)
 //      {
 //        std::string fileName = "debug/"+name+'_'+std::to_string(batch_index)+".jpg";
-//        LOG(INFO) << fileName;
+////        LOG(INFO) << fileName;
 //
 //        std::vector<Dtype> info_vector;
 //        for (int i=0; i<info_shape[1]; ++i)
@@ -111,7 +111,7 @@ namespace caffe {
 //        ss << "info: ";
 //        for (auto e : info_vector)
 //          ss << e << ' ';
-//        LOG(INFO) << ss.str();
+////        LOG(INFO) << ss.str();
 //
 //        Dtype* array( bottom_image->mutable_cpu_data() );
 //        std::vector<Dtype> converted(imageSize);
@@ -153,22 +153,22 @@ namespace caffe {
 //          ss << ']';
 //          cv::rectangle(cv_img, cv::Point(v[0], v[1]), cv::Point(v[2], v[3]), cv::Scalar(0, 0, 255));
 //        }
-//        LOG(INFO) << ss.str();
+////        LOG(INFO) << ss.str();
 //
 //        cv::rectangle(cv_img, cv::Point(info_vector[2],info_vector[3]), cv::Point(info_vector[4],info_vector[5]), cv::Scalar(0, 255, 0));
 //        cv::imwrite(fileName, cv_img);
-//        LOG(INFO) << "max_intensity: " << max_intensity << " max_d: " << max_d;
+////        LOG(INFO) << "max_intensity: " << max_intensity << " max_d: " << max_d;
 //      }
 //
-//      LOG(INFO) << bottom_scores->shape_string() << ' '
-//                << bottom_bbox->shape_string() << ' '
-//                << bottom_info->shape_string() << ' '
-//                << bottom_image->shape_string();
-//
-//      LOG(INFO) << top_labels->shape_string() << ' '
-//                << top_bbox_targets->shape_string() << ' '
-//                << top_bbox_inside_weights->shape_string() << ' '
-//                << top_bbox_outside_weights->shape_string();
+////      LOG(INFO) << bottom_scores->shape_string() << ' '
+////                << bottom_bbox->shape_string() << ' '
+////                << bottom_info->shape_string() << ' '
+////                << bottom_image->shape_string();
+////
+////      LOG(INFO) << top_labels->shape_string() << ' '
+////                << top_bbox_targets->shape_string() << ' '
+////                << top_bbox_inside_weights->shape_string() << ' '
+////                << top_bbox_outside_weights->shape_string();
 
 
 
