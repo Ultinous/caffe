@@ -470,8 +470,8 @@ namespace caffe {
           float targets_dy = (gt_ctr_y - src_ctr_y) / src_height;
           float targets_dw = std::log(gt_width / src_width);
           float targets_dh = std::log(gt_height / src_height);
-            LOG(INFO) << "src_head:" << src_width << " " << src_height  << " " << src_ctr_x  << " " << src_ctr_y;
-            LOG(INFO) << "gt_head:" << gt_width << " " << gt_height  << " " << gt_ctr_x  << " " << gt_ctr_y;
+//            LOG(INFO) << "src_head:" << src_width << " " << src_height  << " " << src_ctr_x  << " " << src_ctr_y;
+//            LOG(INFO) << "gt_head:" << gt_width << " " << gt_height  << " " << gt_ctr_x  << " " << gt_ctr_y;
           Shift anchorShift = anchors_shifts[i];
           bbox_targets[top_bbox_targets_offset(
             batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = targets_dx;
@@ -493,12 +493,12 @@ namespace caffe {
               float body_src_height = precomputed_body_params[anchor_type][1];
               float body_src_ctr_x = src_ctr_x; // assume that body is always aligned vertically with head
               float body_src_ctr_y = src_ctr_y + precomputed_body_params[anchor_type][3];
-              LOG(INFO) << "src_body:" << body_src_width << " " << body_src_height  << " " << body_src_ctr_x  << " " << body_src_ctr_y;
+//              LOG(INFO) << "src_body:" << body_src_width << " " << body_src_height  << " " << body_src_ctr_x  << " " << body_src_ctr_y;
               float body_gt_width = body_gt[2] - body_gt[0] + 1.0;
               float body_gt_height = body_gt[3] - body_gt[1] + 1.0;
               float body_gt_ctr_x = body_gt[0] + 0.5 * body_gt_width;
               float body_gt_ctr_y = body_gt[1] + 0.5 * body_gt_height;
-                LOG(INFO) << "gt_body:" << body_gt_width << " " << body_gt_height  << " " << body_gt_ctr_x  << " " << body_gt_ctr_y;
+//                LOG(INFO) << "gt_body:" << body_gt_width << " " << body_gt_height  << " " << body_gt_ctr_x  << " " << body_gt_ctr_y;
               float body_targets_dx = (body_gt_ctr_x - body_src_ctr_x) / body_src_width;
               float body_targets_dy = (body_gt_ctr_y - body_src_ctr_y) / body_src_height;
               float body_targets_dw = std::log(body_gt_width / body_src_width);
