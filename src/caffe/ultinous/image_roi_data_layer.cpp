@@ -353,13 +353,13 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         if (mirror) {
             for (size_t ri = 0; ri < rot_matrixes.size(); ri++)
             {
-                rot_matrixes[ri][0] =* -1.0f;
-                rot_matrixes[ri][3] =* -1.0f;
-                rot_matrixes[ri][6] =* -1.0f;
+                rot_matrixes[ri].x11 =  rot_matrixes[ri].x11 *-1.0;
+                rot_matrixes[ri].x12 = rot_matrixes[ri].x12* -1.0;
+                rot_matrixes[ri].x13 = rot_matrixes[ri].x13 * -1.0;
 
-                rot_matrixes[ri][2]  =* -1.0f;
-                rot_matrixes[ri][5] =* -1.0f;
-                rot_matrixes[ri][8] =* -1.0f;
+                rot_matrixes[ri].x31  = rot_matrixes[ri].x31* -1.0;
+                rot_matrixes[ri].x32 = rot_matrixes[ri].x32 * -1.0;
+                rot_matrixes[ri].x33 =  rot_matrixes[ri].x33* -1.0;
             }
         }
 
