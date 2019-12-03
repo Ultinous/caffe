@@ -349,6 +349,20 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
           bbox.x2 = cv_img.cols - temp - 1;
         }
 
+
+        if (mirror) {
+            for (size_t ri = 0; ri < rot_matrixes.size(); ri++)
+            {
+                rot_matrixes[ri][0] =* -1.0f;
+                rot_matrixes[ri][3] =* -1.0f;
+                rot_matrixes[ri][6] =* -1.0f;
+
+                rot_matrixes[ri][2]  =* -1.0f;
+                rot_matrixes[ri][5] =* -1.0f;
+                rot_matrixes[ri][8] =* -1.0f;
+            }
+        }
+
         finalBoxes.push_back(bbox);
 	//LOG(INFO) << "Index insert: " << i;
         finalRotMatrixes.push_back(rot_matrixes[i]);
