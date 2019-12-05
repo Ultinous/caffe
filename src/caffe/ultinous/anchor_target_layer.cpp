@@ -111,116 +111,116 @@ namespace caffe {
       int height     = bottom_scores->shape(2);
       int width      = bottom_scores->shape(3);
 
-//      //
-//      auto bottom_image =  bottom[4];
-//
-//      std::string name;
-//      {
-//        using namespace std::chrono;
-//        milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-//        std::stringstream ss;
-//        ss << ms.count();
-//        name = ss.str();
-//      }
-//
-//      std::stringstream ss;
-//
-//      std::vector<int> bb_shape = bottom_bbox->shape();
-//      std::vector<int> info_shape = bottom_info->shape();
-//      std::vector<int> image_shape = bottom_image->shape();
-//
-//      size_t C = image_shape[1];
-//      size_t H = image_shape[2];
-//      size_t W = image_shape[3];
-//      size_t imageSize = C*H*W;
-//
-//      int bb_offset = 0;
-//
-//      for (int batch_index=0; batch_index < batch_size; ++batch_index)
-//      {
-//        std::string fileName = "debug/"+name+'_'+std::to_string(batch_index)+".jpg";
-//        LOG(INFO) << fileName;
-//
-//        std::vector<Dtype> info_vector;
-//        for (int i=0; i<info_shape[1]; ++i)
-//          info_vector.push_back( bottom_info->cpu_data()[bottom_info->offset( batch_index, i )] );
-//
-//        ss = std::stringstream();
-//        ss << "info: ";
-//        for (auto e : info_vector)
-//          ss << e << ' ';
-//        LOG(INFO) << ss.str();
-//
-//        Dtype* array( bottom_image->mutable_cpu_data() );
-//        std::vector<Dtype> converted(imageSize);
-//        Dtype max_intensity = 0;
-//        for (int c=0;c<C;++c)
-//          for (int h=0;h<H;++h)
-//            for (int w=0;w<W;++w)
-//            {
-//              auto intensity = array[bottom_image->offset( batch_index, c, h, w )];
-//              if ( abs(intensity) > max_intensity)
-//                max_intensity = abs(intensity);
-//              converted[h*W*C+w*C+c] = intensity + 127;
-//            }
-//        Dtype* array2 = converted.data();
-//        cv::Mat cv_img( bottom_image->height(), bottom_image->width(), CV_32FC3, array2 );
-//
-//        std::vector<std::vector<Dtype>> bb_vector;
-//        for (int i=0; i<(int)info_vector.back(); ++i)
-//          bb_vector.push_back(std::vector<Dtype>{
-//              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 0 )],
-//              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 1 )],
-//              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 2 )],
-//              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 3 )],
-//              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 4 )],
-//          });
-//        bb_offset += (int)info_vector.back();
-//
-//        ss = std::stringstream();
-//        ss << "bb: ";
-////        Dtype max_d = 0;
-//        for (auto v : bb_vector)
-//        {
-////          Dtype d = std::max( std::max( -v[0], v[2]-W  ), std::max( -v[1], v[3]-H )  );
-////          if ( d > max_d)
-////            max_d = d;
-//          ss << "[ ";
-//          for (auto e : v)
-//            ss << e << ' ';
-//          ss << ']';
-//          cv::rectangle(cv_img, cv::Point(v[1], v[2]), cv::Point(v[3], v[4]), cv::Scalar(0, 0, 255));
-//            // body
-//            int head_width = v[3]-v[1];
-//            int head_height = v[4]-v[2];
-//            int head_ctr_x = v[1] + 0.5 * head_width;
-//            int head_ctr_y = v[2] + 0.5 * head_height;
-//            int body_width = head_width * body_scales[0];
-//            int body_height = head_height * body_scales[1];
-//            int body_ctr_x = head_ctr_x;
-//            int body_ctr_y = head_ctr_y + head_height/2 * body_scales[3];
-//            ss << " body [" << body_width << " " << body_height << " " << body_ctr_x << " " << body_ctr_y << "]";
-//            cv::rectangle(cv_img, cv::Point(body_ctr_x-body_width/2, body_ctr_y-body_height/2), cv::Point(body_ctr_x+body_width/2, body_ctr_y+body_height/2), cv::Scalar(0, 255, 0));
-//
-//        }
-//        LOG(INFO) << ss.str();
-//
-//        cv::rectangle(cv_img, cv::Point(info_vector[2],info_vector[3]), cv::Point(info_vector[4],info_vector[5]), cv::Scalar(0, 255, 0));
-//
-//
-//        cv::imwrite(fileName, cv_img);
-//        LOG(INFO) << "max_intensity: " << max_intensity;// << " max_d: " << max_d;
-//      }
-//
-//      LOG(INFO) << bottom_scores->shape_string() << ' '
-//                << bottom_bbox->shape_string() << ' '
-//                << bottom_info->shape_string() << ' '
-//                << bottom_image->shape_string();
-//
-//      LOG(INFO) << top_labels->shape_string() << ' '
-//                << top_bbox_targets->shape_string() << ' '
-//                << top_bbox_inside_weights->shape_string() << ' '
-//                << top_bbox_outside_weights->shape_string();
+      //
+      auto bottom_image =  bottom[4];
+
+      std::string name;
+      {
+        using namespace std::chrono;
+        milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+        std::stringstream ss;
+        ss << ms.count();
+        name = ss.str();
+      }
+
+      std::stringstream ss;
+
+      std::vector<int> bb_shape = bottom_bbox->shape();
+      std::vector<int> info_shape = bottom_info->shape();
+      std::vector<int> image_shape = bottom_image->shape();
+
+      size_t C = image_shape[1];
+      size_t H = image_shape[2];
+      size_t W = image_shape[3];
+      size_t imageSize = C*H*W;
+
+      int bb_offset = 0;
+
+      for (int batch_index=0; batch_index < batch_size; ++batch_index)
+      {
+        std::string fileName = "debug/"+name+'_'+std::to_string(batch_index)+".jpg";
+        LOG(INFO) << fileName;
+
+        std::vector<Dtype> info_vector;
+        for (int i=0; i<info_shape[1]; ++i)
+          info_vector.push_back( bottom_info->cpu_data()[bottom_info->offset( batch_index, i )] );
+
+        ss = std::stringstream();
+        ss << "info: ";
+        for (auto e : info_vector)
+          ss << e << ' ';
+        LOG(INFO) << ss.str();
+
+        Dtype* array( bottom_image->mutable_cpu_data() );
+        std::vector<Dtype> converted(imageSize);
+        Dtype max_intensity = 0;
+        for (int c=0;c<C;++c)
+          for (int h=0;h<H;++h)
+            for (int w=0;w<W;++w)
+            {
+              auto intensity = array[bottom_image->offset( batch_index, c, h, w )];
+              if ( abs(intensity) > max_intensity)
+                max_intensity = abs(intensity);
+              converted[h*W*C+w*C+c] = intensity + 127;
+            }
+        Dtype* array2 = converted.data();
+        cv::Mat cv_img( bottom_image->height(), bottom_image->width(), CV_32FC3, array2 );
+
+        std::vector<std::vector<Dtype>> bb_vector;
+        for (int i=0; i<(int)info_vector.back(); ++i)
+          bb_vector.push_back(std::vector<Dtype>{
+              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 0 )],
+              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 1 )],
+              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 2 )],
+              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 3 )],
+              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 4 )],
+          });
+        bb_offset += (int)info_vector.back();
+
+        ss = std::stringstream();
+        ss << "bb: ";
+//        Dtype max_d = 0;
+        for (auto v : bb_vector)
+        {
+//          Dtype d = std::max( std::max( -v[0], v[2]-W  ), std::max( -v[1], v[3]-H )  );
+//          if ( d > max_d)
+//            max_d = d;
+          ss << "[ ";
+          for (auto e : v)
+            ss << e << ' ';
+          ss << ']';
+          cv::rectangle(cv_img, cv::Point(v[1], v[2]), cv::Point(v[3], v[4]), cv::Scalar(0, 0, 255));
+            // body
+            int head_width = v[3]-v[1];
+            int head_height = v[4]-v[2];
+            int head_ctr_x = v[1] + 0.5 * head_width;
+            int head_ctr_y = v[2] + 0.5 * head_height;
+            int body_width = head_width * body_scales[0];
+            int body_height = head_height * body_scales[1];
+            int body_ctr_x = head_ctr_x;
+            int body_ctr_y = v[2] + 0.5 * body_height;
+            ss << " body [" << body_width << " " << body_height << " " << body_ctr_x << " " << body_ctr_y << "]";
+            cv::rectangle(cv_img, cv::Point(body_ctr_x-body_width/2, body_ctr_y-body_height/2), cv::Point(body_ctr_x+body_width/2, body_ctr_y+body_height/2), cv::Scalar(0, 255, 0));
+
+        }
+        LOG(INFO) << ss.str();
+
+        cv::rectangle(cv_img, cv::Point(info_vector[2],info_vector[3]), cv::Point(info_vector[4],info_vector[5]), cv::Scalar(0, 255, 0));
+
+
+        cv::imwrite(fileName, cv_img);
+        LOG(INFO) << "max_intensity: " << max_intensity;// << " max_d: " << max_d;
+      }
+
+      LOG(INFO) << bottom_scores->shape_string() << ' '
+                << bottom_bbox->shape_string() << ' '
+                << bottom_info->shape_string() << ' '
+                << bottom_image->shape_string();
+
+      LOG(INFO) << top_labels->shape_string() << ' '
+                << top_bbox_targets->shape_string() << ' '
+                << top_bbox_inside_weights->shape_string() << ' '
+                << top_bbox_outside_weights->shape_string();
         //
 
       top_labels->              Reshape(batch_size, 1, base_anchors_.size() * height, width);
@@ -492,7 +492,7 @@ namespace caffe {
               float body_src_width =  precomputed_body_params[anchor_type][0];
               float body_src_height = precomputed_body_params[anchor_type][1];
               float body_src_ctr_x = src_ctr_x; // assume that body is always aligned vertically with head
-              float body_src_ctr_y = src_ctr_y + precomputed_body_params[anchor_type][3];
+              float body_src_ctr_y = src[1] + 0.5 * body_src_height;
 //              LOG(INFO) << "src_body:" << body_src_width << " " << body_src_height  << " " << body_src_ctr_x  << " " << body_src_ctr_y;
               float body_gt_width = body_gt[2] - body_gt[0] + 1.0;
               float body_gt_height = body_gt[3] - body_gt[1] + 1.0;
