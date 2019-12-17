@@ -19,20 +19,32 @@ namespace caffe {
         void UncertainWeightLossLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
                                                const vector<Blob<Dtype>*>& top) {
 
-
+	     LossLayer<Dtype>::LayerSetUp(bottom, top);
+             LOG(INFO) << "Setting up uncertain weight loss" << std::endl;
             UncertainWeightLossLayer::log_sig_1 = Dtype(caffe_rng_rand());
             UncertainWeightLossLayer::log_sig_2 = Dtype(caffe_rng_rand());
             UncertainWeightLossLayer::log_sig_3 = Dtype(caffe_rng_rand());
 
             UncertainWeightLossLayer::euler_num = Dtype(std::exp(1.0));
+             LOG(INFO) << "End of layerSetup call of  uncertain weight loss" << std::endl;
         }
+
+	template<typename Dtype>
+	void UncertainWeightLossLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
+		                                  const vector<Blob<Dtype>*>& top) 
+	{
+             LOG(INFO) << "Reshape uncertain weight loss" << std::endl;
+	    top[0]->ReshapeLike(*bottom[0]);
+             LOG(INFO) << "End of reshape uncertain weight loss" << std::endl;
+	
+	}
 
 
 
         template <typename Dtype>
         void UncertainWeightLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         const vector<Blob<Dtype>*>& top) {
-
+        LOG(INFO) << "Forward cpu " << std::endl;
         const Dtype *b1 = bottom[0]->cpu_data();
         const Dtype *b2 = bottom[1]->cpu_data();
         const Dtype *b3 = bottom[2]->cpu_data();
@@ -56,10 +68,10 @@ namespace caffe {
             loss += exp_res * b3[0] + UncertainWeightLossLayer::log_sig_3;
 
 
-            top[0]->mutable_cpu_data()[0] = loss;
-
             LOG(INFO) << "Sigmas: " << UncertainWeightLossLayer::log_sig_1 << ", " << UncertainWeightLossLayer::log_sig_2
-            << ", " << UncertainWeightLossLayer::log_sig_3;
+            << ", " << UncertainWeightLossLayer::log_sig_3 << std::endl;
+            top[0]->mutable_cpu_data()[0] = Dtype(loss);
+
 
         }
 
@@ -98,9 +110,6 @@ namespace caffe {
 
 
 
-#ifdef CPU_ONLY
-STUB_GPU(uncertain_weight_loss);
-#endif
 
         INSTANTIATE_CLASS(UncertainWeightLossLayer);
         REGISTER_LAYER_CLASS(UncertainWeightLoss);
