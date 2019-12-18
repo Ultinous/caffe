@@ -4,10 +4,10 @@
 #include "caffe/filler.hpp"
 #include "caffe/ultinous/anchor_target_layer.hpp"
 
-#include <chrono>
 #include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <boost/filesystem.hpp>
 
 namespace caffe {
   namespace ultinous {
@@ -26,7 +26,9 @@ namespace caffe {
       auto top_bbox_outside_weights = top[3];
 
       float hard_negative_mining = anchorTargetParam_.hard_negative_mining();
+      float hard_negative_mining_sigmoid_param = anchorTargetParam_.hard_negative_mining_sigmoid_param();
       CHECK(hard_negative_mining <= 1 && hard_negative_mining >= 0);
+      CHECK(hard_negative_mining_sigmoid_param > 0);
 
       std::vector<Dtype> anchor_scales; // TODO: = layer_params.get('scales', (8, 16, 32))
       for (auto s : anchorTargetParam_.scales())
@@ -76,15 +78,6 @@ namespace caffe {
 //      TODO
 //      auto bottom_image =  bottom[3];
 //
-//      std::string name;
-//      {
-//        using namespace std::chrono;
-//        milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-//        std::stringstream ss;
-//        ss << ms.count();
-//        name = ss.str();
-//      }
-//
 //      std::stringstream ss;
 //
 //      std::vector<int> bb_shape = bottom_bbox->shape();
@@ -100,7 +93,11 @@ namespace caffe {
 //
 //      for (int batch_index=0; batch_index < batch_size; ++batch_index)
 //      {
-//        std::string fileName = "debug/"+name+'_'+std::to_string(batch_index)+".jpg";
+//        boost::filesystem::create_directories("debug_images");
+//        int current_device;
+//        CUDA_CHECK(cudaGetDevice(&current_device));
+//        std::string fileName = "debug_images/iter" + std::to_string(Caffe::iter()) + "_batch" + std::to_string(batch_index) + "_gpu" + std::to_string(current_device) + ".jpg";
+//        LOG(INFO) << fileName;
 //        LOG(INFO) << fileName;
 //
 //        std::vector<Dtype> info_vector;
@@ -352,46 +349,60 @@ namespace caffe {
 
         // subsample negative labels if we have too many,
         Dtype const *scores = bottom_scores->cpu_data();
-        if (anchorTargetParam_.hard_negative_mining() == 0.0f)
-          num_bg = randomMining(0, RPN_BATCHSIZE, num_bg, top_labels_offset, labels, width, height, batch_index);
-        else
-          num_bg = hardNegativeMining(num_bg, bottom_scores_offset, scores, top_labels_offset, labels, width, height, batch_index);
+
+        switch(anchorTargetParam_.hard_negative_mining_type())
+        {
+          case AnchorTargetParameter_HnmType_CONSTANT:
+            if (anchorTargetParam_.hard_negative_mining() == 0.0f)
+              num_bg = randomMining(0, RPN_BATCHSIZE, num_bg, top_labels_offset, labels, width, height, batch_index);
+            else
+              num_bg = hardNegativeMining(num_bg, bottom_scores_offset, scores, top_labels_offset, labels, width, height, batch_index);
+            break;
+
+          case AnchorTargetParameter_HnmType_SIGMOID:
+            num_bg = hardNegativeMining(num_bg, bottom_scores_offset, scores, top_labels_offset, labels, width, height, batch_index);
+            break;
+        }
 
         // At this point labels are ready :)
 
         // Computing bbox_targets
         for (size_t i = 0; i < anchors.size(); ++i) {
-          Anchor ex = anchors[i];
-          Anchor gt = gt_boxes[anchor_argmax_overlaps[i]];
-
-          // bbox_transform
-          float ex_width = ex[2] - ex[0] + 1.0;
-          float ex_height = ex[3] - ex[1] + 1.0;
-          float ex_ctr_x = ex[0] + 0.5 * ex_width;
-          float ex_ctr_y = ex[1] + 0.5 * ex_height;
-
-          float gt_width = gt[2] - gt[0] + 1.0;
-          float gt_height = gt[3] - gt[1] + 1.0;
-          float gt_ctr_x = gt[0] + 0.5 * gt_width;
-          float gt_ctr_y = gt[1] + 0.5 * gt_height;
-
-          float targets_dx = (gt_ctr_x - ex_ctr_x) / ex_width;
-          float targets_dy = (gt_ctr_y - ex_ctr_y) / ex_height;
-          float targets_dw = std::log(gt_width / ex_width);
-          float targets_dh = std::log(gt_height / ex_height);
-
           Shift anchorShift = anchors_shifts[i];
-          bbox_targets[top_bbox_targets_offset(
-            batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = targets_dx;
+          Dtype label = labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x];
+          if (label == 1)
+          {
+            Anchor ex = anchors[i];
+            Anchor gt = gt_boxes[anchor_argmax_overlaps[i]];
 
-          bbox_targets[top_bbox_targets_offset(
-            batch_index, 4 * anchor_base_indices[i] + 1, anchorShift.y, anchorShift.x )] = targets_dy;
+            // bbox_transform
+            float ex_width = ex[2] - ex[0] + 1.0;
+            float ex_height = ex[3] - ex[1] + 1.0;
+            float ex_ctr_x = ex[0] + 0.5 * ex_width;
+            float ex_ctr_y = ex[1] + 0.5 * ex_height;
 
-          bbox_targets[top_bbox_targets_offset(
-            batch_index, 4 * anchor_base_indices[i] + 2, anchorShift.y, anchorShift.x )] = targets_dw;
+            float gt_width = gt[2] - gt[0] + 1.0;
+            float gt_height = gt[3] - gt[1] + 1.0;
+            float gt_ctr_x = gt[0] + 0.5 * gt_width;
+            float gt_ctr_y = gt[1] + 0.5 * gt_height;
 
-          bbox_targets[top_bbox_targets_offset(
-            batch_index, 4 * anchor_base_indices[i] + 3, anchorShift.y, anchorShift.x )] = targets_dh;
+            float targets_dx = (gt_ctr_x - ex_ctr_x) / ex_width;
+            float targets_dy = (gt_ctr_y - ex_ctr_y) / ex_height;
+            float targets_dw = std::log(gt_width / ex_width);
+            float targets_dh = std::log(gt_height / ex_height);
+
+            bbox_targets[top_bbox_targets_offset(
+                batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = targets_dx;
+
+            bbox_targets[top_bbox_targets_offset(
+                batch_index, 4 * anchor_base_indices[i] + 1, anchorShift.y, anchorShift.x )] = targets_dy;
+
+            bbox_targets[top_bbox_targets_offset(
+                batch_index, 4 * anchor_base_indices[i] + 2, anchorShift.y, anchorShift.x )] = targets_dw;
+
+            bbox_targets[top_bbox_targets_offset(
+                batch_index, 4 * anchor_base_indices[i] + 3, anchorShift.y, anchorShift.x )] = targets_dh;
+          }
         }
         // At this point bbox_targets are ready :)
 
@@ -399,7 +410,9 @@ namespace caffe {
         // Computing bbox_inside_weights
         for (size_t i = 0; i < anchors.size(); ++i) {
           Shift anchorShift = anchors_shifts[i];
-          if (labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x] == 1) {
+          Dtype label = labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x];
+          if (label == 1)
+          {
             bbox_inside_weights[top_bbox_inside_weights_offset(
               batch_index, 4 * anchor_base_indices[i],     anchorShift.y, anchorShift.x )] = RPN_BBOX_INSIDE_WEIGHTS[0];
 
@@ -462,8 +475,23 @@ namespace caffe {
                     / base_anchors_.size())
       );
 
-      float hnm = anchorTargetParam_.hard_negative_mining();
       float denoise = anchorTargetParam_.denoise();
+      float hnm = 0.0f;
+      if (anchorTargetParam_.hard_negative_mining_type() == AnchorTargetParameter_HnmType_SIGMOID)
+      { // the hard negative mining parameter follows a transformed sigmoid function
+//        int iter = Caffe::iter();
+//        int max_iter = Caffe::max_iter();
+//        float arg = anchorTargetParam_.hard_negative_mining_sigmoid_param() * (iter-max_iter/2) / max_iter;
+//        hnm = 1.0f / (1.0f+expf(-arg));
+
+        int iter = Caffe::iter();
+        int max_iter = Caffe::max_iter();
+        float arg = anchorTargetParam_.hard_negative_mining_sigmoid_param() * iter / max_iter;
+        hnm = 2.0f / (1.0f+expf(-arg)) - 1;
+      }
+      else if (anchorTargetParam_.hard_negative_mining_type() == AnchorTargetParameter_HnmType_CONSTANT)
+        hnm = anchorTargetParam_.hard_negative_mining();
+
 
       typedef std::pair<size_t, Dtype> IndexScorePair;
       typedef std::vector<IndexScorePair> IndexScorePairs;

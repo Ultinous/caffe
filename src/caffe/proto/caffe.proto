@@ -1612,6 +1612,11 @@ message UltinousTransformationParameter {
 }
 
 message AnchorTargetParameter {
+  enum HnmType {
+    CONSTANT = 0;
+    SIGMOID = 1;
+  }
+
   optional uint32 feat_stride = 1 [default = 16];
   repeated uint32 scales = 2;
   repeated uint32 ratios = 3;
@@ -1625,6 +1630,8 @@ message AnchorTargetParameter {
   optional float positive_weight = 11 [default = -1.0];
   optional float hard_negative_mining = 12 [default = 0.0]; // 0->random, 1->totally sorted
   optional float denoise = 13 [default = 0.0];
+  optional HnmType hard_negative_mining_type = 14 [default = CONSTANT];
+  optional float hard_negative_mining_sigmoid_param = 15 [default = 10.0];
 }
 
 message AdversarialImageDataParamater {

@@ -173,6 +173,10 @@ class Caffe {
   inline static bool multiprocess() { return Get().multiprocess_; }
   inline static void set_multiprocess(bool val) { Get().multiprocess_ = val; }
   inline static bool root_solver() { return Get().solver_rank_ == 0; }
+  inline static int iter() { return Get().iter_; }
+  inline static void set_iter(int val) { Get().iter_ = val; }
+  inline static int max_iter() { return Get().max_iter_; }
+  inline static void set_max_iter(int val) { Get().max_iter_ = val; }
 
  protected:
 #ifndef CPU_ONLY
@@ -192,6 +196,8 @@ class Caffe {
   int solver_count_;
   int solver_rank_;
   bool multiprocess_;
+  int iter_;
+  int max_iter_;
 
  private:
   // The private constructor to avoid duplicate instantiation.

@@ -206,7 +206,10 @@ void Solver<Dtype>::Step(int iters) {
   smoothed_loss_ = 0;
   iteration_timer_.Start();
 
+  Caffe::set_max_iter(stop_iter);
   while (iter_ < stop_iter) {
+    Caffe::set_iter(iter_);
+
     // zero-init the params
     net_->ClearParamDiffs();
     if (param_.test_interval() && iter_ % param_.test_interval() == 0

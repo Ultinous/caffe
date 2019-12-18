@@ -20,6 +20,7 @@
 #include <iostream>
 
 #include <chrono>
+#include <boost/filesystem.hpp>
 
 namespace caffe {
 namespace ultinous {
@@ -270,6 +271,9 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
           cv_img = cv_resized;
         }
 
+        source_x2 = cv_img.cols - 1;
+        source_y2 = cv_img.rows - 1;
+
         CHECK(image_roi_data_param.pad() >= 1);
         if (image_roi_data_param.pad() > 1) {
           int pad_h =
@@ -279,9 +283,6 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
           if (pad_h != 0 || pad_w != 0)
             copyMakeBorderWrapper(cv_img, cv_img, 0, pad_h, 0, pad_w, mean_values_);
         }
-
-        source_x2 = cv_img.cols - 1;
-        source_y2 = cv_img.rows - 1;
       }
 
       bool mirror = image_roi_data_param.mirror() && ((caffe_rng_rand() % 2) == 1);
@@ -302,6 +303,11 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         if (box.x1 > box.x2 || box.y1 > box.y2)
           continue;
 
+        box.x1 *= scale;
+        box.y1 *= scale;
+        box.x2 *= scale;
+        box.y2 *= scale;
+
         if (mirror)
         {
           Dtype temp = box.x1;
@@ -309,19 +315,13 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
           box.x2 = cv_img.cols - temp - 1;
         }
 
-        box.x1 *= scale;
-        box.y1 *= scale;
-        box.x2 *= scale;
-        box.y2 *= scale;
-
-        int bw=ceil((box.x2-box.x1+1)*0.6), bh=ceil((box.y2-box.y1+1)*0.6);
-        if (box.x1 < source_x1 - bw)
+        if (box.x2 < source_x1)
           continue;
-        if (box.y1 < source_y1 - bw)
+        if (box.y2 < source_y1)
           continue;
-        if (box.x2 > source_x2 + bw)
+        if (box.x1 > source_x2)
           continue;
-        if (box.y2 > source_y2 + bh)
+        if (box.y1 > source_y2)
           continue;
 
         finalBoxes.push_back(box);
@@ -371,14 +371,19 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 //          cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 0, 255));
 //        }
 //        cv::rectangle(cv_img, cv::Point(source_x1, source_y1), cv::Point(source_x2, source_y2), cv::Scalar(0, 255, 0));
-//        cv::imwrite("debug/"+name+'_'+std::to_string(batch_index)+"_crop.jpg", cv_img);
-//        cv::imwrite("debug/"+name+'_'+std::to_string(batch_index)+".jpg", cv_tmp);
+//        boost::filesystem::create_directories("debug_images");
+//        cv::imwrite("debug_images/"+name+"_batch"+std::to_string(batch_index)+"_crop.jpg", cv_img);
+//        cv::imwrite("debug_images/"+name+"_batch"+std::to_string(batch_index)+".jpg", cv_tmp);
 
 
 
         batch_index += 1;
-      }
+      } // if ( !finalBoxes.empty() )
+      else
+        LOG(INFO) << "Skipping an image with only invalid heads";
     } // if (!skip)
+    else
+      LOG(INFO) << "Skipping an image with no heads at all";
 
     // go to the next iter
     sample_id_++;
@@ -615,44 +620,24 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
 
   bool skip = true;
 
-  source_x1 = 0;
-  source_y1 = 0;
-  source_x2 = crop_width  - 1;
-  source_y2 = crop_height - 1;
-
-  int crop_x,crop_y,pad_x=0,pad_y=0;
-
   int source_height = cv_img.rows;
   int source_width = cv_img.cols;
+
+  source_x1 = 0;
+  source_y1 = 0;
+  source_x2 = source_width  - 1;
+  source_y2 = source_height - 1;
+
+  int crop_x=0,crop_y=0,pad_x=0,pad_y=0;
 
   int dy = crop_height - source_height;
   int dx = crop_width - source_width;
   if (dy >= 0 && dx >= 0)
   {
-    pad_x = ( dx==0 ? 0 : caffe_rng_rand()%(dx + 1) );
-
-    pad_y = ( dy==0 ? 0 : caffe_rng_rand()%(dy + 1) );
-
-    source_x1 = pad_x;
-    source_y1 = pad_y;
-    source_x2 = pad_x + source_width  - 1;
-    source_y2 = pad_y + source_height - 1;
-
     if (dx != 0 || dy != 0)
-    {
-      copyMakeBorderWrapper(cv_img, cv_img, pad_y, dy - pad_y, pad_x, dx - pad_x, mean_values_);
-
-      for (auto it=boxes.begin(); it!=boxes.end(); ++it)
-      {
-        it->x1 += pad_x;
-        it->x2 += pad_x;
-        it->y1 += pad_y;
-        it->y2 += pad_y;
-      }
-    }
+      copyMakeBorderWrapper(cv_img, cv_img, 0, dy, 0, dx, mean_values_);
 
     skip = false;
-
   }
   else
   {
@@ -878,6 +863,8 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
       else
         crop_x = crop_min_x + (caffe_rng_rand() % (crop_max_x-crop_min_x+1));
 
+      source_x2 = crop_width - 1;
+      source_y2 = crop_height - 1;
       if (dy > 0)
       {
         source_y1 = dy-crop_y;
