@@ -103,7 +103,7 @@ namespace caffe {
 
 
                 UncertainWeightLossLayer::log_sig_3 += bottom[2]->cpu_data()[0] * Dtype(-1.0) *
-                   Dtype(std::exp(Dtype(-1.0) * UncertainWeightLossLayer::log_sig_3)) + Dtype(1.0) / (Dtype(std::exp( UncertainWeightLossLayer::log_sig_2)) * Dtype(0.6931471) );
+                   Dtype(std::exp(Dtype(-1.0) * UncertainWeightLossLayer::log_sig_3)) + Dtype(1.0) / (Dtype(std::exp( UncertainWeightLossLayer::log_sig_3)) * Dtype(0.6931471) );
             }
 
 
