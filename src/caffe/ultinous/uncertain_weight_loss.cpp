@@ -21,9 +21,9 @@ namespace caffe {
 
 	     LossLayer<Dtype>::LayerSetUp(bottom, top);
              LOG(INFO) << "Setting up uncertain weight loss" << std::endl;
-            UncertainWeightLossLayer::log_sig_1 = Dtype(caffe_rng_rand());
-            UncertainWeightLossLayer::log_sig_2 = Dtype(caffe_rng_rand());
-            UncertainWeightLossLayer::log_sig_3 = Dtype(caffe_rng_rand());
+            UncertainWeightLossLayer::log_sig_1 = Dtype(1.0);
+            UncertainWeightLossLayer::log_sig_2 = Dtype(1.0);
+            UncertainWeightLossLayer::log_sig_3 = Dtype(1.0);
 
             UncertainWeightLossLayer::euler_num = Dtype(std::exp(1.0));
              LOG(INFO) << "End of layerSetup call of  uncertain weight loss" << std::endl;
@@ -33,10 +33,8 @@ namespace caffe {
 	void UncertainWeightLossLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
 		                                  const vector<Blob<Dtype>*>& top) 
 	{
-             LOG(INFO) << "Reshape uncertain weight loss" << std::endl;
+
 	    top[0]->ReshapeLike(*bottom[0]);
-             LOG(INFO) << "End of reshape uncertain weight loss" << std::endl;
-	
 	}
 
 
@@ -44,12 +42,11 @@ namespace caffe {
         template <typename Dtype>
         void UncertainWeightLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         const vector<Blob<Dtype>*>& top) {
-        LOG(INFO) << "Forward cpu " << std::endl;
         const Dtype *b1 = bottom[0]->cpu_data();
         const Dtype *b2 = bottom[1]->cpu_data();
         const Dtype *b3 = bottom[2]->cpu_data();
 
-        Dtype loss = Dtype(0);
+        Dtype loss = Dtype(0.0);
 
 
 
@@ -83,26 +80,30 @@ namespace caffe {
 
             if(propagate_down[0]) {
 
-                bottom[0]->mutable_cpu_diff()[0] = bottom[0]->cpu_data()[0] * Dtype(-1) *
-                        std::exp( Dtype(-1.0) * UncertainWeightLossLayer::log_sig_1) + Dtype(1);
+                bottom[0]->mutable_cpu_diff()[0] = bottom[0]->cpu_data()[0] * Dtype(-1.0) *
+                        std::exp( Dtype(-1.0) * UncertainWeightLossLayer::log_sig_1) + Dtype(1.0) / (Dtype(std::exp( UncertainWeightLossLayer::log_sig_1)) * Dtype(0.6931471) );
 
-                bottom[1] ->mutable_cpu_diff()[0] = bottom[0]->cpu_data()[0] * Dtype(-1) *
+                bottom[1] ->mutable_cpu_diff()[0] = bottom[1]->cpu_data()[0] * Dtype(-1.0) *
                           std::exp( Dtype(-1.0) * UncertainWeightLossLayer::log_sig_2) + Dtype(1);
 
-                bottom[2]->mutable_cpu_diff()[0] = bottom[0]->cpu_data()[0] * Dtype(-1) *
+                bottom[2]->mutable_cpu_diff()[0] = bottom[2]->cpu_data()[0] * Dtype(-1.0) *
                           std::exp(Dtype(-1.0) * UncertainWeightLossLayer::log_sig_3) + Dtype(1);
 
 
                 //update the log_sig variables
-                UncertainWeightLossLayer::log_sig_1 += bottom[0]->cpu_data()[0] * Dtype(-1) *
-                        std::exp( Dtype(-1.0) * UncertainWeightLossLayer::log_sig_1) + Dtype(1);
+                UncertainWeightLossLayer::log_sig_1 += bottom[0]->cpu_data()[0] * Dtype(-1.0) *
+                        Dtype(std::exp( Dtype(-1.0) * UncertainWeightLossLayer::log_sig_1))  + Dtype(1.0) / (Dtype(std::exp( UncertainWeightLossLayer::log_sig_1)) * Dtype(0.6931471) );
 
-                UncertainWeightLossLayer::log_sig_2 += bottom[0]->cpu_data()[0] * Dtype(-1) *
-                                                        std::exp( Dtype(-1.0) * UncertainWeightLossLayer::log_sig_2) + Dtype(1);
+		LOG(INFO) << "Bottom[0] loss: "<< bottom[0]->cpu_data()[0] << std::endl;
+		LOG(INFO) << "Bottom[1] loss: "<< bottom[1]->cpu_data()[0] << std::endl;
+		LOG(INFO) << "Bottom[2] loss: "<< bottom[2]->cpu_data()[0] << std::endl;
+
+		UncertainWeightLossLayer::log_sig_2 += bottom[1]->cpu_data()[0] * Dtype(-1.0) *
+                   Dtype( std::exp( Dtype(-1.0) * UncertainWeightLossLayer::log_sig_2) ) + Dtype(1.0) / (Dtype(std::exp( UncertainWeightLossLayer::log_sig_2)) * Dtype(0.6931471) );
 
 
-                UncertainWeightLossLayer::log_sig_3 += bottom[0]->cpu_data()[0] * Dtype(-1) *
-                                                       std::exp(Dtype(-1.0) * UncertainWeightLossLayer::log_sig_3) + Dtype(1);
+                UncertainWeightLossLayer::log_sig_3 += bottom[2]->cpu_data()[0] * Dtype(-1.0) *
+                   Dtype(std::exp(Dtype(-1.0) * UncertainWeightLossLayer::log_sig_3)) + Dtype(1.0) / (Dtype(std::exp( UncertainWeightLossLayer::log_sig_2)) * Dtype(0.6931471) );
             }
 
 
