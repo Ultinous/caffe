@@ -40,9 +40,9 @@ namespace caffe
 
 
             //Three logsig param for the three bottom layer
-            Dtype log_sig_1;
-            Dtype log_sig_2;
-            Dtype log_sig_3;
+            Blob<Dtype> log_sig_1;
+            Blob<Dtype> log_sig_2;
+            Blob<Dtype> log_sig_3;
 
             Dtype euler_num;
 
