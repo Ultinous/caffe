@@ -39,12 +39,11 @@ namespace caffe
             const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
 
-            //Three logsig param for the three bottom layer
+        private:
+            //Three learnable param for the three bottom layer
             Blob<Dtype> log_sig_1;
             Blob<Dtype> log_sig_2;
             Blob<Dtype> log_sig_3;
-
-            Dtype euler_num;
 
         };
 

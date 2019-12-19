@@ -23,16 +23,16 @@ namespace caffe {
              LOG(INFO) << "Setting up uncertain weight loss" << std::endl;
 
 
-             this->log_sig_1.Reshape(1,1,1,1);
-             this->log_sig_2.Reshape(1,1,1,1);
-             this->log_sig_3.Reshape(1,1,1,1);
+             this->blobs_[0]->Reshape(1,1,1,1);
+             this->blobs_[1]->Reshape(1,1,1,1);
+             this->blobs_[2]->Reshape(1,1,1,1);
 
 
-	   this->log_sig_1.mutable_cpu_data()[0] = Dtype(1.5);
-            this->log_sig_2.mutable_cpu_data()[0] = Dtype(1.5);
-	    this->log_sig_3.mutable_cpu_data()[0] = Dtype(1.5);  
+	        this->blobs_[0]->mutable_cpu_data()[0] = Dtype(1.5);
+            this->blobs_[1]->mutable_cpu_data()[0] = Dtype(1.5);
+	        this->blobs_[2]->mutable_cpu_data()[0] = Dtype(1.5);
 
-             LOG(INFO) << "End of layerSetup call of  uncertain weight loss" << std::endl;
+            LOG(INFO) << "End of layerSetup call of  uncertain weight loss" << std::endl;
         }
 
 	template<typename Dtype>
@@ -56,27 +56,20 @@ namespace caffe {
 
         Dtype loss = Dtype(0.0);
 
+            Dtype exp_res = Dtype(std::exp(-1.0 * this->blobs_[0]->mutable_cpu_data()[0] ));
+
+            loss +=     exp_res * b1[0] + this->blobs_[0]->mutable_cpu_data()[0];
+
+            exp_res = Dtype(std::exp(-1.0 * this->blobs_[1]->mutable_cpu_data()[0] ));
+            loss +=  exp_res * b2[0] + this->blobs_[1]->mutable_cpu_data()[0];
+
+            exp_res = Dtype(std::exp(-1.0 * this->blobs_[2]->mutable_cpu_data()[0] ));
+            loss += exp_res * b3[0] + this->blobs_[2]->mutable_cpu_data()[0] ;
 
 
-
-
-
-            Dtype exp_res = Dtype(std::exp(-1.0 * this->log_sig_1.mutable_cpu_data()[0] ));
-
-
-            loss +=     exp_res * b1[0] + this->log_sig_1.mutable_cpu_data()[0];
-
-            exp_res = Dtype(std::exp(-1.0 * this->log_sig_2.mutable_cpu_data()[0] ));
-            loss +=  exp_res * b2[0] + this->log_sig_2.mutable_cpu_data()[0];
-
-            exp_res = Dtype(std::exp(-1.0 * this->log_sig_3.mutable_cpu_data()[0] ));
-            loss += exp_res * b3[0] + this->log_sig_3.mutable_cpu_data()[0] ;
-
-
-            LOG_EVERY_N(INFO, 50) << "Sigmas: " << this->log_sig_1.mutable_cpu_data()[0] << ", " << this->log_sig_2.mutable_cpu_data()[0]
-            << ", " << this->log_sig_3.mutable_cpu_data()[0] << std::endl;
+            LOG_EVERY_N(INFO, 50) << "Sigmas: " << this->blobs_[0]->mutable_cpu_data()[0] << ", " << this->blobs_[1]->mutable_cpu_data()[0]
+            << ", " << this->blobs_[2]->mutable_cpu_data()[0] << std::endl;
             top[0]->mutable_cpu_data()[0] = Dtype(loss);
-
 
         }
 
@@ -98,25 +91,25 @@ namespace caffe {
 
         	
 		//update the log_sig variables
-                this->log_sig_1.mutable_cpu_diff()[0] = 
-                        bottom[0]->cpu_data()[0] * Dtype(-1.0) *  Dtype(std::exp( Dtype(-1.0) * this->log_sig_1.mutable_cpu_data()[0])) + Dtype(1.0);
+                this->blobs_[0]->mutable_cpu_diff()[0] =
+                        bottom[0]->cpu_data()[0] * Dtype(-1.0) *  Dtype(std::exp( Dtype(-1.0) * this->blobs_[0]->mutable_cpu_data()[0])) + Dtype(1.0);
 
 
-	        this->log_sig_2.mutable_cpu_diff()[0] =
-	                bottom[1]->cpu_data()[0] * Dtype(-1.0) * Dtype( std::exp( Dtype(-1.0) * this->log_sig_2.mutable_cpu_data()[0]) ) + Dtype(1.0);
+	        this->blobs_[1]->mutable_cpu_diff()[0] =
+	                bottom[1]->cpu_data()[0] * Dtype(-1.0) * Dtype( std::exp( Dtype(-1.0) * this->blobs_[1]->mutable_cpu_data()[0]) ) + Dtype(1.0);
 
 
-                this->log_sig_3.mutable_cpu_diff()[0] =
-                        bottom[2]->cpu_data()[0] *  Dtype(-1.0) *  Dtype(std::exp(Dtype(-1.0) * this->log_sig_3.mutable_cpu_data()[0])) + Dtype(1.0);
+                this->blobs_[2]->mutable_cpu_diff()[0] =
+                        bottom[2]->cpu_data()[0] *  Dtype(-1.0) *  Dtype(std::exp(Dtype(-1.0) * this->blobs_[2]->mutable_cpu_data()[0])) + Dtype(1.0);
 
 		
 
 
-                bottom[0]->mutable_cpu_diff()[0] = Dtype(std::exp( Dtype(-1.0) *  this->log_sig_1.mutable_cpu_data()[0] ));
+                bottom[0]->mutable_cpu_diff()[0] = Dtype(std::exp( Dtype(-1.0) *  this->blobs_[0]->mutable_cpu_data()[0] ));
 
-                bottom[1] ->mutable_cpu_diff()[0] =  Dtype(std::exp( Dtype(-1.0) * this->log_sig_2.mutable_cpu_data()[0] ));
+                bottom[1] ->mutable_cpu_diff()[0] =  Dtype(std::exp( Dtype(-1.0) * this->blobs_[1]->mutable_cpu_data()[0] ));
 
-                bottom[2]->mutable_cpu_diff()[0] =  Dtype(std::exp( Dtype(-1.0) *  this->log_sig_3.mutable_cpu_data()[0] ));
+                bottom[2]->mutable_cpu_diff()[0] =  Dtype(std::exp( Dtype(-1.0) *  this->blobs_[2]->mutable_cpu_data()[0] ));
 
 
             }
