@@ -58,25 +58,21 @@ namespace caffe {
         template <typename Dtype>
         void UncertainWeightLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         const vector<Blob<Dtype>*>& top) {
-        const Dtype *b1 = bottom[0]->cpu_data();
-        const Dtype *b2 = bottom[1]->cpu_data();
-        const Dtype *b3 = bottom[2]->cpu_data();
+        const Dtype *b0 = bottom[0]->cpu_data();
+        const Dtype *b1 = bottom[1]->cpu_data();
+        const Dtype *b2 = bottom[2]->cpu_data();
 
         Dtype loss = Dtype(0.0);
 
-            Dtype exp_res = Dtype(std::exp(-1.0 * this->blobs_[0]->mutable_cpu_data()[0] ));
+            loss += Dtype(std::exp(Dtype(-1.0) * this->blobs_[0]->cpu_data()[0] )) * b0[0]; //+ Dtype(0.5) * this->blobs_[0]->cpu_data()[0];
 
-            loss += exp_res * b1[0] + Dtype(0.5) * this->blobs_[0]->cpu_data()[0];
+            loss += Dtype(std::exp(Dtype(-1.0) * this->blobs_[1]->cpu_data()[0] )) * b1[0]; // + Dtype(0.5) * this->blobs_[1]->cpu_data()[0];
 
-            exp_res = Dtype(std::exp(-1.0 * this->blobs_[1]->cpu_data()[0] ));
-            loss += exp_res * b2[0] + Dtype(0.5) * this->blobs_[1]->cpu_data()[0];
-
-            exp_res = Dtype(std::exp(-1.0 * this->blobs_[2]->cpu_data()[0] ));
-            loss += exp_res * b3[0] + Dtype(0.5) * this->blobs_[2]->cpu_data()[0] ;
+            loss += Dtype(std::exp(Dtype(-1.0) * this->blobs_[2]->cpu_data()[0] )) * b2[0]; // + Dtype(0.5) * this->blobs_[2]->cpu_data()[0] ;
 
 
-            LOG_EVERY_N(INFO, 50) << "Sigmas: " << this->blobs_[0]->mutable_cpu_data()[0] << ", " << this->blobs_[1]->mutable_cpu_data()[0]
-            << ", " << this->blobs_[2]->mutable_cpu_data()[0] << std::endl;
+            LOG_EVERY_N(INFO, 50) << "Sigmas: " << std::pow(std::exp( this->blobs_[0]->mutable_cpu_data()[0]), 0.5)  << ", " <<  std::pow(std::exp(this->blobs_[1]->mutable_cpu_data()[0]), 0.5)
+            << ", " << std::pow(std::exp(this->blobs_[2]->mutable_cpu_data()[0]), 0.5) << std::endl;
             top[0]->mutable_cpu_data()[0] = Dtype(loss);
 
         }
