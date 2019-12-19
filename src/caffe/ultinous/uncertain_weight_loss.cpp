@@ -21,16 +21,24 @@ namespace caffe {
 
 	     LossLayer<Dtype>::LayerSetUp(bottom, top);
              LOG(INFO) << "Setting up uncertain weight loss" << std::endl;
+		
+	     
 
 
-             this->blobs_[0]->Reshape(1,1,1,1);
-             this->blobs_[1]->Reshape(1,1,1,1);
-             this->blobs_[2]->Reshape(1,1,1,1);
+
+             this->log_sig_1.Reshape(1,1,1,1);
+             this->log_sig_2.Reshape(1,1,1,1);
+             this->log_sig_3.Reshape(1,1,1,1);
 
 
-	        this->blobs_[0]->mutable_cpu_data()[0] = Dtype(1.5);
-            this->blobs_[1]->mutable_cpu_data()[0] = Dtype(1.5);
-	        this->blobs_[2]->mutable_cpu_data()[0] = Dtype(1.5);
+	        this->log_sig_1.mutable_cpu_data()[0] = Dtype(1.5);
+            this->log_sig_2.mutable_cpu_data()[0] = Dtype(1.5);
+	        this->log_sig_3.mutable_cpu_data()[0] = Dtype(1.5);
+             
+	     this->blobs_.resize(3);
+	     this->blobs_[0].reset(  &this->log_sig_1);
+	     this->blobs_[1].reset(  &this->log_sig_2);
+	     this->blobs_[2].reset(  &this->log_sig_3);
 
             LOG(INFO) << "End of layerSetup call of  uncertain weight loss" << std::endl;
         }
