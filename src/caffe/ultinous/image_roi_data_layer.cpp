@@ -35,6 +35,18 @@ template <typename Dtype>
 void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top)
 {
+  if (this->layer_param_.image_roi_data_param().debug())
+  {
+    using namespace std::chrono;
+    milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+    std::stringstream ss;
+    ss << ms.count();
+    int current_device;
+    CUDA_CHECK(cudaGetDevice(&current_device));
+    folderName_ = "debug_images/image_roi_data_gpu" + std::to_string(current_device) + "_" + ss.str();
+    boost::filesystem::create_directories(folderName_);
+  }
+
   const auto& image_data_param = this->layer_param_.image_data_param();
 
   int new_height = image_data_param.new_height();
@@ -164,18 +176,17 @@ void ImageROIDataLayer<Dtype>::ShuffleImages()
 template <typename Dtype>
 void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 {
-//  TODO
-//  std::string name;
-//  {
-//    using namespace std::chrono;
-//    milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-//    std::stringstream ss;
-//    ss << ms.count();
-//
-//    name = ss.str();
-//  }
-
-
+  string name;
+  if (this->layer_param_.image_roi_data_param().debug())
+  {
+    {
+      using namespace std::chrono;
+      milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+      std::stringstream ss;
+      ss << ms.count();
+      name = ss.str();
+    }
+  }
 
   const auto& image_data_param = this->layer_param_.image_data_param();
 
@@ -222,12 +233,13 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
     cv::Mat cv_img = readMultiChannelImage(inImgNum, new_height, new_width, is_color, root_folder);
 
-//    TODO
-//    cv::Mat cv_tmp = cv_img.clone();
-//    for (auto box : boxes)
-//      cv::rectangle(cv_tmp, cv::Point(box.x1, box.y1), cv::Point(box.x2, box.y2), cv::Scalar(0, 0, 255));
-
-
+    cv::Mat cv_tmp;
+    if (this->layer_param_.image_roi_data_param().debug())
+    {
+      cv_tmp = cv_img.clone();
+      for (auto box : boxes)
+        cv::rectangle(cv_tmp, cv::Point(box.x1, box.y1), cv::Point(box.x2, box.y2), cv::Scalar(0, 0, 255));
+    }
 
     read_time += timer.MicroSeconds();
 
@@ -359,23 +371,28 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
         std::copy(finalBoxes.begin(), finalBoxes.end(), std::back_inserter(accumulatedBoxes));
 
-//        TODO
-//        for (int bboxIx = 0; bboxIx < finalBoxes.size(); ++bboxIx)
-//        {
-//          BBox bbox = finalBoxes[bboxIx];
-//          Dtype x1 = static_cast<Dtype>(bbox.x1);
-//          Dtype y1 = static_cast<Dtype>(bbox.y1);
-//          Dtype x2 = static_cast<Dtype>(bbox.x2);
-//          Dtype y2 = static_cast<Dtype>(bbox.y2);
-//
-//          cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 0, 255));
-//        }
-//        cv::rectangle(cv_img, cv::Point(source_x1, source_y1), cv::Point(source_x2, source_y2), cv::Scalar(0, 255, 0));
-//        boost::filesystem::create_directories("debug_images");
-//        cv::imwrite("debug_images/"+name+"_batch"+std::to_string(batch_index)+"_crop.jpg", cv_img);
-//        cv::imwrite("debug_images/"+name+"_batch"+std::to_string(batch_index)+".jpg", cv_tmp);
+        if (this->layer_param_.image_roi_data_param().debug())
+        {
+          for (int bboxIx = 0; bboxIx < finalBoxes.size(); ++bboxIx)
+          {
+            BBox bbox = finalBoxes[bboxIx];
+            Dtype x1 = static_cast<Dtype>(bbox.x1);
+            Dtype y1 = static_cast<Dtype>(bbox.y1);
+            Dtype x2 = static_cast<Dtype>(bbox.x2);
+            Dtype y2 = static_cast<Dtype>(bbox.y2);
 
+            cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 0, 255));
+          }
+          cv::rectangle(cv_img, cv::Point(source_x1, source_y1), cv::Point(source_x2, source_y2), cv::Scalar(0, 255, 0));
 
+          cv::putText(cv_img,"bb num: " + std::to_string(finalBoxes.size()),cv::Point(100,100),cv::FONT_HERSHEY_COMPLEX_SMALL,2.0,cv::Scalar(0,0,255),2,CV_AA);
+          cv::putText(cv_tmp,"bb num: " + std::to_string(boxes.size()),cv::Point(100,100),cv::FONT_HERSHEY_COMPLEX_SMALL,2.0,cv::Scalar(0,0,255),2,CV_AA);
+
+          std::string fileName = folderName_ + name + ".jpg";
+          cv::imwrite(fileName, cv_img);
+          fileName = folderName_ + name + ".jpg";
+          cv::imwrite(fileName, cv_tmp);
+        }
 
         batch_index += 1;
       } // if ( !finalBoxes.empty() )
@@ -596,28 +613,6 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
   int& source_x1, int& source_x2, int& source_y1, int& source_y2,
   const int crop_height, const int crop_width
 ){
-//  TODO
-//  int h=cv_img.rows, w=cv_img.cols;
-//
-//  source_x1 = 0;
-//  source_x2 = std::min(w-1,crop_width-1);
-//  source_y1 = 0;
-//  source_y2 = std::min(h-1,crop_height-1);
-//
-//  if (h<crop_height && w < crop_width)
-//    copyMakeBorderWrapper(cv_img, cv_img, 0, crop_height-h, 0, crop_width-w, mean_values_);
-//  else if (h<crop_height)
-//    copyMakeBorderWrapper(cv_img, cv_img, 0, crop_height-h, 0, 0, mean_values_);
-//  else if (w < crop_width)
-//    copyMakeBorderWrapper(cv_img, cv_img, 0, 0, 0, crop_width-w, mean_values_);
-//
-//  if ( h != crop_width || w != crop_height )
-//    cv_img = cv_img(cv::Rect(0, 0, crop_width, crop_height));
-//
-//  return false;
-
-
-
   bool skip = true;
 
   int source_height = cv_img.rows;

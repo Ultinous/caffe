@@ -7,6 +7,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <chrono>
 #include <boost/filesystem.hpp>
 
 namespace caffe {
@@ -15,6 +16,18 @@ namespace caffe {
     template<typename Dtype>
     void AnchorTargetLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype> *> &bottom,
                                               const vector<Blob<Dtype> *> &top) {
+      if (anchorTargetParam_.debug())
+      {
+        using namespace std::chrono;
+        milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+        std::stringstream ss;
+        ss << ms.count();
+        int current_device;
+        CUDA_CHECK(cudaGetDevice(&current_device));
+        folderName_ = "debug_images/anchor_target_layer_gpu" + std::to_string(current_device) + "_" + ss.str();
+        boost::filesystem::create_directories(folderName_);
+      }
+
       auto bottom_scores = bottom[0];
 //  auto bottom_bbox  = bottom[1];
 //  auto bottom_info  = bottom[2];
@@ -73,101 +86,72 @@ namespace caffe {
       int height     = bottom_scores->shape(2);
       int width      = bottom_scores->shape(3);
 
+      if (anchorTargetParam_.debug())
+      {
+        string name;
+        {
+          using namespace std::chrono;
+          milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+          std::stringstream ss;
+          ss << ms.count();
+          name = ss.str();
+        }
 
+        auto bottom_image =  bottom[3];
 
-//      TODO
-//      auto bottom_image =  bottom[3];
-//
-//      std::stringstream ss;
-//
-//      std::vector<int> bb_shape = bottom_bbox->shape();
-//      std::vector<int> info_shape = bottom_info->shape();
-//      std::vector<int> image_shape = bottom_image->shape();
-//
-//      size_t C = image_shape[1];
-//      size_t H = image_shape[2];
-//      size_t W = image_shape[3];
-//      size_t imageSize = C*H*W;
-//
-//      int bb_offset = 0;
-//
-//      for (int batch_index=0; batch_index < batch_size; ++batch_index)
-//      {
-//        boost::filesystem::create_directories("debug_images");
-//        int current_device;
-//        CUDA_CHECK(cudaGetDevice(&current_device));
-//        std::string fileName = "debug_images/iter" + std::to_string(Caffe::iter()) + "_batch" + std::to_string(batch_index) + "_gpu" + std::to_string(current_device) + ".jpg";
-//        LOG(INFO) << fileName;
-//        LOG(INFO) << fileName;
-//
-//        std::vector<Dtype> info_vector;
-//        for (int i=0; i<info_shape[1]; ++i)
-//          info_vector.push_back( bottom_info->cpu_data()[bottom_info->offset( batch_index, i )] );
-//
-//        ss = std::stringstream();
-//        ss << "info: ";
-//        for (auto e : info_vector)
-//          ss << e << ' ';
-//        LOG(INFO) << ss.str();
-//
-//        Dtype* array( bottom_image->mutable_cpu_data() );
-//        std::vector<Dtype> converted(imageSize);
-//        Dtype max_intensity = 0;
-//        for (int c=0;c<C;++c)
-//          for (int h=0;h<H;++h)
-//            for (int w=0;w<W;++w)
-//            {
-//              auto intensity = array[bottom_image->offset( batch_index, c, h, w )];
-//              if ( abs(intensity) > max_intensity)
-//                max_intensity = abs(intensity);
-//              converted[h*W*C+w*C+c] = intensity + 127;
-//            }
-//        Dtype* array2 = converted.data();
-//        cv::Mat cv_img( bottom_image->height(), bottom_image->width(), CV_32FC3, array2 );
-//
-//        std::vector<std::vector<Dtype>> bb_vector;
-//        for (int i=0; i<(int)info_vector.back(); ++i)
-//          bb_vector.push_back(std::vector<Dtype>{
-//              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 0 )],
-//              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 1 )],
-//              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 2 )],
-//              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 3 )],
-//              bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 4 )],
-//          });
-//        bb_offset += (int)info_vector.back();
-//
-//        ss = std::stringstream();
-//        ss << "bb: ";
-//        Dtype max_d = 0;
-//        for (auto v : bb_vector)
-//        {
-//          Dtype d = std::max( std::max( -v[0], v[2]-W  ), std::max( -v[1], v[3]-H )  );
-//          if ( d > max_d)
-//            max_d = d;
-//          ss << "[ ";
-//          for (auto e : v)
-//            ss << e << ' ';
-//          ss << ']';
-//          cv::rectangle(cv_img, cv::Point(v[0], v[1]), cv::Point(v[2], v[3]), cv::Scalar(0, 0, 255));
-//        }
-//        LOG(INFO) << ss.str();
-//
-//        cv::rectangle(cv_img, cv::Point(info_vector[2],info_vector[3]), cv::Point(info_vector[4],info_vector[5]), cv::Scalar(0, 255, 0));
-//        cv::imwrite(fileName, cv_img);
-//        LOG(INFO) << "max_intensity: " << max_intensity << " max_d: " << max_d;
-//      }
-//
-//      LOG(INFO) << bottom_scores->shape_string() << ' '
-//                << bottom_bbox->shape_string() << ' '
-//                << bottom_info->shape_string() << ' '
-//                << bottom_image->shape_string();
-//
-//      LOG(INFO) << top_labels->shape_string() << ' '
-//                << top_bbox_targets->shape_string() << ' '
-//                << top_bbox_inside_weights->shape_string() << ' '
-//                << top_bbox_outside_weights->shape_string();
+        std::stringstream ss;
 
+        std::vector<int> bb_shape = bottom_bbox->shape();
+        std::vector<int> info_shape = bottom_info->shape();
+        std::vector<int> image_shape = bottom_image->shape();
 
+        size_t C = image_shape[1];
+        size_t H = image_shape[2];
+        size_t W = image_shape[3];
+        size_t imageSize = C*H*W;
+
+        int bb_offset = 0;
+
+        for (int batch_index=0; batch_index < batch_size; ++batch_index)
+        {
+          std::string fileName = folderName_ + "/iter" + std::to_string(Caffe::iter()) + "_batch" + std::to_string(batch_index) + "_" + name + ".jpg";
+          LOG(INFO) << fileName;
+
+          std::vector<Dtype> info_vector;
+          for (int i=0; i<info_shape[1]; ++i)
+            info_vector.push_back( bottom_info->cpu_data()[bottom_info->offset( batch_index, i )] );
+
+          Dtype* array( bottom_image->mutable_cpu_data() );
+          std::vector<Dtype> converted(imageSize);
+          for (int c=0;c<C;++c)
+          for (int h=0;h<H;++h)
+          for (int w=0;w<W;++w)
+          {
+            auto intensity = array[bottom_image->offset( batch_index, c, h, w )];
+            converted[h*W*C+w*C+c] = intensity + 127;
+          }
+          Dtype* array2 = converted.data();
+          cv::Mat cv_img( bottom_image->height(), bottom_image->width(), CV_32FC3, array2 );
+
+          std::vector<std::vector<Dtype>> bb_vector;
+          for (int i=0; i<(int)info_vector.back(); ++i)
+            bb_vector.push_back(std::vector<Dtype>{
+                bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 0 )],
+                bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 1 )],
+                bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 2 )],
+                bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 3 )],
+                bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 4 )],
+            });
+          bb_offset += (int)info_vector.back();
+
+          for (auto v : bb_vector)
+            cv::rectangle(cv_img, cv::Point(v[0], v[1]), cv::Point(v[2], v[3]), cv::Scalar(0, 0, 255));
+
+          cv::rectangle(cv_img, cv::Point(info_vector[2],info_vector[3]), cv::Point(info_vector[4],info_vector[5]), cv::Scalar(0, 255, 0));
+          cv::putText(cv_img,"bb num: " + std::to_string((int)info_vector.back()),cv::Point(100,100),cv::FONT_HERSHEY_COMPLEX_SMALL,2.0,cv::Scalar(0,0,255),2,CV_AA);
+          cv::imwrite(fileName, cv_img);
+        }
+      }
 
       top_labels->              Reshape(batch_size, 1, base_anchors_.size() * height, width);
       top_bbox_targets->        Reshape(batch_size, base_anchors_.size() * 4, height, width);
@@ -479,15 +463,10 @@ namespace caffe {
       float hnm = 0.0f;
       if (anchorTargetParam_.hard_negative_mining_type() == AnchorTargetParameter_HnmType_SIGMOID)
       { // the hard negative mining parameter follows a transformed sigmoid function
-//        int iter = Caffe::iter();
-//        int max_iter = Caffe::max_iter();
-//        float arg = anchorTargetParam_.hard_negative_mining_sigmoid_param() * (iter-max_iter/2) / max_iter;
-//        hnm = 1.0f / (1.0f+expf(-arg));
-
         int iter = Caffe::iter();
         int max_iter = Caffe::max_iter();
-        float arg = anchorTargetParam_.hard_negative_mining_sigmoid_param() * iter / max_iter;
-        hnm = 2.0f / (1.0f+expf(-arg)) - 1;
+        float arg = anchorTargetParam_.hard_negative_mining_sigmoid_param() * iter / max_iter - anchorTargetParam_.hard_negative_mining_sigmoid_param() / 2.0f;
+        hnm = 1.0f / (1.0f+expf(-arg));
       }
       else if (anchorTargetParam_.hard_negative_mining_type() == AnchorTargetParameter_HnmType_CONSTANT)
         hnm = anchorTargetParam_.hard_negative_mining();

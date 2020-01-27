@@ -100,6 +100,7 @@ protected:
 
   int batch_size_;
   std::vector<double> mean_values_;
+  string folderName_;
 };
 
 }  // namespace ultinous

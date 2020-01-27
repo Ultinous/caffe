@@ -87,6 +87,7 @@ namespace caffe {
       int allowed_border_;
 
       AnchorTargetParameter const &anchorTargetParam_;
+      string folderName_;
     };
 
   }  // namespace ultinous

@@ -1555,6 +1555,7 @@ message ImageROIDataParameter {
   optional uint32 in_img_num = 7 [default = 1];
   optional uint32 crop_height = 8;
   optional uint32 crop_width = 9;
+  optional bool debug = 10 [default = false];
 }
 
 message ProposalTargetParameter {
@@ -1632,6 +1633,7 @@ message AnchorTargetParameter {
   optional float denoise = 13 [default = 0.0];
   optional HnmType hard_negative_mining_type = 14 [default = CONSTANT];
   optional float hard_negative_mining_sigmoid_param = 15 [default = 10.0];
+  optional bool debug = 16 [default = false];
 }
 
 message AdversarialImageDataParamater {
