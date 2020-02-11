@@ -145,7 +145,16 @@ namespace caffe {
           bb_offset += (int)info_vector.back();
 
           for (auto v : bb_vector)
-            cv::rectangle(cv_img, cv::Point(v[0], v[1]), cv::Point(v[2], v[3]), cv::Scalar(0, 0, 255));
+          {
+            cv::Scalar color;
+            bool mask = v[4] == 0;
+            if (mask)
+              color = cv::Scalar(255, 0, 0);
+            else
+              color = cv::Scalar(0, 0, 255);
+
+            cv::rectangle(cv_img, cv::Point(v[0], v[1]), cv::Point(v[2], v[3]), color);
+          }
 
           cv::rectangle(cv_img, cv::Point(info_vector[2],info_vector[3]), cv::Point(info_vector[4],info_vector[5]), cv::Scalar(0, 255, 0));
           cv::putText(cv_img,"bb num: " + std::to_string((int)info_vector.back()),cv::Point(100,100),cv::FONT_HERSHEY_COMPLEX_SMALL,2.0,cv::Scalar(0,0,255),2,CV_AA);
@@ -237,16 +246,21 @@ namespace caffe {
           }
         }
 
-        // Load gt_boxes;
+        // Load gt_boxes and gt_masks;
         Boxes gt_boxes;
+        std::vector<bool> gt_masks;
         size_t num_gt_boxes = im_info[bottom_info_offset( batch_index, 6 )];
 
-        for (size_t i = gt_box_offset; i < gt_box_offset+num_gt_boxes; ++i)
-          gt_boxes.push_back(
-              Anchor{data_gt_boxes[bottom_bbox_offset( i, 0 )],
-                     data_gt_boxes[bottom_bbox_offset( i, 1 )],
-                     data_gt_boxes[bottom_bbox_offset( i, 2 )],
-                     data_gt_boxes[bottom_bbox_offset( i, 3 )]});
+        for (size_t i = gt_box_offset; i < gt_box_offset+num_gt_boxes; ++i) {
+          gt_boxes.push_back(Anchor{
+            data_gt_boxes[bottom_bbox_offset(i,0)],
+            data_gt_boxes[bottom_bbox_offset(i,1)],
+            data_gt_boxes[bottom_bbox_offset(i,2)],
+            data_gt_boxes[bottom_bbox_offset(i,3)]
+          });
+          bool mask = data_gt_boxes[bottom_bbox_offset(i,4)] == 0;
+          gt_masks.push_back(mask);
+        }
 
         gt_box_offset += num_gt_boxes;
 
@@ -320,6 +334,18 @@ namespace caffe {
               labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x] = 0;
             }
           }
+        }
+
+        // mask marked boxes
+        for (size_t i = 0; i < anchors.size(); ++i) {
+          Shift anchorShift = anchors_shifts[i];
+          Dtype label = labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) +
+                               anchorShift.y * width + anchorShift.x];
+
+          bool mask = gt_masks[anchor_argmax_overlaps[i]];
+          if (mask)
+            labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width +
+                   anchorShift.x] = -1;
         }
 
         // subsample positive labels if we have too many

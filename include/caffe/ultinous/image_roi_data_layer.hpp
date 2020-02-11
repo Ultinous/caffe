@@ -32,7 +32,7 @@ public:
 
   struct BBox
   {
-    int x1, y1, x2, y2;
+    int x1, y1, x2, y2, c=1;
   };
   typedef std::vector<BBox> BBoxes;
 

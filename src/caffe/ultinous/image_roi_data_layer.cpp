@@ -64,7 +64,6 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   const auto& image_roi_data_param = this->layer_param_.image_roi_data_param();
 
   const int inImgNum = image_roi_data_param.in_img_num();
-  bool randomScale = (image_roi_data_param.has_rnd_scale_min() || image_roi_data_param.has_rnd_scale_max());
   bool randomCrop  = ( image_roi_data_param.has_crop_height() && image_roi_data_param.has_crop_width() );
   if (randomCrop)
   {
@@ -74,9 +73,6 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
 
   CHECK( !(batch_size_>1 && !randomCrop) )
     << "Batch size > 1 requires random cropping.";
-
-  CHECK( !(randomCrop && randomScale) )
-    << "Can not randomly crop and resize at the same time.";
 
   CHECK( (new_height == 0 && new_width == 0) || (new_height > 0 && new_width > 0) )
     << "Current implementation requires new_height and new_width to be set at the same time.";
@@ -99,8 +95,7 @@ void ImageROIDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     }
 
     BBox bbox;
-    int tmp;
-    while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2 >> tmp )
+    while( iss >> bbox.x1 >> bbox.y1 >> bbox.x2 >> bbox.y2 >> bbox.c )
       sample.bboxes.push_back(bbox);
     if( !sample.bboxes.empty() )
       samples.push_back( sample );
@@ -317,15 +312,14 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       }
 
       BBoxes finalBoxes;
+      int finalBoxCount = 0;
       for (BBox box : boxes)
       {
-        if (box.x1 > box.x2 || box.y1 > box.y2)
+        int h=box.x2-box.x1+1, w=box.y2-box.y1+1;
+
+        if ( w <= 0 || h <= 0 )
           continue;
 
-        box.x1 *= scale;
-        box.y1 *= scale;
-        box.x2 *= scale;
-        box.y2 *= scale;
 
         if (mirror)
         {
@@ -343,10 +337,15 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         if (box.y1 > source_y2)
           continue;
 
+        if ( h < 14 || w < 14 || h > 282 || w > 282 )
+          box.c = 0;
+        else
+          ++finalBoxCount;
+
         finalBoxes.push_back(box);
       }
 
-      if ( !finalBoxes.empty() )
+      if ( finalBoxCount )
       {
         vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
         if (batch_index == 0)
@@ -387,24 +386,32 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
             Dtype y1 = static_cast<Dtype>(bbox.y1);
             Dtype x2 = static_cast<Dtype>(bbox.x2);
             Dtype y2 = static_cast<Dtype>(bbox.y2);
+            Dtype c  = static_cast<Dtype>(bbox.c);
 
-            cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 0, 255));
+            cv::Scalar color;
+            bool mask = c == 0;
+            if (mask)
+              color = cv::Scalar(255, 0, 0);
+            else
+              color = cv::Scalar(0, 0, 255);
+
+            cv::rectangle(cv_img, cv::Point(x1, y1), cv::Point(x2, y2), color);
           }
           cv::rectangle(cv_img, cv::Point(source_x1, source_y1), cv::Point(source_x2, source_y2), cv::Scalar(0, 255, 0));
 
           cv::putText(cv_img,"bb num: " + std::to_string(finalBoxes.size()),cv::Point(100,100),cv::FONT_HERSHEY_COMPLEX_SMALL,2.0,cv::Scalar(0,0,255),2,CV_AA);
           cv::putText(cv_tmp,"bb num: " + std::to_string(boxes.size()),cv::Point(100,100),cv::FONT_HERSHEY_COMPLEX_SMALL,2.0,cv::Scalar(0,0,255),2,CV_AA);
 
-          std::string fileName = folderName_ + name + ".jpg";
+          std::string fileName = folderName_ + "/" + name + ".jpg";
           cv::imwrite(fileName, cv_img);
-          fileName = folderName_ + name + ".jpg";
+          fileName = folderName_ + name + "/"  + "_original.jpg";
           cv::imwrite(fileName, cv_tmp);
         }
 
         batch_index += 1;
       } // if ( !finalBoxes.empty() )
       else
-        LOG(INFO) << "Skipping an image with only invalid heads";
+        LOG(INFO) << "Skipping an image with only invalid or masked heads";
     } // if (!skip)
     else
       LOG(INFO) << "Skipping an image with no heads at all";
@@ -433,12 +440,13 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     auto y1 = static_cast<Dtype>(bbox.y1);
     auto x2 = static_cast<Dtype>(bbox.x2);
     auto y2 = static_cast<Dtype>(bbox.y2);
+    auto c  = static_cast<Dtype>(bbox.c);
 
     prefetch_bboxes[batch->bboxes_.offset( bboxIx, 0 )] = x1;
     prefetch_bboxes[batch->bboxes_.offset( bboxIx, 1 )] = y1;
     prefetch_bboxes[batch->bboxes_.offset( bboxIx, 2 )] = x2;
     prefetch_bboxes[batch->bboxes_.offset( bboxIx, 3 )] = y2;
-    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 4 )] = 1;
+    prefetch_bboxes[batch->bboxes_.offset( bboxIx, 4 )] = c;
   }
 
   batch_timer.Stop();
