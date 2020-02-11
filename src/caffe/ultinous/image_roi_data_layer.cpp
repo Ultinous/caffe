@@ -241,6 +241,41 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         cv::rectangle(cv_tmp, cv::Point(box.x1, box.y1), cv::Point(box.x2, box.y2), cv::Scalar(0, 0, 255));
     }
 
+    // resize
+    float scale = 1.0f;
+    if (randomScale) {
+      float scale_min = image_roi_data_param.has_rnd_scale_min() ? image_roi_data_param.rnd_scale_min() : 1;
+      float scale_max = image_roi_data_param.has_rnd_scale_max() ? image_roi_data_param.rnd_scale_max() : 1;
+      CHECK(scale_max - scale_min > 0);
+
+      if ((caffe_rng_rand() % 2) == 1)
+        caffe_rng_uniform(1, scale_min, scale_max, &scale);
+    }
+
+    if (smallerDimensionSize > 0) {
+      float scale1 = static_cast<float>(smallerDimensionSize)
+                     / std::min(cv_img.rows, cv_img.cols);
+      float scale2 = static_cast<float>(maxSize) / static_cast<float>(std::max(cv_img.rows, cv_img.cols));
+      scale = std::min(scale1, scale2);
+
+    } else if (std::max(cv_img.rows, cv_img.cols) > maxSize)
+      scale = static_cast<float>(maxSize) / static_cast<float>(std::max(cv_img.rows, cv_img.cols));
+
+    if (scale != 1.0f) {
+      cv::Mat cv_resized;
+      cv::resize(cv_img, cv_resized, cv::Size(0, 0), scale, scale, cv::INTER_LINEAR);
+
+      cv_img = cv_resized;
+
+      for (auto it=boxes.begin(); it<boxes.end(); ++it)
+      {
+        it->x1 *= scale;
+        it->y1 *= scale;
+        it->x2 *= scale;
+        it->y2 *= scale;
+      }
+    }
+
     read_time += timer.MicroSeconds();
 
     bool skip = false;
@@ -254,35 +289,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
     if (!skip)
     {
-      float scale = 1.0f;
-
       if ( !randomCrop ) {
-        // resize
-        if (randomScale) {
-          float scale_min = image_roi_data_param.has_rnd_scale_min() ? image_roi_data_param.rnd_scale_min() : 1;
-          float scale_max = image_roi_data_param.has_rnd_scale_max() ? image_roi_data_param.rnd_scale_max() : 1;
-          CHECK(scale_max - scale_min > 0);
-
-          if ((caffe_rng_rand() % 2) == 1)
-            caffe_rng_uniform(1, scale_min, scale_max, &scale);
-        }
-
-        if (smallerDimensionSize > 0) {
-          float scale1 = static_cast<float>(smallerDimensionSize)
-                         / std::min(cv_img.rows, cv_img.cols);
-          float scale2 = static_cast<float>(maxSize) / static_cast<float>(std::max(cv_img.rows, cv_img.cols));
-          scale = std::min(scale1, scale2);
-
-        } else if (std::max(cv_img.rows, cv_img.cols) > maxSize)
-          scale = static_cast<float>(maxSize) / static_cast<float>(std::max(cv_img.rows, cv_img.cols));
-
-        if (scale != 1.0f) {
-          cv::Mat cv_resized;
-          cv::resize(cv_img, cv_resized, cv::Size(0, 0), scale, scale, cv::INTER_LINEAR);
-
-          cv_img = cv_resized;
-        }
-
         source_x2 = cv_img.cols - 1;
         source_y2 = cv_img.rows - 1;
 
