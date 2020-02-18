@@ -1545,6 +1545,12 @@ message SmoothL1LossParameter {
 }
 
 message ImageROIDataParameter {
+  enum Channels {
+    ORIGINAL = 0;
+    COPY_RED = 1;
+    GRAYSCALE_CONVERSION = 2;
+  }
+
   // Resize the smaller dimension of the image to this size (0 indicates no resize)
   required uint32 smallerDimensionSize = 1;
   optional uint32 maxSize = 2 [default = 1000];
@@ -1556,6 +1562,8 @@ message ImageROIDataParameter {
   optional uint32 crop_height = 8;
   optional uint32 crop_width = 9;
   optional bool debug = 10 [default = false];
+  optional Channels channels = 11 [default = ORIGINAL];
+  optional bool scale_based_masking = 12 [default = false];
 }
 
 message ProposalTargetParameter {

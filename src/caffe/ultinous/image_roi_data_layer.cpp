@@ -192,6 +192,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
   const auto& image_roi_data_param = this->layer_param_.image_roi_data_param();
 
+  bool scaleBasedMasking =  image_roi_data_param.scale_based_masking();
   bool randomScale = (image_roi_data_param.has_rnd_scale_min() || image_roi_data_param.has_rnd_scale_max());
   bool randomCrop = (image_roi_data_param.has_crop_height() && image_roi_data_param.has_crop_width());
   int smallerDimensionSize = image_roi_data_param.smallerdimensionsize();
@@ -203,6 +204,12 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     crop_height = image_roi_data_param.crop_height();
     crop_width  = image_roi_data_param.crop_width();
   }
+  ImageROIDataParameter_Channels channels = image_roi_data_param.channels();
+//  switch( image_roi_data_param.channels() )
+//  {
+//    case AnchorTargetParameter_HnmType_CONSTANT:
+//      break;
+//  }
 
   CHECK(batch->data_.count());
   CHECK(this->transformed_data_.count());
@@ -226,7 +233,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     timer.Start();
     CHECK_GT(samples_size, sample_id_);
 
-    cv::Mat cv_img = readMultiChannelImage(inImgNum, new_height, new_width, is_color, root_folder);
+    cv::Mat cv_img = readMultiChannelImage(inImgNum, new_height, new_width, is_color, root_folder, channels);
 
     cv::Mat cv_tmp;
     if (this->layer_param_.image_roi_data_param().debug())
@@ -337,7 +344,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
         if (box.y1 > source_y2)
           continue;
 
-        if ( h < 14 || w < 14 || h > 282 || w > 282 )
+        if ( scaleBasedMasking && (h < 14 || w < 14 || h > 282 || w > 282) )
           box.c = 0;
         else
           ++finalBoxCount;
@@ -571,7 +578,7 @@ void copyMakeBorderWrapper(const cv::Mat &src, cv::Mat &dst,
 }
 
 template <typename Dtype>
-inline cv::Mat ImageROIDataLayer<Dtype>::readMultiChannelImage(int inImgNum, int new_height, int new_width, bool is_color, const string& root_folder)
+inline cv::Mat ImageROIDataLayer<Dtype>::readMultiChannelImage(int inImgNum, int new_height, int new_width, bool is_color, const string& root_folder, ImageROIDataParameter_Channels channels)
 {
   vector<cv::Mat> slices;
   slices.reserve(inImgNum);
@@ -590,6 +597,34 @@ inline cv::Mat ImageROIDataLayer<Dtype>::readMultiChannelImage(int inImgNum, int
       << "Resolution mismatch, expected " << slices[0].cols << "x" << slices[0].rows
       << " got " << slices.back().cols << "x" << slices.back().rows
       << " in " << samples[sample_id_].image_files[i];
+    }
+    switch(channels)
+    {
+      case ImageROIDataParameter_Channels_ORIGINAL:
+        break;
+      case ImageROIDataParameter_Channels_COPY_RED:
+      {
+        cv::Mat cv_img;
+        std::vector<cv::Mat> bgr(3);
+        split(slices.back(), bgr);
+        bgr[0] = bgr[2];
+        bgr[1] = bgr[2];
+        cv::merge(bgr, cv_img);
+        slices.back() = cv_img;
+        break;
+      }
+      case ImageROIDataParameter_Channels_GRAYSCALE_CONVERSION:
+      {
+        cv::Mat cv_img, cv_img_gray;
+        std::vector<cv::Mat> bgr(3);
+        cv::cvtColor(slices.back(), cv_img_gray, cv::COLOR_BGR2GRAY);
+        bgr[0] = cv_img_gray;
+        bgr[1] = cv_img_gray;
+        bgr[2] = cv_img_gray;
+        cv::merge(bgr, cv_img);
+        slices.back() = cv_img;
+        break;
+      }
     }
   }
 

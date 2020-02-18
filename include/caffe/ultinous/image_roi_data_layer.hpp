@@ -73,7 +73,7 @@ public:
   }
 
 private:
-  inline cv::Mat readMultiChannelImage(int inImgNum, int new_height, int new_width, bool is_color, const string& root_folder);
+  inline cv::Mat readMultiChannelImage(int inImgNum, int new_height, int new_width, bool is_color, const string& root_folder, ImageROIDataParameter_Channels channels);
   inline std::map<Gain, int> getGain(
     std::vector<size_t>& excludeIndices,
     std::vector<int> vx1, std::vector<int> vy1, std::vector<int> vx2, std::vector<int> vy2
