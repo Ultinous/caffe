@@ -4,7 +4,7 @@
 
 #include "caffe/blob.hpp"
 #include "caffe/data_transformer.hpp"
-#include "caffe/internal_thread.hpp"
+#include "caffe/internal_threads.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/util/blocking_queue.hpp"
@@ -22,7 +22,7 @@ void copyMakeBorderWrapper(const cv::Mat &src, cv::Mat &dst,
                            const std::vector<double> &color);
 
 template <typename Dtype>
-class ImageROIDataLayer : public BaseDataLayer<Dtype>, public InternalThread {
+class ImageROIDataLayer : public BaseDataLayer<Dtype>, public InternalThreads {
 public:
 
   class Batch {
@@ -85,7 +85,7 @@ private:
   );
 
  protected:
-  virtual void InternalThreadEntry();
+  virtual void InternalThreadEntry(size_t thread_index);
   virtual void ShuffleImages();
   virtual void load_batch(Batch* batch);
 

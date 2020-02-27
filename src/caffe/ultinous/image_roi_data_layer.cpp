@@ -6,7 +6,7 @@
 
 #include "caffe/blob.hpp"
 #include "caffe/data_transformer.hpp"
-#include "caffe/internal_thread.hpp"
+#include "caffe/internal_threads.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/util/blocking_queue.hpp"
@@ -28,7 +28,7 @@ namespace ultinous {
 template <typename Dtype>
 ImageROIDataLayer<Dtype>::~ImageROIDataLayer<Dtype>()
 {
-  this->StopInternalThread();
+  this->StopInternalThreads();
 }
 
 template <typename Dtype>
@@ -500,12 +500,12 @@ void ImageROIDataLayer<Dtype>::LayerSetUp
 #endif
   DLOG(INFO) << "Initializing prefetch";
   this->data_transformer_->InitRand();
-  StartInternalThread();
+  StartInternalThreads();
   DLOG(INFO) << "Prefetch initialized.";
 }
 
 template <typename Dtype>
-void ImageROIDataLayer<Dtype>::InternalThreadEntry()
+void ImageROIDataLayer<Dtype>::InternalThreadEntry(size_t thread_index)
 {
 #ifndef CPU_ONLY
   cudaStream_t stream;
@@ -517,7 +517,15 @@ void ImageROIDataLayer<Dtype>::InternalThreadEntry()
     while (!must_stop())
     {
       Batch* batch = prefetch_free_.pop();
+
+      CPUTimer timer;
+      timer.Start();
       load_batch(batch);
+      timer.Stop();
+//      LOG(ERROR) << "thread: " << thread_index
+//                 << " prefetch: "  << prefetch_full_.size()+1 << "/" << PREFETCH_COUNT
+//                 << " time: "  << (timer.MicroSeconds()/1000.0);
+
 #ifndef CPU_ONLY
       if (Caffe::mode() == Caffe::GPU)
       {
@@ -584,13 +592,13 @@ inline cv::Mat ImageROIDataLayer<Dtype>::readMultiChannelImage(int inImgNum, int
   slices.reserve(inImgNum);
   for (int i = 0; i < inImgNum; ++i) {
     if (i == 0) {
-      slices.push_back(
-          ReadImageToCVMat(root_folder + samples[sample_id_].image_files[0], new_height, new_width, is_color));
+//      slices.push_back( cv::Mat(1080, 1920, CV_8UC3, cv::Scalar(0,0, 100)) );
+      slices.push_back(ReadImageToCVMat(root_folder + samples[sample_id_].image_files[0], new_height, new_width, is_color));
       CHECK(slices.back().data && slices.back().rows != 0 && slices.back().cols != 0) << "Could not load "
                                                                                       << samples[sample_id_].image_files[0];
     } else {
-      slices.push_back(
-          ReadImageToCVMat(root_folder + samples[sample_id_].image_files[i], new_height, new_width, is_color));
+//      slices.push_back( cv::Mat(1080, 1920, CV_8UC3, cv::Scalar(0,0, 100)) );
+      slices.push_back(ReadImageToCVMat(root_folder + samples[sample_id_].image_files[i], new_height, new_width, is_color));
 
       CHECK(slices.back().data) << "Could not load " << samples[sample_id_].image_files[i];
       CHECK(slices[0].cols == slices.back().cols && slices[0].rows == slices.back().rows)
@@ -940,6 +948,7 @@ inline bool ImageROIDataLayer<Dtype>::doRandomCrop(
   template <typename Dtype>
   void ImageROIDataLayer<Dtype>::Forward_cpu(
       const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
+
     Batch* batch = prefetch_full_.pop("Data layer prefetch queue empty");
 
     // Reshape to loaded image.
