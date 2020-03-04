@@ -6,6 +6,7 @@
 #include "caffe/util/io.hpp"
 #include "caffe/ultinous/skeleton_data_layer.hpp"
 #include "caffe/util/benchmark.hpp"
+#include <numeric>
 
 namespace caffe 
 {
