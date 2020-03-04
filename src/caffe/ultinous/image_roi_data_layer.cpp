@@ -205,11 +205,6 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
     crop_width  = image_roi_data_param.crop_width();
   }
   ImageROIDataParameter_Channels channels = image_roi_data_param.channels();
-//  switch( image_roi_data_param.channels() )
-//  {
-//    case AnchorTargetParameter_HnmType_CONSTANT:
-//      break;
-//  }
 
   CHECK(batch->data_.count());
   CHECK(this->transformed_data_.count());
@@ -411,7 +406,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
 
           std::string fileName = folderName_ + "/" + name + ".jpg";
           cv::imwrite(fileName, cv_img);
-          fileName = folderName_ + name + "/"  + "_original.jpg";
+          fileName             = folderName_ + "/" + name + "_original.jpg";
           cv::imwrite(fileName, cv_tmp);
         }
 
@@ -606,7 +601,7 @@ inline cv::Mat ImageROIDataLayer<Dtype>::readMultiChannelImage(int inImgNum, int
       {
         cv::Mat cv_img;
         std::vector<cv::Mat> bgr(3);
-        split(slices.back(), bgr);
+        cv::split(slices.back(), bgr);
         bgr[0] = bgr[2];
         bgr[1] = bgr[2];
         cv::merge(bgr, cv_img);
@@ -621,6 +616,22 @@ inline cv::Mat ImageROIDataLayer<Dtype>::readMultiChannelImage(int inImgNum, int
         bgr[0] = cv_img_gray;
         bgr[1] = cv_img_gray;
         bgr[2] = cv_img_gray;
+        cv::merge(bgr, cv_img);
+        slices.back() = cv_img;
+        break;
+      }
+      case ImageROIDataParameter_Channels_RANDOM_SELECTION:
+      {
+        int selectedChannelIndex = caffe_rng_rand() % 3;
+        cv::Mat cv_img;
+        std::vector<cv::Mat> bgr(3);
+        cv::split(slices.back(), bgr);
+        if ( 0 != selectedChannelIndex )
+          bgr[0] = bgr[selectedChannelIndex];
+        if ( 1 != selectedChannelIndex )
+          bgr[1] = bgr[selectedChannelIndex];
+        if ( 2 != selectedChannelIndex )
+          bgr[2] = bgr[selectedChannelIndex];
         cv::merge(bgr, cv_img);
         slices.back() = cv_img;
         break;

@@ -1549,6 +1549,7 @@ message ImageROIDataParameter {
     ORIGINAL = 0;
     COPY_RED = 1;
     GRAYSCALE_CONVERSION = 2;
+    RANDOM_SELECTION = 3;
   }
 
   // Resize the smaller dimension of the image to this size (0 indicates no resize)
