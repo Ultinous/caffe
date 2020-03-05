@@ -86,6 +86,11 @@ namespace caffe {
       int height     = bottom_scores->shape(2);
       int width      = bottom_scores->shape(3);
 
+      Offset bottom_scores_offset(bottom_scores->shape());
+      Offset bottom_bbox_offset(bottom_bbox->shape());
+      Offset bottom_info_offset(bottom_info->shape());
+//      Offset bottom_image_offset(bottom_image->shape());
+
       if (anchorTargetParam_.debug())
       {
         string name;
@@ -119,7 +124,7 @@ namespace caffe {
 
           std::vector<Dtype> info_vector;
           for (int i=0; i<info_shape[1]; ++i)
-            info_vector.push_back( bottom_info->cpu_data()[bottom_info->offset( batch_index, i )] );
+            info_vector.push_back( bottom_info->cpu_data()[bottom_info_offset( batch_index, i )] );
 
           Dtype* array( bottom_image->mutable_cpu_data() );
           std::vector<Dtype> converted(imageSize);
@@ -136,11 +141,11 @@ namespace caffe {
           std::vector<std::vector<Dtype>> bb_vector;
           for (int i=0; i<(int)info_vector.back(); ++i)
             bb_vector.push_back(std::vector<Dtype>{
-                bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 0 )],
-                bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 1 )],
-                bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 2 )],
-                bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 3 )],
-                bottom_bbox->cpu_data()[bottom_bbox->offset( bb_offset+i, 4 )],
+                bottom_bbox->cpu_data()[bottom_bbox_offset( bb_offset+i, 0 )],
+                bottom_bbox->cpu_data()[bottom_bbox_offset( bb_offset+i, 1 )],
+                bottom_bbox->cpu_data()[bottom_bbox_offset( bb_offset+i, 2 )],
+                bottom_bbox->cpu_data()[bottom_bbox_offset( bb_offset+i, 3 )],
+                bottom_bbox->cpu_data()[bottom_bbox_offset( bb_offset+i, 4 )],
             });
           bb_offset += (int)info_vector.back();
 
@@ -166,11 +171,6 @@ namespace caffe {
       top_bbox_targets->        Reshape(batch_size, base_anchors_.size() * 4, height, width);
       top_bbox_inside_weights-> Reshape(batch_size, base_anchors_.size() * 4, height, width);
       top_bbox_outside_weights->Reshape(batch_size, base_anchors_.size() * 4, height, width);
-
-      Offset bottom_scores_offset(bottom_scores->shape());
-      Offset bottom_bbox_offset(bottom_bbox->shape());
-      Offset bottom_info_offset(bottom_info->shape());
-//      Offset bottom_image_offset(bottom_image->shape());
 
       Offset top_labels_offset(top_labels->shape());
       Offset top_bbox_targets_offset(top_bbox_targets->shape());
@@ -337,15 +337,16 @@ namespace caffe {
         }
 
         // mask marked boxes
-        for (size_t i = 0; i < anchors.size(); ++i) {
-          Shift anchorShift = anchors_shifts[i];
-          Dtype label = labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) +
-                               anchorShift.y * width + anchorShift.x];
+        if ( !gt_masks.empty() )
+        {
+          for (size_t i = 0; i < anchors.size(); ++i)
+          {
+            Shift anchorShift = anchors_shifts[i];
 
-          bool mask = gt_masks[anchor_argmax_overlaps[i]];
-          if (mask)
-            labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width +
-                   anchorShift.x] = -1;
+            bool mask = gt_masks[anchor_argmax_overlaps[i]];
+            if (mask)
+              labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) + anchorShift.y * width + anchorShift.x] = -1;
+          }
         }
 
         // subsample positive labels if we have too many
@@ -416,7 +417,6 @@ namespace caffe {
         }
         // At this point bbox_targets are ready :)
 
-
         // Computing bbox_inside_weights
         for (size_t i = 0; i < anchors.size(); ++i) {
           Shift anchorShift = anchors_shifts[i];
@@ -437,7 +437,6 @@ namespace caffe {
           }
         }
         // At this point bbox_inside_weights are ready :)
-
 
         // Computing bbox_outside_weights
         int num_examples = num_fg + num_bg;

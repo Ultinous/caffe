@@ -18,7 +18,7 @@ namespace caffe {
  */
 class InternalThreads {
  public:
-  InternalThreads() : threads_() {}
+  InternalThreads(int worker_count) : threads_(), worker_count_(worker_count) {}
   virtual ~InternalThreads();
 
   /**
@@ -40,7 +40,8 @@ class InternalThreads {
   bool must_stop();
 
   std::vector<shared_ptr<boost::thread>> threads_;
-  int worker_count_ = 3;
+  int worker_count_;
+  std::mutex mutex;
 };
 
 }  // namespace caffe

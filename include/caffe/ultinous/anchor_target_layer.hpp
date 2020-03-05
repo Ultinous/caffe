@@ -21,7 +21,7 @@ namespace caffe {
       explicit Offset(std::vector<int> v)
       {
         CHECK(v.size()<=4);
-        CHECK(std::find_if(v.begin(),v.end(),[](const int i){return i<=0;}) == v.end());
+        //CHECK(std::find_if(v.begin(),v.end(),[](const int i){return i<=0;}) == v.end());
         v.resize(4,1);
         dN = v[1]*v[2]*v[3];
         dC = v[2]*v[3];

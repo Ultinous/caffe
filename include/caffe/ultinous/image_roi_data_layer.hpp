@@ -73,12 +73,12 @@ public:
   }
 
 private:
-  inline cv::Mat readMultiChannelImage(int inImgNum, int new_height, int new_width, bool is_color, const string& root_folder, ImageROIDataParameter_Channels channels);
+  inline cv::Mat readMultiChannelImage(Sample sample, int inImgNum, int new_height, int new_width, bool is_color, const string& root_folder, ImageROIDataParameter_Channels channels);
   inline std::map<Gain, int> getGain(
     std::vector<size_t>& excludeIndices,
     std::vector<int> vx1, std::vector<int> vy1, std::vector<int> vx2, std::vector<int> vy2
   );
-  inline bool doRandomCrop(
+  inline void doRandomCrop(
     cv::Mat& cv_img, BBoxes& boxes,
     int& source_x1, int& source_x2, int& source_y1, int& source_y2,
     int crop_height, int crop_width
@@ -87,7 +87,7 @@ private:
  protected:
   virtual void InternalThreadEntry(size_t thread_index);
   virtual void ShuffleImages();
-  virtual void load_batch(Batch* batch);
+  virtual void load_batch(Batch* batch, size_t thread_index);
 
 protected:
   Batch prefetch_[PREFETCH_COUNT];
