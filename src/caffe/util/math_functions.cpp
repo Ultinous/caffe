@@ -1,5 +1,6 @@
 #include <boost/math/special_functions/next.hpp>
 #include <boost/random.hpp>
+#include <boost/math/distributions.hpp>
 
 #include <limits>
 
@@ -334,6 +335,31 @@ void caffe_rng_bernoulli<double>(const int n, const double p, unsigned int* r);
 
 template
 void caffe_rng_bernoulli<float>(const int n, const float p, unsigned int* r);
+
+template <typename Dtype>
+void rng_beta(const int n, const Dtype a, const Dtype b, Dtype* r) {
+  CHECK_GE(n, 0);
+  CHECK(r);
+  
+  boost::math::beta_distribution<> dist(a, b);
+  
+  boost::uniform_real<Dtype> random_distribution(0, 1);
+  
+  boost::variate_generator<caffe::rng_t*, boost::uniform_real<Dtype> >
+      variate_generator(caffe_rng(), random_distribution);
+      
+  for (int i = 0; i < n; ++i) {
+    r[i] = boost::math::quantile(dist, variate_generator());
+  }
+}
+
+template
+void rng_beta<float>(const int n, const float a, const float b,
+                              float* r);
+
+template
+void rng_beta<double>(const int n, const double a, const double b,
+                               double* r);
 
 template <>
 float caffe_cpu_strided_dot<float>(const int n, const float* x, const int incx,

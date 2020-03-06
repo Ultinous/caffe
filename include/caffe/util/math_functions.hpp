@@ -89,6 +89,9 @@ template <typename Dtype>
 void caffe_rng_bernoulli(const int n, const Dtype p, unsigned int* r);
 
 template <typename Dtype>
+void rng_beta(const int n, const Dtype a, const Dtype b, Dtype* r);
+
+template <typename Dtype>
 void caffe_exp(const int n, const Dtype* a, Dtype* y);
 
 template <typename Dtype>

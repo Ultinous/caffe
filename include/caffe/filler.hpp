@@ -292,6 +292,21 @@ class FileFiller : public Filler<Dtype> {
   }
 };
 
+
+template <typename Dtype>
+class BetaFiller : public Filler<Dtype> {
+ public:
+  explicit BetaFiller(const FillerParameter& param)
+      : Filler<Dtype>(param) {}
+  virtual void Fill(Blob<Dtype>* blob) {
+    CHECK(blob->count());
+    rng_beta<Dtype>(blob->count(), Dtype(this->filler_param_.a()),
+        Dtype(this->filler_param_.b()), blob->mutable_cpu_data());
+    CHECK_EQ(this->filler_param_.sparse(), -1)
+         << "Sparsity not supported by this Filler.";
+  }
+};
+
 /**
  * @brief Get a specific filler from the specification given in FillerParameter.
  *
@@ -317,7 +332,9 @@ Filler<Dtype>* GetFiller(const FillerParameter& param) {
     return new BilinearFiller<Dtype>(param);
   } else if (type == "file") {
     return new FileFiller<Dtype>(param);
-  }else {
+  } else if (type == "beta") {
+    return new BetaFiller<Dtype>(param);
+  } else {
     CHECK(false) << "Unknown filler name: " << param.type();
   }
   return (Filler<Dtype>*)(NULL);
