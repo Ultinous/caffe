@@ -44,15 +44,30 @@ public:
 
   void transform( cv::Mat& cv_img )
   {
-    if( m_phase != TRAIN ) return;
+    uint32_t cropHeight = m_params.cropheight();
+    uint32_t cropWidth = m_params.cropwidth();
+	  
+    if( m_phase != TRAIN)
+    {
+	  if(cropHeight > 0 || cropWidth > 0)
+	  {
+	    CHECK( cropHeight > 0 && cropWidth > 0 );
+        CHECK( cropHeight <= cv_img.rows && cropWidth <= cv_img.cols );
+      
+        uint32_t offX = (cv_img.cols - cropWidth) / 2;
+        uint32_t offY = (cv_img.rows - cropHeight) / 2;
+
+        cv_img = cv_img( cv::Rect(offX, offY, cropWidth, cropHeight ) ).clone();
+      }
+      
+      return;
+	}
 
     // Apply affine transformation
     cv::Mat cv_affine = cv_img.clone();
     applyAffine( cv_img, cv_affine );
     cv_img = cv_affine;
-
-    uint32_t cropHeight = m_params.cropheight();
-    uint32_t cropWidth = m_params.cropwidth();
+    
     if( cropHeight > 0 || cropWidth > 0 )
     {
       CHECK( cropHeight > 0 && cropWidth > 0 );
