@@ -443,6 +443,7 @@ message LayerParameter {
   optional QueuePredictionDataParameter queue_prediction_data_param = 5014;
   optional NonMaxSuppressionParameter nms_param = 5015;
   optional FillerParameter dist_filler = 5016;
+  optional SoftmaxFocalLossParameter softmax_focal_loss_param = 5017;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1723,4 +1724,9 @@ message QueuePredictionDataParameter {
 
 message NonMaxSuppressionParameter {
   optional uint32 kernel_size = 1 [default = 5];
+}
+
+message SoftmaxFocalLossParameter{
+  optional float alpha = 1 [default = 1];
+  optional float gamma = 2 [default = 2];
 }
