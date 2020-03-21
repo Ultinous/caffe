@@ -232,13 +232,23 @@ namespace caffe {
                         base_anchors_[baseAnchorIx][2] + shift_x * feat_stride_,
                         base_anchors_[baseAnchorIx][3] + shift_y * feat_stride_};
 
-          if
-          (
-               anchor[0] >= im_info[bottom_info_offset( batch_index, 2 )] - allowed_border_
-            && anchor[1] >= im_info[bottom_info_offset( batch_index, 3 )] - allowed_border_
-            && anchor[2] <= im_info[bottom_info_offset( batch_index, 4 )] + allowed_border_
-            && anchor[3] <= im_info[bottom_info_offset( batch_index, 5 )] + allowed_border_
-          )
+          bool useAnchor;
+          if (anchorTargetParam_.strict_border())
+            useAnchor = (
+                 anchor[0] >= im_info[bottom_info_offset( batch_index, 2 )] - allowed_border_
+              && anchor[1] >= im_info[bottom_info_offset( batch_index, 3 )] - allowed_border_
+              && anchor[2] <= im_info[bottom_info_offset( batch_index, 4 )] + allowed_border_
+              && anchor[3] <= im_info[bottom_info_offset( batch_index, 5 )] + allowed_border_
+            );
+          else
+            useAnchor = (
+                 anchor[2] > im_info[bottom_info_offset( batch_index, 2 )] - allowed_border_
+              && anchor[3] > im_info[bottom_info_offset( batch_index, 3 )] - allowed_border_
+              && anchor[0] < im_info[bottom_info_offset( batch_index, 4 )] + allowed_border_
+              && anchor[1] < im_info[bottom_info_offset( batch_index, 5 )] + allowed_border_
+            );
+
+          if (useAnchor)
           {
             anchors.push_back(anchor);
             anchors_shifts.push_back(Shift(shift_x, shift_y));

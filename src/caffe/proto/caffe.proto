@@ -1565,6 +1565,7 @@ message ImageROIDataParameter {
   optional bool debug = 10 [default = false];
   optional Channels channels = 11 [default = ORIGINAL];
   optional bool scale_based_masking = 12 [default = false];
+  optional bool hard_downscaling = 13 [default = false];
 }
 
 message ProposalTargetParameter {
@@ -1643,6 +1644,7 @@ message AnchorTargetParameter {
   optional HnmType hard_negative_mining_type = 14 [default = CONSTANT];
   optional float hard_negative_mining_sigmoid_param = 15 [default = 10.0];
   optional bool debug = 16 [default = false];
+  optional bool strict_border = 17 [default = true];
 }
 
 message AdversarialImageDataParamater {

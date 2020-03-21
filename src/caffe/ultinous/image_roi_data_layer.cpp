@@ -198,6 +198,7 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
   int smallerDimensionSize = image_roi_data_param.smallerdimensionsize();
   int maxSize = image_roi_data_param.maxsize();
   int inImgNum = image_roi_data_param.in_img_num();
+  bool hardDownscaling = image_roi_data_param.hard_downscaling();
   int crop_height=0, crop_width=0;
   if (randomCrop)
   {
@@ -246,7 +247,12 @@ void ImageROIDataLayer<Dtype>::load_batch(Batch* batch)
       CHECK(scale_max - scale_min > 0);
 
       if ((caffe_rng_rand() % 2) == 1)
-        caffe_rng_uniform(1, scale_min, scale_max, &scale);
+      {
+        if (hardDownscaling)
+          scale = scale_min;
+        else
+          caffe_rng_uniform(1, scale_min, scale_max, &scale);
+      }
     }
 
     if (smallerDimensionSize > 0) {
