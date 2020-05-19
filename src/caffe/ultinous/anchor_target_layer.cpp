@@ -349,8 +349,6 @@ namespace caffe {
         // mask marked boxes
         for (size_t i = 0; i < anchors.size(); ++i) {
           Shift anchorShift = anchors_shifts[i];
-          Dtype label = labels[top_labels_offset(batch_index) + anchor_base_indices[i] * (width * height) +
-                               anchorShift.y * width + anchorShift.x];
 
           bool mask = gt_masks[anchor_argmax_overlaps[i]];
           if (mask)
@@ -535,23 +533,34 @@ namespace caffe {
 
           if (denoise > 0.0f)
           {
-            size_t anchorsToRemove( float( bg_inds[anchorIx].size() ) * denoise );
-            if (anchorsToRemove > 0)
-              bg_inds[anchorIx].erase( begin(bg_inds[anchorIx]), begin(bg_inds[anchorIx])+anchorsToRemove );
+            size_t num_anchors_to_remove( float( bg_inds[anchorIx].size() ) * denoise );
+            if (num_anchors_to_remove > 0)
+            {
+              std::for_each(bg_inds[anchorIx].begin(), bg_inds[anchorIx].begin() + num_anchors_to_remove,
+                            [labels](IndexScorePair const &p) { labels[p.first] = -1; });
+              bg_inds[anchorIx].erase( begin(bg_inds[anchorIx]), begin(bg_inds[anchorIx]) + num_anchors_to_remove );
+
+            }
           }
 
           for (size_t ix1 = bg_inds[anchorIx].size() - 1; ix1 > 0; --ix1) {
-            size_t ix2 = caffe_rng_rand() % (ix1 + 1);
-
             int r;
-            caffe_rng_bernoulli(1, 1 - hnm, &r);
+            caffe_rng_bernoulli(1, 1.0f - hnm, &r);
             if (r)
+            {
+              size_t ix2 = caffe_rng_rand() % (ix1 + 1);
               std::swap(bg_inds[anchorIx][ix1], bg_inds[anchorIx][ix2]);
+            }
           }
 
-          std::for_each(bg_inds[anchorIx].begin() + num_bg_per_baseAnchor, bg_inds[anchorIx].end(),
-                        [labels](IndexScorePair const &p) { labels[p.first] = -1; });
-          num_bg += num_bg_per_baseAnchor;
+          if (bg_inds[anchorIx].size() >= num_bg_per_baseAnchor)
+          {
+            std::for_each(bg_inds[anchorIx].begin() + num_bg_per_baseAnchor, bg_inds[anchorIx].end(),
+                          [labels](IndexScorePair const &p) { labels[p.first] = -1; });
+            num_bg += num_bg_per_baseAnchor;
+          } else
+            num_bg += bg_inds[anchorIx].size();
+
         } else
           num_bg += bg_inds[anchorIx].size();
       }
