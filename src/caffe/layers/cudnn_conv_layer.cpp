@@ -201,7 +201,7 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
     //twice the amount of the forward search to be save
     workspace_bwd_filter_sizes_[i] = 2 * workspace_fwd_sizes_[i];
 
-    cudnnGetConvolutionBackwardDataAlgorithmMaxCount(Caffe::cudnn_handle(), &max_alg_count);
+    CUDNN_CHECK(cudnnGetConvolutionBackwardDataAlgorithmMaxCount(Caffe::cudnn_handle(), &max_alg_count));
     bwd_data_algo_pref_.resize(max_alg_count);
 
     // cudnnGetConvolutionBackwardFilterAlgorithm is not available in cuDNN 8 anymore.
