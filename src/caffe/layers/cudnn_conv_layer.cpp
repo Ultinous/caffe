@@ -133,8 +133,8 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
 #if CUDNN_VERSION_MIN(8, 0, 0)
   int ret_count;
   bool found_conv_algorithm;
-  cudnnConvolutionFwdAlgoPerf_t fwd_algo_pref_[4];
-  cudnnConvolutionBwdDataAlgoPerf_t bwd_data_algo_pref_[4];
+  std::vector<cudnnConvolutionFwdAlgoPerf_t> fwd_algo_pref_;
+  std::vector<cudnnConvolutionBwdDataAlgoPerf_t> bwd_data_algo_pref_;
 #endif
   // Specify workspace limit for kernels directly until we have a
   // planning strategy and a rewrite of Caffe's GPU memory mangagement
@@ -168,15 +168,18 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
         filter_desc_, pad_h, pad_w,
         stride_h, stride_w);
 #if CUDNN_VERSION_MIN(8,0,0)
+    int max_alg_count = 0;
+    CUDNN_CHECK(cudnnGetConvolutionForwardAlgorithmMaxCount(Caffe::cudnn_handle(), &max_alg_count));
+    fwd_algo_pref_.resize(max_alg_count);
 
     CUDNN_CHECK(cudnnGetConvolutionForwardAlgorithm_v7(Caffe::cudnn_handle(),
       bottom_descs_[i],
       filter_desc_,
       conv_descs_[i],
       top_descs_[i],
-      4,
+      max_alg_count,
       &ret_count,
-      fwd_algo_pref_));
+      fwd_algo_pref_.data()));
 
     found_conv_algorithm = false;
     for(int n=0;n<ret_count; n++){
@@ -189,15 +192,17 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
         break;
       }
     }
-    if(!found_conv_algorithm) LOG(ERROR) << "cuDNN did not return a suitable algorithm for convolution.";
-    else{
-      // choose backward algorithm for filter
-      // for better or worse, just a fixed constant due to the missing
-      // cudnnGetConvolutionBackwardFilterAlgorithm in cuDNN version 8.0
-      bwd_filter_algo_[i] = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0;
-      //twice the amount of the forward search to be save
-      workspace_bwd_filter_sizes_[i] = 2 * workspace_fwd_sizes_[i];
-    }
+    if(!found_conv_algorithm) CUDNN_CHECK(cudnnStatus_t::CUDNN_STATUS_BAD_PARAM);
+
+    // choose backward algorithm for filter
+    // for better or worse, just a fixed constant due to the missing
+    // cudnnGetConvolutionBackwardFilterAlgorithm in cuDNN version 8.0
+    bwd_filter_algo_[i] = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
+    //twice the amount of the forward search to be save
+    workspace_bwd_filter_sizes_[i] = 2 * workspace_fwd_sizes_[i];
+
+    cudnnGetConvolutionBackwardDataAlgorithmMaxCount(Caffe::cudnn_handle(), &max_alg_count);
+    bwd_data_algo_pref_.resize(max_alg_count);
 
     // cudnnGetConvolutionBackwardFilterAlgorithm is not available in cuDNN 8 anymore.
     // choose backward algo for data
@@ -206,9 +211,9 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
       top_descs_[i],
       conv_descs_[i],
       bottom_descs_[i],
-      4,
+      max_alg_count,
       &ret_count,
-      bwd_data_algo_pref_));
+      bwd_data_algo_pref_.data()));
 
     found_conv_algorithm = false;
     for(int n=0;n<ret_count;n++){
@@ -222,7 +227,8 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
         break;
       }
     }
-    if(!found_conv_algorithm) LOG(ERROR) << "cuDNN did not return a suitable algorithm for convolution.";
+    if(!found_conv_algorithm) CUDNN_CHECK(cudnnStatus_t::CUDNN_STATUS_BAD_PARAM);
+
 #else
     // choose forward and backward algorithms + workspace(s)
     CUDNN_CHECK(cudnnGetConvolutionForwardAlgorithm(Caffe::cudnn_handle(),
