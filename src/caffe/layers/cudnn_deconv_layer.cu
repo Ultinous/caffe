@@ -15,6 +15,7 @@ void CuDNNDeconvolutionLayer<Dtype>::Forward_gpu(
     const Dtype* bottom_data = bottom[i]->gpu_data();
     Dtype* top_data = top[i]->mutable_gpu_data();
 #if CUDNN_VERSION_MIN(7,0,0)
+    LOG(INFO)<< "ALGORITHM: " << bwd_data_algo_[i];
     CUDNN_CHECK(cudnnConvolutionBackwardData(
           Caffe::cudnn_handle(),
           cudnn::dataType<Dtype>::one,
