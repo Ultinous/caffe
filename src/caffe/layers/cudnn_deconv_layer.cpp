@@ -250,7 +250,8 @@ void CuDNNDeconvolutionLayer<Dtype>::Reshape(
           bwd_data_algo_pref_[n].memory < workspace_limit_bytes){
         found_conv_algorithm = true;
         bwd_data_algo_[i]              = bwd_data_algo_pref_[n].algo;
-        workspace_bwd_data_sizes_[i]   = bwd_data_algo_pref_[n].memory;
+        workspace_bwd_data_sizes_[i]   = bwd_data_algo_pref_[n].memory
+            + bwd_data_algo_[i] == CUDNN_CONVOLUTION_BWD_DATA_ALGO_0 ? workspace_limit_bytes / 8 : 0;
         break;
       }
     }
