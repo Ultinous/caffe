@@ -197,7 +197,7 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
     // choose backward algorithm for filter
     // for better or worse, just a fixed constant due to the missing
     // cudnnGetConvolutionBackwardFilterAlgorithm in cuDNN version 8.0
-    bwd_filter_algo_[i] = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
+    bwd_filter_algo_[i] = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0;
     //twice the amount of the forward search to be save
     workspace_bwd_filter_sizes_[i] = 2 * workspace_fwd_sizes_[i];
 
