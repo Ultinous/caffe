@@ -43,7 +43,7 @@ void SwishLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     const int count = bottom[0]->count();
     Dtype beta = this->layer_param_.swish_param().beta();
     // NOLINT_NEXT_LINE(whitespace/operators)
-    SwishBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
+    SwishBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS,0,Caffe::cuda_stream()>>>(
         count, top_diff, top_data, sigmoid_output_data, bottom_diff, beta);
     CUDA_POST_KERNEL_CHECK;
   }
