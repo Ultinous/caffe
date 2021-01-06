@@ -241,17 +241,16 @@ void CuDNNDeconvolutionLayer<Dtype>::Reshape(
                                                             max_alg_count,
                                                             &ret_count,
                                                             bwd_data_algo_pref_.data()));
-
     found_conv_algorithm = false;
     for(int n=0;n<ret_count;n++){
       if (bwd_data_algo_pref_[n].status == CUDNN_STATUS_SUCCESS &&
+          bwd_data_algo_pref_[n].algo != CUDNN_CONVOLUTION_BWD_DATA_ALGO_0 &&
           bwd_data_algo_pref_[n].algo != CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD &&
           bwd_data_algo_pref_[n].algo != CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD_NONFUSED &&
           bwd_data_algo_pref_[n].memory < workspace_limit_bytes){
         found_conv_algorithm = true;
         bwd_data_algo_[i]              = bwd_data_algo_pref_[n].algo;
-        workspace_bwd_data_sizes_[i]   = bwd_data_algo_pref_[n].memory
-            + bwd_data_algo_[i] == CUDNN_CONVOLUTION_BWD_DATA_ALGO_0 ? workspace_limit_bytes / 8 : 0;
+        workspace_bwd_data_sizes_[i]   = bwd_data_algo_pref_[n].memory + (workspace_limit_bytes / 8);
         break;
       }
     }
